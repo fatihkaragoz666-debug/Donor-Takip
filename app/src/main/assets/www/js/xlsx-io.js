@@ -273,6 +273,7 @@
   }
   function headerKey(s) { return DT.xtrim(String(s || '').replace(/\s+/g, ' ')).toUpperCase(); }
 
+  X.HEADERS = HEADERS; X.headerKey = headerKey; X.cellText = cellText; X.cellDate = cellDate;
   X.importWorkbook = function (buf, defaults) {
     var report = { donors: 0, overrides: 0, ekGorevler: 0, lists: false, warnings: [] };
     return openWorkbook(buf).then(function (wb) {
@@ -280,15 +281,15 @@
       return Promise.all([
         wb.sheet('Donör Kayıt', { maxCol: 30 }),
         wb.sheet('Listeler', { maxCol: 40, maxRow: 230 }),
-        wb.sheet('Haftalık Program', { minCol: 27, maxCol: 28, maxRow: 207 }),
-        wb.sheet('Haftalık Plan', { minCol: 95, maxCol: 96, maxRow: 126 }),
+        wb.sheet('Haftalık Program', { minCol: 11, maxCol: 11, maxRow: 400 }),
+        wb.sheet('Haftalık Plan', { minCol: 4, maxCol: 16, minRow: 7, maxRow: 60 }),
         wb.sheet('Çalışma Programı', { minCol: 5, maxCol: 8, minRow: 6, maxRow: 305 }),
         wb.sheet('Dashboard', { minCol: 4, maxCol: 4, minRow: 164, maxRow: 164 }),
         wb.sheet('Ek Konsültasyon', { minCol: 4, maxCol: 7, minRow: 6, maxRow: 1005 }),
         wb.sheet('Ajanda', { minCol: 1, maxCol: 7, minRow: 6 }),
         wb.sheet('Görev Kayıtları', { minCol: 2, maxCol: 13, minRow: 6 }),
         wb.sheet('Taşıma Kayıtları', { minCol: 2, maxCol: 17, minRow: 6, maxRow: 2000 }),
-        wb.sheet('Haftalık Kapanış', { minCol: 28, maxCol: 28, minRow: 2, maxRow: 2 })
+        wb.sheet('Haftalık Kapanış', { minCol: 11, maxCol: 28, minRow: 2, maxRow: 4 })
       ]);
     }).then(function (s) {
       var dk = s[0], li = s[1], hp = s[2], pl = s[3], cp = s[4], db = s[5], ek = s[6], aj = s[7], gk = s[8], tk = s[9], kp = s[10];
@@ -364,11 +365,16 @@
         state.overrides[key] = name;
         report.overrides++;
       };
-      [[hp, 27, 28], [pl, 95, 96]].forEach(function (src) {
+      // Seçilen hücre "AD" + görevin 16 bitlik görünmez kodudur (\u200b = 0, \u200c = 1)
+      [[hp, [11]], [pl, [4, 8, 12, 16]]].forEach(function (src) {
         var sh = src[0]; if (!sh) return;
         Object.keys(sh).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
-          var a = sh[r][src[1]], b = sh[r][src[2]];
-          if (a && typeof a.v === 'number') setOv(Math.round(a.v), b ? cellText(b) : '');
+          src[1].forEach(function (c) {
+            var cell = sh[r][c]; if (!cell || cell.f || typeof cell.v !== 'string') return;
+            var t = cell.v.trim(), tail = t.slice(-16);
+            if (t.length < 17 || !/^[\u200b\u200c]{16}$/.test(tail)) return;
+            setOv(parseInt(tail.replace(/\u200b/g, '0').replace(/\u200c/g, '1'), 2), t.slice(0, -16).trim());
+          });
         });
       });
 
@@ -388,8 +394,10 @@
       if (gk) Object.keys(gk).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
         var row = gk[r], t = cellDate(row[2]);
         if (t == null || !T(row, 4) || (row[4] && row[4].f && !row[4].v)) return;
-        state.gorevKayit.push({ tarih: t, personel: T(row, 4), tur: T(row, 5), aciklama: T(row, 6), kaynak: T(row, 7) || 'Belge',
-          nereden: T(row, 9), nereye: T(row, 10), yon: T(row, 11), sehir: T(row, 12), yontem: T(row, 13) });
+        var g = { tarih: t, personel: T(row, 4), tur: T(row, 5), aciklama: T(row, 6), kaynak: T(row, 7) || 'Belge',
+          nereden: T(row, 9), nereye: T(row, 10), yon: T(row, 11), sehir: T(row, 12), yontem: T(row, 13) };
+        var hf = cellDate(row[8]); if (hf != null) g.hafta = hf;
+        state.gorevKayit.push(g);
         report.gorevKayit++;
       });
       // Taşıma Kayıtları (B: tarih … P: benzersiz)
@@ -401,7 +409,8 @@
           yontem: T(row, 11), kurye: T(row, 12), ekip: T(row, 13), not: T(row, 14), ifade: T(row, 15), benzersiz: T(row, 16) });
         report.tasimaKayit++;
       });
-      if (kp && kp[2] && kp[2][28] && typeof kp[2][28].v === 'number') state.kapanis.kesim = Math.floor(kp[2][28].v);
+      if (kp && kp[4] && kp[4][11] && !kp[4][11].f && typeof kp[4][11].v === 'number') state.kapanis.kesim = Math.floor(kp[4][11].v);
+      else if (kp && kp[2] && kp[2][28] && typeof kp[2][28].v === 'number') state.kapanis.kesim = Math.floor(kp[2][28].v);
       else if (state.gorevKayit.length) state.kapanis.kesim = state.gorevKayit.reduce(function (m, r) { return Math.max(m, r.tarih); }, 0) + 1;
       // Ek Konsültasyon (D: hasta kodu, E: tarih, F: bölüm, G: personel)
       report.ekKons = 0;
@@ -447,6 +456,7 @@
     return t;
   })();
   function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  X.crc32 = crc32;
   X.zip = function (files) {
     var enc = new TextEncoder(), parts = [], central = [], off = 0;
     files.forEach(function (f) {

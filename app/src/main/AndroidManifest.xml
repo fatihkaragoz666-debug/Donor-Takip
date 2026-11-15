@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Hafta içi "güncel tablo" hatırlatması -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- WhatsApp ile paylaşım ve telefon araması için (Android 11+ paket görünürlüğü) -->
     <queries>
         <package android:name="com.whatsapp" />
@@ -70,6 +74,18 @@
                 <data android:mimeType="application/vnd.ms-excel.sheet.macroEnabled.12" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".HatirlatmaReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- E-postaya eklenecek dosyalar (Donör Raporu vb.) -->
         <provider

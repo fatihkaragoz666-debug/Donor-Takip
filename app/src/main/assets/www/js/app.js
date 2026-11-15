@@ -1064,6 +1064,7 @@
       '<select class="inp" data-ui="rpY"><option value="">Tüm yıllar</option>' + yearsInData().map(function (y) { return '<option' + (String(y) === String(ui.rpY) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>' +
       '<div class="summary">Rapor tarihi: ' + DT.fmt(today) + ' · ' + rows.length + ' donör · Toplama yapıldı: ' + yap + ' · Devam eden: ' + (rows.length - yap - dur) + ' · Süreç durdu: ' + dur + '</div>' +
       '<div class="btns" style="margin-bottom:10px"><button class="btn pri" data-act="exportRapor">' + I.down + 'Excel’e aktar</button><button class="btn outlook" data-act="mailRapor">' + I.mail + 'Outlook ile gönder</button></div>' +
+      '<button class="btn wa block" data-act="tabloWa" style="margin-bottom:10px">' + I.wa + 'Güncel tabloyu (Excel’in aynısı) WhatsApp’ta gönder</button>' +
       '<div class="card list">' + rows.slice().reverse().slice(0, ui.rpLimit || 80).map(function (x) {
         var d = x.d;
         return '<a class="item" data-act="donor" data-id="' + h(d.id) + '"><div class="t1"><span class="name">' + h(d.ad) + '</span><span class="pillx ' + durumCls(x.durum) + '">' + h(x.durum) + '</span></div>' +
@@ -1079,6 +1080,7 @@
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
     ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; siz onaylayınca açıklamaya yalnızca anahtar kelimeyi (İPTAL, RED, ERTELENDİ, VAZGEÇTİ, HASTA EX) ekler; mail metni kopyalanmaz. İsterseniz ek not yazabilirsiniz. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
+    ['WhatsApp’ta güncel tablo', 'Ayarlar › WhatsApp’ta güncel tablo’dan “Hafta içi her gün hatırlat”ı açıp saati seçin. O saatte gelen bildirime dokununca Excel tablonuzun aynısı (bütün sayfalar, formüller, Kızılay resmi) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp açılır; Gönder’e siz basarsınız. Excel’den içe aktardığınız dosya şablon olarak saklanır; yoksa bir kez “Excel şablonunu seç” ile seçin. Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları, listeler ve kapanış tarihi güncellenir; Excel açılınca formüller yeniden hesaplanır. “Şimdi gönder” ile istediğiniz an, Donör Raporu sayfasından da gönderebilirsiniz.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
@@ -1301,7 +1303,7 @@
       '<button class="btn block" data-act="exportXlsx" style="margin-bottom:8px">' + I.down + 'Excel’e aktar (Donör Kayıt)</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
       (prev ? '<button class="btn ghost block" data-act="restorePrev">İçe aktarmadan önceki veriye dön</button>' : '') +
-      '</div><div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
+      '</div>' + tabloCard() + '<div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
       '<button class="btn block" data-act="goto" data-h="/ayarlar/listeler">Listeleri düzenle</button></div>' +
       '<div class="sec-title">Nasıl çalışır?</div><div class="card pad small" style="line-height:1.55">' +
       'Toplama tarihi girilince aşı 4 gün önce (ONKOLOJİ’de 20 kg ve altı için 3 gün önce) başlar; kemik iliğinde aşı yoktur. Son izlem toplamadan 20 gün sonradır. ' +
@@ -1371,7 +1373,7 @@
   function pickFile(mode) {
     fileMode = mode;
     var inp = $('#fileInput'); inp.value = '';
-    inp.setAttribute('accept', mode === 'json' ? '.json,application/json' : mode === 'pdf' ? '.pdf,application/pdf' : '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    inp.setAttribute('accept', mode === 'json' ? '.json,application/json' : mode === 'pdf' ? '.pdf,application/pdf' : '.xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     inp.click();
   }
   function onFile(file) {
@@ -1401,12 +1403,18 @@
         } catch (e) { toast('Yedek okunamadı: ' + e.message); }
         return;
       }
+      if (fileMode === 'sablon') {
+        XLSXTablo.check(buf).then(function () { return saveTemplate(buf, file.name); })
+          .then(function () { busy(false); render(true); toast('Excel şablonu kaydedildi'); })
+          .catch(function (e) { busy(false); toast(e.message); });
+        return;
+      }
       setTimeout(function () {
         XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS).then(function (res) {
           busy(false);
           var r = res.report;
           confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev · ' + (r.ekKons || 0) + ' ek konsültasyon · ' + (r.ajanda || 0) + ' ajanda notu · ' + (r.gorevKayit || 0) + ' görev kaydı · ' + (r.tasimaKayit || 0) + ' taşıma kaydı' + (r.lists ? ' · listeler' : '') +
-            '\n\nTelefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek. Önceki veri saklanır; Ayarlar’dan geri dönebilirsiniz.', 'İçe aktar', false, function () { replaceState(res.state, r.donors + ' donör aktarıldı'); });
+            '\n\nTelefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek. Önceki veri saklanır; Ayarlar’dan geri dönebilirsiniz.', 'İçe aktar', false, function () { replaceState(res.state, r.donors + ' donör aktarıldı'); saveTemplate(buf, file.name).then(function () { render(true); }, function () { /* şablon saklanamadı */ }); });
         }).catch(function (e) { busy(false); console.error(e); toast('İçe aktarılamadı: ' + e.message); });
       }, 30);
     })();
@@ -1436,8 +1444,117 @@
     } catch (e) { /* desteklenmiyor */ }
     saveFile(bytes, name, mime);
   }
+  /* ---- WhatsApp'ta güncel tablo: kullanıcının Excel'i (şablon) + güncel veriler ---- */
+  var XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  var IDB = {
+    db: null,
+    open: function () {
+      if (IDB.db) return Promise.resolve(IDB.db);
+      return new Promise(function (res, rej) {
+        if (!window.indexedDB) { rej(new Error('Telefonda dosya deposu yok')); return; }
+        var r = indexedDB.open('donorTakip', 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('dosya'); };
+        r.onsuccess = function () { IDB.db = r.result; res(r.result); };
+        r.onerror = function () { rej(r.error || new Error('Depo açılamadı')); };
+      });
+    },
+    put: function (k, v) {
+      return IDB.open().then(function (db) {
+        return new Promise(function (res, rej) {
+          var tx = db.transaction('dosya', 'readwrite'); tx.objectStore('dosya').put(v, k);
+          tx.oncomplete = function () { res(); }; tx.onerror = tx.onabort = function () { rej(tx.error || new Error('Kaydedilemedi')); };
+        });
+      });
+    },
+    get: function (k) {
+      return IDB.open().then(function (db) {
+        return new Promise(function (res, rej) {
+          var q = db.transaction('dosya', 'readonly').objectStore('dosya').get(k);
+          q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { rej(q.error); };
+        });
+      });
+    }
+  };
+  function saveTemplate(buf, name) {
+    return IDB.put('sablon', { ad: name, buf: buf, tarih: Date.now() }).then(function () {
+      state.settings.sablon = { ad: name, tarih: Date.now(), boyut: buf.byteLength };
+      save();
+    });
+  }
+  function tabloAyar() { return state.settings.tablo || { on: false, saat: '08:30', tel: '' }; }
+  function syncReminder() {
+    if (!NB || !NB.setReminder) return;
+    var t = tabloAyar(), m = /^(\d{1,2}):(\d{2})$/.exec(t.saat || '08:30') || [0, 8, 30];
+    var tatil = (state.lists.tatiller || []).map(function (x) { return DT.iso(x.tarih); }).join(',');
+    try { NB.setReminder(!!t.on, +m[1], +m[2], tatil); } catch (e) { console.error(e); }
+  }
+  function tabloGonder(target) {
+    busy(true, 'Güncel tablo hazırlanıyor…');
+    setTimeout(function () {
+      IDB.get('sablon').then(function (t) {
+        if (!t || !t.buf) throw new Error('SABLON_YOK');
+        return XLSXTablo.build(t.buf, state, D, pool, today).then(function (r) { r.name = XLSXTablo.fileName(t.ad, today); return r; });
+      }).then(function (r) {
+        var act = D.filter(function (x) { return !x.stopped && x.d.top != null && x.d.top >= today; }).length;
+        var bugun = DT.calendarTasks(pool, D, today, today + 1, '').length;
+        var cap = 'Donör Takip · güncel tablo · ' + DT.fmt(today) + ' ' + gunAd(today) + '\n' + state.donors.length + ' donör · süreçte ' + act + ' · bugün ' + bugun + ' görev';
+        sendBigFile(r.bytes, r.name, XLSX_MIME, target, cap);
+        if (r.warn.length) toast(r.warn[0]);
+      }).catch(function (e) {
+        busy(false);
+        if (e && e.message === 'SABLON_YOK') {
+          confirmSheet('Excel tablonuzu bir kez seçin', 'Güncel tablo, sizin Excel dosyanızın aynısı olarak hazırlanır. Telefondaki Donör Takip Excel’ini seçin; uygulamadaki veriler değişmez.', 'Excel’i seç', false, function () { pickFile('sablon'); });
+          return;
+        }
+        console.error(e); toast('Tablo hazırlanamadı: ' + (e && e.message));
+      });
+    }, 60);
+  }
+  // Büyük dosya: Android'e parça parça aktarılır (WhatsApp, e-posta ya da kaydet)
+  function sendBigFile(bytes, name, mime, target, text) {
+    if (NB && NB.fileBegin) {
+      var CH = 3 * 256 * 1024, i = 0;
+      if (!NB.fileBegin(name)) { busy(false); toast('Dosya hazırlanamadı'); return; }
+      var step = function () {
+        if (i >= bytes.length) {
+          busy(false);
+          if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); };
+          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel));
+          return;
+        }
+        busy(true, 'Tablo hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
+        if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { busy(false); toast('Dosya yazılamadı'); return; }
+        i += CH; setTimeout(step, 0);
+      };
+      step();
+      return;
+    }
+    busy(false);
+    if (target === 'save') { saveFile(bytes, name, mime); return; }
+    emailFile(bytes, name, mime, name, text);
+  }
+  window.onNativeAction = function (a) { if (a === 'tabloGonder') tabloGonder('whatsapp'); };
+  window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
+  function tabloCard() {
+    var t = tabloAyar(), sb = state.settings.sablon;
+    var mb = function (n) { return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
+    return '<div class="sec-title">WhatsApp’ta güncel tablo</div><div class="card pad">' +
+      '<div class="small muted" style="margin-bottom:10px">Excel tablonuzun aynısı (bütün sayfalar, formüller, resim) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp’ta gönderime açılır. Gönder’e siz basarsınız.</div>' +
+      '<div class="calc small" style="margin-bottom:10px">' + (sb ? '<b>Excel şablonu:</b> ' + h(sb.ad) + (sb.boyut ? ' · ' + mb(sb.boyut) : '') + (sb.tarih ? ' · ' + (function (dt) { return ('0' + dt.getDate()).slice(-2) + '.' + ('0' + (dt.getMonth() + 1)).slice(-2) + '.' + dt.getFullYear(); })(new Date(sb.tarih)) : '') : '<b>Excel şablonu yok.</b> Excel’den içe aktardığınızda kendiliğinden saklanır; ya da aşağıdan bir kez seçin.') + '</div>' +
+      '<button class="btn block" data-act="tabloSablon" style="margin-bottom:12px">' + I.up + (sb ? 'Excel şablonunu değiştir' : 'Excel şablonunu seç') + '</button>' +
+      '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Hafta içi her gün hatırlat<div class="s">Resmi tatillerde hatırlatmaz. Bildirime dokununca tablo hazırlanıp WhatsApp açılır.</div></span></label>' +
+      '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div>' +
+      '<div class="field grow" style="margin:0"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="isteğe bağlı · 05xx…"></div></div>' +
+      '<div class="hint" style="margin:-4px 2px 10px">Numara yazarsanız WhatsApp doğrudan o sohbette açılabilir (kendi numaranız = kendinize mesaj). Açılmazsa sohbeti siz seçersiniz.</div>' +
+      '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:8px">Kaydet</button>' +
+      '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
+  }
   function replaceState(s, msg) {
     try { if (state.donors.length) localStorage.setItem(PREV, JSON.stringify(state)); } catch (e) { /* yer yoksa geç */ }
+    // telefona özgü ayarlar (tablo şablonu, WhatsApp hatırlatması) korunur
+    s.settings = s.settings || {};
+    if (state.settings && state.settings.tablo && !s.settings.tablo) s.settings.tablo = state.settings.tablo;
+    if (state.settings && state.settings.sablon && !s.settings.sablon) s.settings.sablon = state.settings.sablon;
     state = s; save(); recompute(); ui.calY = null; ui.calSel = null; ui.progDate = null;
     go('/', true); render(); toast(msg);
   }
@@ -1524,6 +1641,18 @@
     },
     import: function () { pickFile('xlsx'); },
     pdfPick: function () { pickFile('pdf'); },
+    tabloSablon: function () { pickFile('sablon'); },
+    tabloWa: function () { tabloGonder('whatsapp'); },
+    tabloSave: function () { tabloGonder('save'); },
+    tabloKaydet: function () {
+      var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim();
+      if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return; }
+      state.settings.tablo = { on: on, saat: saat, tel: tel };
+      save(); syncReminder();
+      if (on && !state.settings.sablon) toast('Hatırlatma kuruldu. Excel şablonunu da seçin.');
+      else toast(on ? 'Hatırlatma kuruldu: hafta içi ' + saat : 'Hatırlatma kapalı');
+      if (on && !NB) toast('Hatırlatma yalnızca Android uygulamasında çalışır');
+    },
     mailDurum: function () { mailPasteSheet(); },
     durumNew: function (el) { durumSheet({ id: el.dataset.id }); },
     importJson: function () { pickFile('json'); },
@@ -1600,4 +1729,5 @@
   window.DTApp = { state: function () { return state; }, recompute: recompute, render: render, ui: ui };
 
   load(); recompute(); render();
+  setTimeout(syncReminder, 500);
 })();

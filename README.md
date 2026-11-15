@@ -42,6 +42,13 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 3. Sonraki değişiklikleri uygulamada yapın. Ayarlar'dan **Yedek al** ile düzenli yedek alın;
    **Excel'e aktar** Donör Kayıt sayfasını (KONTROL ve DURUM dahil) `.xlsx` olarak kaydeder.
 
+## WhatsApp’ta güncel tablo
+
+Excel’den içe aktarılan dosya telefonda şablon olarak saklanır (ya da Ayarlar’dan bir kez seçilir). “Şimdi gönder” ya da hafta içi
+hatırlatma bildirimi, bu dosyanın aynısını (bütün sayfalar, formüller, resim) uygulamadaki güncel verilerle hazırlar ve WhatsApp’ı açar.
+Güncellenen alanlar: Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları,
+listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller yeniden hesaplanır.
+
 ## Dosya yapısı
 
 - `app/src/main/assets/www/` — uygulamanın kendisi (HTML/CSS/JavaScript)

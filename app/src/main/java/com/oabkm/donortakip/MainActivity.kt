@@ -1,5 +1,6 @@
 package com.oabkm.donortakip
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.ClipData
@@ -7,7 +8,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Base64
@@ -34,6 +37,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Donör Takip: uygulamanın tamamı assets/www içindeki HTML/JS dosyalarıdır.
@@ -46,6 +50,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private var pendingSaveBytes: ByteArray? = null
+    private var pendingSaveFile: File? = null
+    private var bigFile: File? = null
+    private var bigStream: FileOutputStream? = null
     private var sharedUri: Uri? = null
     private var sharedName = "dosya"
     private var sharedMime = "application/octet-stream"
@@ -78,18 +85,28 @@ class MainActivity : ComponentActivity() {
     private val createFileLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val bytes = pendingSaveBytes
+            val file = pendingSaveFile
             pendingSaveBytes = null
+            pendingSaveFile = null
             val uri = result.data?.data
             var ok = false
-            if (result.resultCode == RESULT_OK && uri != null && bytes != null) {
+            if (result.resultCode == RESULT_OK && uri != null && (bytes != null || file != null)) {
                 ok = try {
-                    contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        if (bytes != null) out.write(bytes) else file?.inputStream()?.use { it.copyTo(out) }
+                    }
                     true
                 } catch (e: Exception) {
                     false
                 }
             }
             webView.evaluateJavascript("window.onNativeFileSaved && window.onNativeFileSaved($ok)", null)
+        }
+
+    /** Android 13+ bildirim izni (hafta içi tablo hatırlatması için) */
+    private val notifPermLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            webView.evaluateJavascript("window.onNotifPermission && window.onNotifPermission($granted)", null)
         }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -216,6 +233,13 @@ class MainActivity : ComponentActivity() {
     /** Outlook vb. uygulamalardan paylaşılan dosya ya da mail metni ("Paylaş", "Birlikte aç", seçili metin menüsü) */
     private fun handleIncoming(intent: Intent?) {
         if (intent == null) return
+        val eylem = intent.getStringExtra(Hatirlatma.EXTRA_EYLEM)
+        if (eylem != null) {
+            intent.removeExtra(Hatirlatma.EXTRA_EYLEM)
+            pendingJs = "window.onNativeAction && window.onNativeAction(${JSONObject.quote(eylem)})"
+            deliverShared()
+            return
+        }
         when (intent.action) {
             Intent.ACTION_PROCESS_TEXT -> {
                 val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: return
@@ -398,6 +422,73 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun hasOutlook(): Boolean = installedPackage(OUTLOOK) != null
 
+        /** Büyük dosya (güncel tablo) parça parça yazılır: fileBegin → fileAppend… → fileFinish */
+        @JavascriptInterface
+        fun fileBegin(fileName: String): Boolean = try {
+            bigStream?.close()
+            val dir = File(cacheDir, "paylas")
+            dir.mkdirs()
+            val eski = System.currentTimeMillis() - 60 * 60 * 1000L
+            dir.listFiles()?.forEach { if (it.lastModified() < eski) it.delete() }
+            val f = File(dir, safeName(fileName))
+            bigFile = f
+            bigStream = FileOutputStream(f)
+            true
+        } catch (e: Exception) {
+            false
+        }
+
+        @JavascriptInterface
+        fun fileAppend(base64: String): Boolean = try {
+            bigStream?.write(Base64.decode(base64, Base64.DEFAULT))
+            bigStream != null
+        } catch (e: Exception) {
+            false
+        }
+
+        /** target: whatsapp | email | save | share */
+        @JavascriptInterface
+        fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String) {
+            try {
+                bigStream?.close()
+            } catch (e: Exception) {
+                // yok say
+            }
+            bigStream = null
+            val f = bigFile ?: return
+            runOnUiThread {
+                try {
+                    when (target) {
+                        "save" -> {
+                            pendingSaveFile = f
+                            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = mimeType
+                                putExtra(Intent.EXTRA_TITLE, f.name)
+                            }
+                            createFileLauncher.launch(intent)
+                        }
+                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
+                        "email" -> startShare(fileIntent(f, mimeType, subject, text))
+                        else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
+                    }
+                } catch (e: Exception) {
+                    toast("Dosya paylaşılamadı")
+                }
+            }
+        }
+
+        /** Hafta içi hatırlatma; tatiller "yyyy-MM-dd,…" */
+        @JavascriptInterface
+        fun setReminder(on: Boolean, hour: Int, minute: Int, holidays: String) {
+            Hatirlatma.save(this@MainActivity, on, hour, minute, holidays)
+            if (on && Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                runOnUiThread { notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            }
+        }
+
         @JavascriptInterface
         fun copyText(text: String) {
             runOnUiThread {
@@ -440,6 +531,42 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun appVersion(): String = BuildConfig.VERSION_NAME
+    }
+
+    private fun safeName(name: String): String =
+        name.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "dosya" }
+
+    private fun fileIntent(file: File, mimeType: String, subject: String, text: String): Intent {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        return Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            if (subject.isNotEmpty()) putExtra(Intent.EXTRA_SUBJECT, subject)
+            if (text.isNotEmpty()) putExtra(Intent.EXTRA_TEXT, text)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /** Dosyayı WhatsApp'ta açar; numara verilmişse doğrudan o sohbete gitmeyi dener */
+    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String) {
+        val pkg = installedPackage("com.whatsapp", "com.whatsapp.w4b")
+        val send = fileIntent(file, mimeType, "", text)
+        if (pkg == null) {
+            startActivity(Intent.createChooser(send, "Paylaş"))
+            return
+        }
+        send.setPackage(pkg)
+        var digits = phone.filter { it.isDigit() }
+        if (digits.startsWith("00")) digits = digits.substring(2)
+        if (digits.length == 11 && digits.startsWith("0")) digits = "9$digits"
+        if (digits.length == 10 && digits.startsWith("5")) digits = "90$digits"
+        if (digits.length >= 11) send.putExtra("jid", "$digits@s.whatsapp.net")
+        try {
+            startActivity(send)
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent.createChooser(send.setPackage(null), "Paylaş"))
+        }
     }
 
     private fun startShare(send: Intent) {
