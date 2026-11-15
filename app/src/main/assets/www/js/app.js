@@ -251,6 +251,7 @@
       '<button class="tile' + (alerts.length ? ' warn' : ' ok') + '" data-act="goto" data-h="/plan/uyarilar"><div class="n">' + alerts.length + '</div><div class="l">Geri sayım uyarısı</div><div class="s">Görev Listesi: kaç gün kaldı</div></button>' +
       '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu</div><div class="s">Donör Kayıt’ta eksik ya da uyumsuz bilgi</div></button></div>' +
       '<div class="actions"><button class="btn newdonor" data-act="newDonor">' + I.plus + 'YENİ DONÖR EKLE</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
+      '<button class="btn block pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle (Organizasyon Talebi)</button>' +
       '<div class="groups">' + Object.keys(GROUPS).map(function (k) {
         var g = GROUPS[k];
         return '<button class="gbtn" style="background:' + g.renk + '" data-act="goto" data-h="/g/' + k + '"><span class="gt">' + h(g.ad) + '</span><span class="gs">' + h(g.alt) + '</span></button>';
@@ -329,7 +330,7 @@
       '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Ad, hasta kodu, telefon, hastane…" value="' + h(ui.search) + '" data-ui="search"></div>' +
       '<select class="inp" data-ui="dsort" style="flex:none;width:auto">' +
       [['new', 'Son eklenen'], ['top', 'Toplama'], ['sk', 'Sağlık k.'], ['ad', 'Ad']].map(function (o) { return '<option value="' + o[0] + '"' + (ui.dsort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
-      '</select></div><div id="dlist">' + donorListHtml() + '</div></div>' +
+      '</select></div><button class="btn block pdfbtn" data-act="pdfPick" style="margin-bottom:10px">' + I.up + 'PDF’ten donör ekle</button><div id="dlist">' + donorListHtml() + '</div></div>' +
       '<button class="fab" data-act="newDonor" aria-label="Yeni donör">' + I.plus + '</button>';
     return { title: 'Donör Kayıt', html: html };
   }
@@ -380,7 +381,8 @@
   function scrDonorForm(id) {
     var x = id ? byId[id] : null;
     if (id && !x) return { title: 'Donör', back: true, html: '<div class="page">' + emptyBox('Kayıt bulunamadı') + '</div>' };
-    var d = x ? x.d : DT.emptyDonor(), L = state.lists;
+    var d = x ? x.d : DT.emptyDonor(), L = state.lists, pre = pdfPrefill && pdfPrefill.target === (id || 'new') ? pdfPrefill : null;
+    if (pre) d = Object.assign({}, d, pre.fields);
     var asiMode = d.asiManual === 'YOK' ? 'yok' : d.asiManual != null ? 'manual' : 'auto';
     var sonMode = d.sonIzlemManual != null ? 'manual' : 'auto';
     var f = function (name, label, val, type, extra) {
@@ -392,7 +394,8 @@
     var radios = function (name, cur, items) {
       return '<div class="radios">' + items.map(function (it) { return '<label class="' + (cur === it[0] ? 'on' : '') + '"><input type="radio" name="' + name + '" value="' + it[0] + '"' + (cur === it[0] ? ' checked' : '') + '>' + it[1] + '</label>'; }).join('') + '</div>';
     };
-    var html = '<div class="page"><form id="dform" autocomplete="off" data-id="' + h(id || '') + '"><div class="card pad">' +
+    var html = '<div class="page">' + (pre ? pdfInfoCard(pre, x) : (!id ? '<button class="btn block" data-act="pdfPick" style="margin-bottom:10px">' + I.up + 'PDF’ten doldur (Organizasyon Talebi)</button>' : '')) +
+      '<form id="dform" autocomplete="off" data-id="' + h(id || '') + '"><div class="card pad">' +
       '<div class="formsec">Kimlik</div>' +
       '<div class="grid2">' + f('hk', 'Hasta kodu', d.hk, 'text', ' autocapitalize="characters"') + f('dno', 'Donör numarası', d.dno, 'text', ' autocapitalize="characters"') + '</div>' +
       f('ad', 'Ad soyad', d.ad, 'text', ' autocapitalize="characters"') +
@@ -434,12 +437,51 @@
       }
     };
   }
+  var pdfPrefill = null;
+  var PDF_ALAN = [['hk', 'Hasta kodu'], ['dno', 'Donör numarası'], ['ad', 'Ad soyad'], ['tel', 'Telefon'], ['ikamet', 'İkameti'], ['sk', 'Sağlık kontrolü', 1],
+    ['yontem', 'Yöntem'], ['hastane', 'Hastane'], ['top', 'Toplama tarihi', 1], ['bolge', 'Nakil merkezi'], ['sonIzlemManual', 'Son izlem', 1], ['aciklama', 'Açıklama']];
+  function pdfInfoCard(pre, x) {
+    var f = pre.fields, got = [], miss = [], changes = [];
+    PDF_ALAN.forEach(function (a) {
+      var v = f[a[0]];
+      if (v == null || v === '') { if (a[0] !== 'sonIzlemManual' && a[0] !== 'aciklama') miss.push(a[1]); return; }
+      got.push(a[1]);
+      if (x) { var old = x.d[a[0]], ov = a[2] ? DT.fmt(old) : S(old), nv = a[2] ? DT.fmt(v) : S(v); if (old != null && old !== '' && ov !== nv) changes.push(a[1] + ': ' + ov + ' → ' + nv); else if ((old == null || old === '') && nv) changes.push(a[1] + ': (boş) → ' + nv); }
+    });
+    return '<div class="card pad pdfcard"><h2>' + I.up + ' PDF’ten okundu</h2><div class="small muted">' + h(pre.file) + (pre.info.takipNo ? ' · ' + h(pre.info.takipNo) : '') + '</div>' +
+      (x ? '<div class="issues" style="margin-top:10px"><b>' + h(x.d.hk || x.d.ad) + ' zaten kayıtlı — mevcut kayıt güncellenecek</b>' + (changes.length ? changes.map(h).join('<br>') : 'PDF’teki bilgiler kayıtla aynı.') + '</div>' : '') +
+      '<div class="small" style="margin-top:8px"><b>Okunan:</b> ' + h(got.join(', ') || '—') + '</div>' +
+      (miss.length ? '<div class="small" style="margin-top:4px;color:var(--orange)"><b>Bulunamadı:</b> ' + h(miss.join(', ')) + '</div>' : '') +
+      (pre.info.merkez ? '<div class="small muted" style="margin-top:4px">Toplama merkezi: ' + h(pre.info.merkez) + '</div>' : '') +
+      (pre.info.nakilTam ? '<div class="small muted">Nakil merkezi: ' + h(pre.info.nakilTam) + '</div>' : '') +
+      (pre.info.kg != null ? '<div class="small muted">Hasta kg: ' + h(pre.info.kg) + '</div>' : '') +
+      pre.warn.map(function (w) { return '<div class="small" style="color:var(--red);margin-top:4px">' + h(w) + '</div>'; }).join('') +
+      '<div class="small" style="margin-top:8px">Bilgileri kontrol edin; personel gibi PDF’te olmayan alanları ekleyip <b>Kaydet</b>’e basın.</div></div>';
+  }
+  function handlePdf(res, name) {
+    var p = PDFText.parseTalep(res, state.lists);
+    if (p.empty) { toast(p.warn[0]); return; }
+    var f = p.fields;
+    if (!f.hk && !f.ad && !f.dno) { toast('Bu PDF’te donör bilgisi bulunamadı (Organizasyon Talebi formu bekleniyor).'); return; }
+    var x = null;
+    D.forEach(function (y) { if ((f.hk && eqi(y.d.hk, f.hk) && (!f.dno || !y.d.dno || eqi(y.d.dno, f.dno))) || (!f.hk && f.dno && eqi(y.d.dno, f.dno))) x = y; });
+    if (x) ['bolge', 'ikamet', 'ad', 'tel'].forEach(function (k) {   // mevcut yazım PDF'tekinin kısaltmasıysa kullanıcının yazımı kalsın
+      var o = DT.normKey(x.d[k]), n = DT.normKey(f[k]);
+      if (o && n && n !== o && n.indexOf(o) >= 0) f[k] = x.d[k];
+    });
+    if (p.info.kg != null && p.info.kg <= 20 && f.hastane && DT.has(f.hastane, 'ONKOLOJ')) {
+      var ac = x ? S(x.d.aciklama) : '';
+      if (DT.parseKg(ac) == null) f.aciklama = (ac ? ac + ' · ' : '') + 'Hasta ' + String(p.info.kg).replace('.', ',') + ' kg';
+    }
+    pdfPrefill = { target: x ? x.d.id : 'new', fields: f, info: p.info, warn: p.warn, file: name };
+    go(x ? '/donor/' + x.d.id + '/duzenle' : '/donor/yeni');
+  }
   function readForm(form, base) {
     var d = Object.assign({}, base);
     var v = function (n) { return S(form[n].value).trim(); };
     d.hk = upperTR(v('hk')); d.dno = upperTR(v('dno')); d.ad = upperTR(v('ad')); d.tel = v('tel'); d.ikamet = upperTR(v('ikamet'));
     d.sk = DT.fromIso(v('sk')); d.yontem = v('yontem'); d.hastane = v('hastane'); d.aciklama = S(form.aciklama.value).trim();
-    d.top = DT.fromIso(v('top')); d.bolge = upperTR(v('bolge')); d.personel = v('personel'); d.tasiyan = v('tasiyan');
+    d.top = DT.fromIso(v('top')); d.bolge = v('bolge'); d.personel = v('personel'); d.tasiyan = v('tasiyan');
     d.ulasim = v('ulasim'); d.konaklama = v('konaklama'); d.idm = form.idm.checked; d.idmBas = DT.fromIso(v('idmBas')); d.idmBit = DT.fromIso(v('idmBit'));
     var am = form.querySelector('[name=asiMode]:checked').value;
     d.asiManual = am === 'yok' ? 'YOK' : am === 'manual' ? DT.fromIso(v('asiManual')) : null;
@@ -465,7 +507,7 @@
     if (id) { var k = state.donors.indexOf(base); state.donors[k] = d; }
     else state.donors.push(d);
     save(); recompute();
-    toast(id ? 'Kaydedildi' : 'Donör eklendi');
+    toast(id ? 'Kaydedildi' : 'Donör eklendi'); pdfPrefill = null;
     if (id) history.back(); else go('/donor/' + d.id, true);
   }
 
@@ -951,6 +993,7 @@
   var KILAVUZ = [
     ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
+    ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
     ['Takvim', 'Ay ay görünüm. Renkler: mavi sağlık kontrolü, turuncu aşı, yeşil toplama, koyu yeşil ürün taşıma, mor hastane yatış; kırmızı zemin resmi tatil. Bir güne dokununca o günün görevleri altta listelenir.'],
@@ -1242,7 +1285,7 @@
   function pickFile(mode) {
     fileMode = mode;
     var inp = $('#fileInput'); inp.value = '';
-    inp.setAttribute('accept', mode === 'json' ? '.json,application/json' : '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    inp.setAttribute('accept', mode === 'json' ? '.json,application/json' : mode === 'pdf' ? '.pdf,application/pdf' : '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     inp.click();
   }
   function onFile(file) {
@@ -1251,6 +1294,12 @@
     busy(true, 'Dosya okunuyor…');
     reader.onload = function () {
       var buf = reader.result, isJson = /\.json$/i.test(file.name) || fileMode === 'json' && !/\.xlsx$/i.test(file.name);
+      var head = new Uint8Array(buf, 0, Math.min(5, buf.byteLength));
+      if (/\.pdf$/i.test(file.name) || String.fromCharCode.apply(null, head) === '%PDF-') {
+        PDFText.extract(buf).then(function (res) { busy(false); handlePdf(res, file.name); })
+          .catch(function (e) { busy(false); console.error(e); toast('PDF okunamadı: ' + e.message); });
+        return;
+      }
       if (isJson) {
         busy(false);
         try {
@@ -1343,6 +1392,7 @@
       setTimeout(function () { try { saveFile(XLSXIO.exportReport(state, D, today, raporRows()), 'Donor_Raporu_' + stamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch (e) { toast('Hata: ' + e.message); } busy(false); }, 30);
     },
     import: function () { pickFile('xlsx'); },
+    pdfPick: function () { pickFile('pdf'); },
     importJson: function () { pickFile('json'); },
     exportXlsx: function () {
       busy(true, 'Excel hazırlanıyor…');
@@ -1401,7 +1451,9 @@
   window.addEventListener('hashchange', function (e) {
     var old = (e.oldURL || '').split('#')[1];
     if (old != null) ui.scroll['#' + old] = view.scrollTop;
-    closeSheet(); render();
+    closeSheet();
+    if (pdfPrefill && !/\/donor\/[^/]+(\/duzenle)?$/.test(location.hash)) pdfPrefill = null;
+    render();
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && DT.today() !== today) { recompute(); render(true); } });
   setInterval(function () { if (DT.today() !== today) { recompute(); render(true); } }, 60000);

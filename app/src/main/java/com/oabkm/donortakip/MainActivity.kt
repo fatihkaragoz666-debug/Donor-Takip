@@ -159,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         Intent.EXTRA_MIME_TYPES, arrayOf(
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             "application/vnd.ms-excel",
+                            "application/pdf",
                             "application/json",
                             "application/octet-stream",
                             "text/plain"
