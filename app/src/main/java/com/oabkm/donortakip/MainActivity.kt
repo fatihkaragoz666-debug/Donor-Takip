@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
     private var sharedUri: Uri? = null
     private var sharedName = "dosya"
     private var sharedMime = "application/octet-stream"
-    private var sharedDelivered = true
+    private var pendingJs: String? = null
     private var pageReady = false
     private var insetTop = 0
     private var insetBottom = 0
@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl("https://$APP_HOST/assets/www/index.html")
         }
-        handleIncoming(intent)
+        if (savedInstanceState == null) handleIncoming(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -213,14 +213,34 @@ class MainActivity : ComponentActivity() {
         handleIncoming(intent)
     }
 
-    /** Outlook vb. uygulamalardan paylaşılan ya da "Birlikte aç" ile açılan dosya */
+    /** Outlook vb. uygulamalardan paylaşılan dosya ya da mail metni ("Paylaş", "Birlikte aç", seçili metin menüsü) */
     private fun handleIncoming(intent: Intent?) {
         if (intent == null) return
-        val uri: Uri = when (intent.action) {
-            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
-            Intent.ACTION_VIEW -> intent.data
-            else -> null
-        } ?: return
+        when (intent.action) {
+            Intent.ACTION_PROCESS_TEXT -> {
+                val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: return
+                sendText("", text)
+                return
+            }
+            Intent.ACTION_SEND -> {
+                val stream = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                if (stream == null) {
+                    val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString() ?: return
+                    sendText(intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: "", text)
+                    return
+                }
+                receiveFile(stream, intent.type)
+            }
+            Intent.ACTION_VIEW -> receiveFile(intent.data ?: return, intent.type)
+        }
+    }
+
+    private fun sendText(subject: String, text: String) {
+        pendingJs = "window.receiveSharedText && window.receiveSharedText(${JSONObject.quote(subject)}, ${JSONObject.quote(text)})"
+        deliverShared()
+    }
+
+    private fun receiveFile(uri: Uri, type: String?) {
         var name = "dosya"
         try {
             contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
@@ -234,17 +254,16 @@ class MainActivity : ComponentActivity() {
         }
         sharedUri = uri
         sharedName = name
-        sharedMime = intent.type ?: contentResolver.getType(uri) ?: "application/octet-stream"
-        sharedDelivered = false
+        sharedMime = type ?: contentResolver.getType(uri) ?: "application/octet-stream"
+        pendingJs = "window.receiveSharedFile && window.receiveSharedFile(${JSONObject.quote(sharedName)}, ${JSONObject.quote(sharedMime)})"
         deliverShared()
     }
 
     private fun deliverShared() {
-        if (!pageReady || sharedDelivered || sharedUri == null) return
-        sharedDelivered = true
-        webView.evaluateJavascript(
-            "window.receiveSharedFile && window.receiveSharedFile(${JSONObject.quote(sharedName)}, ${JSONObject.quote(sharedMime)})", null
-        )
+        val js = pendingJs
+        if (!pageReady || js == null) return
+        pendingJs = null
+        webView.evaluateJavascript(js, null)
     }
 
     /** Sayfa paylaşılan dosyayı https://appassets.androidplatform.net/paylasilan/… adresinden okur */

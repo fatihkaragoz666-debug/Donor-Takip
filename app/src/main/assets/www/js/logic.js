@@ -902,6 +902,58 @@
     return { rows: rows.filter(function (r, i) { return i < rows.length - 1 || r.toplam; }), sehirler: Object.keys(sehir).map(function (k) { return { ad: k, n: sehir[k] }; }).sort(function (a, b) { return b.n - a.n; }), n: recs.length };
   };
 
+  /* ---- Mailden süreç durumu: iptal / red / erteleme / vazgeçme / hasta ex ---- */
+  var HARF = 'a-z0-9çğöşüâîû';
+  DT.DURUMLAR = [ // [anahtar, düğme, açıklamaya yazılan, mailde aranan]
+    ['hastaex', 'Hasta ex', 'HASTA EX', new RegExp('exitus|ex oldu|hasta(si)? ex(?![' + HARF + '])|kaybedil|vefat')],
+    ['vazgec', 'Vazgeçti', 'VAZGEÇTİ', /vazge[cç]|onamini geri|geri çekil/],
+    ['red', 'Red', 'RED', new RegExp('(^|[^' + HARF + '])(redd?[' + HARF + ']*|ret)(?![' + HARF + '])|uygun bulunmad')],
+    ['ertele', 'Ertelendi', 'ERTELENDİ', /ertele|ileri (bir )?tarihe|beklemeye al/],
+    ['iptal', 'İptal', 'İPTAL', /iptal/]
+  ];
+  DT.parseDurumMail = function (text, D, subject) {
+    var body = S(text).replace(/\r/g, ''), konu = S(subject).replace(/\r/g, '');
+    var raw = (konu ? konu + '\n' : '') + body, f = fold(raw).replace(/[ \t\u00a0]+/g, ' ');
+    var r = { cands: [], durum: null, cumle: '', kodlar: [] };
+    // durum: listedeki sırayla ilk eşleşen (hasta ex > vazgeçti > red > ertelendi > iptal)
+    for (var k = 0; k < DT.DURUMLAR.length; k++) if (DT.DURUMLAR[k][3].test(f)) { r.durum = DT.DURUMLAR[k][0]; break; }
+    // durumun geçtiği cümle (açıklamaya kısa not olarak)
+    if (r.durum) {
+      var re = DT.DURUMLAR.filter(function (z) { return z[0] === r.durum; })[0][3];
+      var BASLIK = /^(kimden|gönderen|kime|konu|tarih|gönderildi|from|to|subject|sent|date|cc|bilgi)\s*:/i;
+      var lines = body.split(/\n+/).filter(function (l) { return !BASLIK.test(l.trim()); }).join('\n');
+      var parts = lines.split(/\n+|(?:[.!?])\s+/).concat([konu.replace(BASLIK, '')]);
+      for (var j = 0; j < parts.length; j++) {
+        var c = xtrim(parts[j].replace(/\s+/g, ' '));
+        if (c && re.test(fold(c))) {
+          c = c.replace(/^(merhaba|sayın|selam|iyi çalışmalar|bilgilerinize)[^,:]*[,:]\s*/i, '');
+          r.cumle = c.length > 140 ? c.slice(0, 137).replace(/\s+\S*$/, '') + '…' : c;
+          break;
+        }
+      }
+    }
+    // donör: hasta kodu / donör numarası (kesin) ya da ad soyad
+    var bound = function (w) { var i = f.indexOf(w); while (i >= 0) { var a = f.charAt(i - 1), b = f.charAt(i + w.length); if (!new RegExp('[' + HARF + ']').test(a || ' ') && !new RegExp('[' + HARF + ']').test(b || ' ')) return true; i = f.indexOf(w, i + 1); } return false; };
+    (D || []).forEach(function (x) {
+      var d = x.d, sc = 0, hk = fold(xtrim(d.hk)), dno = fold(xtrim(d.dno)), ad = fold(xtrim(d.ad));
+      if (hk.length >= 4 && bound(hk)) sc += 10;
+      if (dno.length >= 6 && bound(dno)) sc += 10;
+      if (ad.indexOf(' ') > 0 && bound(ad)) sc += 5;
+      if (sc) r.cands.push({ x: x, sc: sc });
+    });
+    r.cands.sort(function (a, b) { return b.sc - a.sc || (S(b.x.d.top) ? b.x.d.top : 0) - (S(a.x.d.top) ? a.x.d.top : 0); });
+    if (r.cands.length && r.cands[0].sc >= 10) r.cands = r.cands.filter(function (c) { return c.sc >= 10; });
+    var known = {};
+    (D || []).forEach(function (x) { known[fold(xtrim(x.d.hk))] = 1; known[fold(xtrim(x.d.dno))] = 1; });
+    (raw.match(/\b(?:[A-Z]{2}\d{4,}[A-Z]?|T\d{14})\b/g) || []).forEach(function (c) { if (!known[fold(c)] && r.kodlar.indexOf(c) < 0) r.kodlar.push(c); });
+    return r;
+  };
+  DT.durumNotu = function (durum, tarih, sebep, mail) {
+    var z = DT.DURUMLAR.filter(function (q) { return q[0] === durum; })[0];
+    if (!z) return '';
+    return z[2] + ' ' + DT.fmt(tarih) + (mail ? ' (mail)' : '') + (xtrim(sebep) ? ': ' + xtrim(sebep) : '');
+  };
+
   root.DT = DT;
   if (typeof module !== 'undefined' && module.exports) module.exports = DT;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -252,7 +252,7 @@
       '<button class="tile' + (alerts.length ? ' warn' : ' ok') + '" data-act="goto" data-h="/plan/uyarilar"><div class="n">' + alerts.length + '</div><div class="l">Geri sayım uyarısı</div><div class="s">Görev Listesi: kaç gün kaldı</div></button>' +
       '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu</div><div class="s">Donör Kayıt’ta eksik ya da uyumsuz bilgi</div></button></div>' +
       '<div class="actions"><button class="btn newdonor" data-act="newDonor">' + I.plus + 'YENİ DONÖR EKLE</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
-      '<button class="btn block pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle (Organizasyon Talebi)</button>' +
+      '<div class="btns"><button class="btn pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle</button><button class="btn pdfbtn" data-act="mailDurum">' + I.mail + 'Mailden iptal / erteleme</button></div>' +
       '<div class="groups">' + Object.keys(GROUPS).map(function (k) {
         var g = GROUPS[k];
         return '<button class="gbtn" style="background:' + g.renk + '" data-act="goto" data-h="/g/' + k + '"><span class="gt">' + h(g.ad) + '</span><span class="gs">' + h(g.alt) + '</span></button>';
@@ -331,7 +331,7 @@
       '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Ad, hasta kodu, telefon, hastane…" value="' + h(ui.search) + '" data-ui="search"></div>' +
       '<select class="inp" data-ui="dsort" style="flex:none;width:auto">' +
       [['new', 'Son eklenen'], ['top', 'Toplama'], ['sk', 'Sağlık k.'], ['ad', 'Ad']].map(function (o) { return '<option value="' + o[0] + '"' + (ui.dsort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
-      '</select></div><button class="btn block pdfbtn" data-act="pdfPick" style="margin-bottom:10px">' + I.up + 'PDF’ten donör ekle</button><div id="dlist">' + donorListHtml() + '</div></div>' +
+      '</select></div><div class="btns" style="margin-bottom:10px"><button class="btn pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle</button><button class="btn pdfbtn" data-act="mailDurum">' + I.mail + 'Mailden iptal / erteleme</button></div><div id="dlist">' + donorListHtml() + '</div></div>' +
       '<button class="fab" data-act="newDonor" aria-label="Yeni donör">' + I.plus + '</button>';
     return { title: 'Donör Kayıt', html: html };
   }
@@ -345,7 +345,8 @@
       '<div style="margin-top:8px"><span class="pillx ' + durumCls(x.durum) + '">' + h(x.durum) + '</span>' + (x.stopped ? ' <span class="pillx p-grey">Plan ve listelerden çıkarıldı</span>' : '') + '</div>' +
       '<div class="btns" style="margin-top:12px"><button class="btn pri" data-act="editDonor" data-id="' + h(id) + '">' + I.edit + 'Düzenle</button>' +
       (telHref(d.tel) ? '<a class="btn" href="' + h(telHref(d.tel)) + '">' + I.phone + 'Ara</a>' : '') +
-      '<button class="btn" data-act="copyDonor" data-id="' + h(id) + '">' + I.copy + 'Kopyala</button></div></div>';
+      '<button class="btn" data-act="copyDonor" data-id="' + h(id) + '">' + I.copy + 'Kopyala</button></div>' +
+      '<button class="btn block pdfbtn" data-act="durumNew" data-id="' + h(id) + '" style="margin-top:8px">İptal / red / erteleme ekle</button></div>';
     if (x.issues.length) html += '<div class="issues"><b>Kontrol</b>' + x.issues.map(h).join('<br>') + '</div>';
     if (x.dupAd) html += '<div class="issues"><b>Aynı ad soyad</b>Bu ad soyad başka bir kayıtta da var.</div>';
     // Süreç
@@ -451,6 +452,7 @@
     });
     return '<div class="card pad pdfcard"><h2>' + I.up + ' PDF’ten okundu</h2><div class="small muted">' + h(pre.file) + (pre.info.takipNo ? ' · ' + h(pre.info.takipNo) : '') + '</div>' +
       (x ? '<div class="issues" style="margin-top:10px"><b>' + h(x.d.hk || x.d.ad) + ' zaten kayıtlı — mevcut kayıt güncellenecek</b>' + (changes.length ? changes.map(h).join('<br>') : 'PDF’teki bilgiler kayıtla aynı.') + '</div>' : '') +
+      (x && x.stopped ? '<div class="issues" style="margin-top:8px"><b>Bu donörün süreci durmuş görünüyor</b>Açıklamada “' + h(x.d.aciklama) + '” yazıyor. Süreç yeni tarihlerle devam edecekse aşağıdaki Açıklama alanından o notu silin; yoksa görevler plana girmez.</div>' : '') +
       '<div class="small" style="margin-top:8px"><b>Okunan:</b> ' + h(got.join(', ') || '—') + '</div>' +
       (miss.length ? '<div class="small" style="margin-top:4px;color:var(--orange)"><b>Bulunamadı:</b> ' + h(miss.join(', ')) + '</div>' : '') +
       (pre.info.merkez ? '<div class="small muted" style="margin-top:4px">Toplama merkezi: ' + h(pre.info.merkez) + '</div>' : '') +
@@ -477,6 +479,79 @@
     pdfPrefill = { target: x ? x.d.id : 'new', fields: f, info: p.info, warn: p.warn, file: name };
     go(x ? '/donor/' + x.d.id + '/duzenle' : '/donor/yeni');
   }
+  /* ---- süreç durumu (iptal / red / erteleme …) → açıklama ---- */
+  function durumSheet(o) {
+    o = o || {};
+    var p = (o.text || o.subject) ? DT.parseDurumMail(o.text, D, o.subject) : { cands: [], durum: null, cumle: '', kodlar: [] };
+    var fixed = o.id && byId[o.id] ? byId[o.id] : null;
+    var selId = fixed ? fixed.d.id : (p.cands[0] ? p.cands[0].x.d.id : '');
+    var opt = function (x) {
+      return '<option value="' + h(x.d.id) + '"' + (x.d.id === selId ? ' selected' : '') + '>' + h([x.d.hk, x.d.ad].filter(Boolean).join(' · ')) +
+        (x.d.top != null ? ' · ' + DT.fmtShort(x.d.top) + '.' + String(DT.year(x.d.top)).slice(2) : '') + (x.stopped ? ' (durdu)' : '') + '</option>';
+    };
+    var donorField;
+    if (fixed) donorField = '<div class="field"><label>Donör</label><div class="calc"><b>' + h(fixed.d.ad || '(adsız)') + '</b> · ' + h([fixed.d.hk, fixed.d.dno].filter(Boolean).join(' · ')) + '</div></div>';
+    else {
+      var seen = {};
+      var top = p.cands.map(function (c) { seen[c.x.d.id] = 1; return opt(c.x); }).join('');
+      var rest = D.filter(function (x) { return !seen[x.d.id] && (S(x.d.hk) || S(x.d.ad)); })
+        .sort(function (a, b) { return (b.d.top || 0) - (a.d.top || 0); }).map(opt).join('');
+      donorField = '<div class="field"><label>Donör</label><select class="inp" name="id"><option value="">— donör seçin —</option>' +
+        (top ? '<optgroup label="Mailde geçen">' + top + '</optgroup>' : '') + '<optgroup label="Tüm donörler">' + rest + '</optgroup></select>' +
+        (o.mail && !p.cands.length ? '<div class="hint" style="color:var(--orange)">Mailde kayıtlı bir hasta kodu, donör numarası ya da ad soyad bulunamadı' + (p.kodlar.length ? ' (mailde geçen: ' + h(p.kodlar.join(', ')) + ')' : '') + '. Donörü listeden seçin.</div>' : '') +
+        (p.cands.length > 1 ? '<div class="hint">Mailde birden fazla donör geçiyor; doğru olanı seçin.</div>' : '') + '</div>';
+    }
+    var radios = '<div class="radios">' + DT.DURUMLAR.map(function (z) {
+      return '<label' + (z[0] === p.durum ? ' class="on"' : '') + '><input type="radio" name="durum" value="' + z[0] + '"' + (z[0] === p.durum ? ' checked' : '') + '>' + h(z[1]) + '</label>';
+    }).join('') + '</div>';
+    openSheet('<h3>' + (o.mail ? 'Mailden süreç durumu' : 'Süreç durumu ekle') + '</h3>' +
+      (o.mail ? '<div class="sub">' + (p.durum ? 'Mailde “' + h(DT.DURUMLAR.filter(function (z) { return z[0] === p.durum; })[0][1].toLocaleLowerCase('tr-TR')) + '” bulundu. Kontrol edip ekleyin.' : 'Mailde iptal, red ya da erteleme ifadesi bulunamadı; durumu siz seçin.') + '</div>' : '') +
+      '<form id="durform">' + donorField +
+      '<div class="field"><label>Durum</label>' + radios + '</div>' +
+      '<div class="field"><label>Not (isteğe bağlı)</label><textarea class="inp" name="sebep" rows="2" placeholder="ör. hastanın klinik durumu nedeniyle">' + h(p.cumle) + '</textarea></div>' +
+      '<div class="calc small" id="durPrev"></div>' +
+      '<div class="hint" style="margin:8px 2px 12px">Açıklamasında iptal, red, ertele, vazgeç ya da hasta ex yazan donörün görevleri Excel’deki gibi plan ve listelerden çıkar.</div>' +
+      '<div class="btns"><button type="button" class="btn" data-act="closeSheet">Vazgeç</button><button class="btn pri">Açıklamaya ekle</button></div></form>');
+    var f = $('#durform');
+    var cur = function () { return fixed || byId[f.id ? f.id.value : ''] || null; };
+    var durum = function () { var r = f.querySelector('[name=durum]:checked'); return r ? r.value : null; };
+    var yeni = function (x) {
+      var not = DT.durumNotu(durum(), today, f.sebep.value, !!o.mail);
+      return not ? (x && S(x.d.aciklama).trim() ? S(x.d.aciklama).trim() + ' · ' : '') + not : '';
+    };
+    var prev = function () {
+      var x = cur(), n = DT.durumNotu(durum(), today, f.sebep.value, !!o.mail);
+      $('#durPrev').innerHTML = '<b>Yeni açıklama:</b> ' + (n ? h(yeni(x)) : '<span class="muted">durum seçin</span>');
+    };
+    f.addEventListener('change', function () { f.querySelectorAll('.radios label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); prev(); });
+    f.addEventListener('input', prev);
+    prev();
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var x = cur();
+      if (!x) { toast('Donör seçin'); return; }
+      if (!durum()) { toast('Durum seçin'); return; }
+      x.d.aciklama = yeni(x);
+      var id = x.d.id;
+      closeSheet(); commit(); toast('Açıklamaya eklendi · süreç durdu');
+      if (location.hash !== '#/donor/' + id) go('/donor/' + id);
+    });
+  }
+  function mailPasteSheet() {
+    openSheet('<h3>Mailden durum ekle</h3><div class="sub">Outlook’ta mailin metnini seçip kopyalayın, buraya yapıştırın. Hasta kodu ve iptal / red / erteleme bilgisi okunur.</div>' +
+      '<div class="field"><textarea class="inp" id="mailTxt" rows="8" placeholder="Mail metni…"></textarea></div>' +
+      '<div class="btns"><button type="button" class="btn" data-act="closeSheet">Vazgeç</button><button type="button" class="btn pri" id="mailOku">Oku</button></div>');
+    $('#mailOku').onclick = function () {
+      var t = $('#mailTxt').value;
+      if (!t.trim()) { toast('Mail metnini yapıştırın'); return; }
+      closeSheet(); durumSheet({ text: t, mail: true });
+    };
+  }
+  // Outlook'ta mail metni: Paylaş › Donör Takip ya da seçili metin menüsünde Donör Takip
+  window.receiveSharedText = function (subject, text) {
+    if (/^\s*$/.test(String(text || '') + String(subject || ''))) return;
+    durumSheet({ text: text, subject: subject, mail: true });
+  };
   function readForm(form, base) {
     var d = Object.assign({}, base);
     var v = function (n) { return S(form[n].value).trim(); };
@@ -996,6 +1071,7 @@
     ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
+    ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; “İPTAL 15.11.2026 (mail): …” gibi bir notu, siz onaylayınca açıklamaya ekler. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
@@ -1441,6 +1517,8 @@
     },
     import: function () { pickFile('xlsx'); },
     pdfPick: function () { pickFile('pdf'); },
+    mailDurum: function () { mailPasteSheet(); },
+    durumNew: function (el) { durumSheet({ id: el.dataset.id }); },
     importJson: function () { pickFile('json'); },
     exportXlsx: function () {
       busy(true, 'Excel hazırlanıyor…');
