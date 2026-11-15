@@ -81,6 +81,7 @@
   function migrate(s) {
     var base = DT.newState(window.DT_DEFAULT_LISTS);
     s.donors = s.donors || []; s.overrides = s.overrides || {}; s.ekGorevler = s.ekGorevler || []; s.ekKons = s.ekKons || []; s.ajanda = s.ajanda || [];
+    s.planNotlar = s.planNotlar || []; s.gorevKayit = s.gorevKayit || []; s.tasimaKayit = s.tasimaKayit || []; s.kapanis = s.kapanis || { kesim: null };
     s.settings = Object.assign({}, base.settings, s.settings || {});
     s.lists = Object.assign({}, base.lists, s.lists || {});
     s.lists.prog = Object.assign({}, base.lists.prog, s.lists.prog || {});
@@ -110,7 +111,7 @@
   var GROUPS = {
     planlama: { ad: 'PLANLAMA', renk: '#2F6FB0', acik: '#E3EDF8', alt: 'Günlük ve haftalık iş planı', pages: [
       ['/plan/takvim', 'Takvim', 'Aylık görünüm: her günün görevleri'], ['/plan/program', 'Çalışma Programı', 'Yarının programı, WhatsApp metni'],
-      ['/plan/haftalik', 'Haftalık Program', 'Haftanın görevleri: gün gün liste'], ['/plan/hplan', 'Haftalık Plan', 'Hafta defteri: görevler, personel, notlar', 1],
+      ['/plan/haftalik', 'Haftalık Program', 'Haftanın görevleri: gün gün liste'], ['/plan/hplan', 'Haftalık Plan', 'Hafta defteri: görevler, personel, notlar'],
       ['/plan/ajanda', 'Ajanda', 'Saatli notlar, programa eklenecek işler'], ['/plan/uyarilar', 'Görev Listesi', 'Geri sayım uyarıları']] },
     takip: { ad: 'TAKİP', renk: '#1E6B3A', acik: '#E2F1E7', alt: 'Donörlerin süreç takibi', pages: [
       ['/takip/saglik', 'Sağlık Kontrolü Takip', 'Sağlık kontrolü yaklaşan donörler'], ['/takip/asi', 'Aşı Takip', 'Aşıdaki ve aşıya başlayacak donörler'],
@@ -119,12 +120,12 @@
       ['/takip/idm', 'IDM', 'IDM tarih aralığı işaretlenen donörler']] },
     arsiv: { ad: 'DONÖR KAYIT VE ARŞİV', renk: '#8A6D0B', acik: '#F5EEDA', alt: 'Donör kayıtları, raporlar ve arşiv', pages: [
       ['/donorler', 'Donör Kayıt', 'Donör bilgileri: ana tablo'], ['/arsiv/rapor', 'Donör Raporu', 'Yöneticiye gönderilecek temiz kopya'],
-      ['/arsiv/kapanis', 'Haftalık Kapanış', 'Haftayı kapatıp görevleri arşive aktarma', 1], ['/arsiv/gorev', 'Görev Kayıtları', 'Personel görev arşivi', 1],
-      ['/arsiv/tasima', 'Taşıma Kayıtları', 'Ürün taşıma arşivi', 1], ['/arsiv/kilavuz', 'Kılavuz', 'Sayfaların kullanım açıklamaları'],
+      ['/arsiv/kapanis', 'Haftalık Kapanış', 'Haftayı kapatıp görevleri arşive aktarma'], ['/arsiv/gorev', 'Görev Kayıtları', 'Personel görev arşivi'],
+      ['/arsiv/tasima', 'Taşıma Kayıtları', 'Ürün taşıma arşivi'], ['/arsiv/kilavuz', 'Kılavuz', 'Sayfaların kullanım açıklamaları'],
       ['/ayarlar/listeler', 'Listeler', 'Personel, hastane ve açılır listeler']] },
     dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
-      ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü', 1],
-      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri', 1]] }
+      ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü'],
+      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri']] }
   };
   function groupOf(path) {
     if (path === '/' || path === '') return null;
@@ -152,6 +153,11 @@
       else if (p[0] === 'g' && GROUPS[p[1]]) out = scrGroup(p[1]);
       else if (p[0] === 'arsiv' && p[1] === 'rapor') out = scrRapor();
       else if (p[0] === 'arsiv' && p[1] === 'kilavuz') out = scrKilavuz();
+      else if (p[0] === 'arsiv' && p[1] === 'kapanis') out = scrKapanis();
+      else if (p[0] === 'arsiv' && p[1] === 'gorev') out = scrGorev();
+      else if (p[0] === 'arsiv' && p[1] === 'tasima') out = scrTasimaKayit();
+      else if (p[0] === 'dash' && p[1] === 'isyuku') out = scrIsYuku();
+      else if (p[0] === 'dash' && p[1] === 'tasima') out = scrTasimaIst();
       else if (p[0] === 'donorler') out = scrDonors();
       else if (p[0] === 'donor' && p[1] === 'yeni') out = scrDonorForm(null);
       else if (p[0] === 'donor' && p[2] === 'duzenle') out = scrDonorForm(p[1]);
@@ -503,9 +509,9 @@
   }
 
   /* ---------------- Planlama ---------------- */
-  var PLAN_TITLES = { takvim: 'Takvim', program: 'Çalışma Programı', haftalik: 'Haftalık Program', ajanda: 'Ajanda', uyarilar: 'Görev Listesi', ek: 'Ek görevler' };
+  var PLAN_TITLES = { takvim: 'Takvim', program: 'Çalışma Programı', haftalik: 'Haftalık Program', hplan: 'Haftalık Plan', ajanda: 'Ajanda', uyarilar: 'Görev Listesi', ek: 'Ek görevler' };
   function scrPlan(tab) {
-    var body = tab === 'program' ? planProgram() : tab === 'uyarilar' ? planAlerts() : tab === 'ek' ? planEk() : tab === 'haftalik' ? planWeek() : tab === 'ajanda' ? planAjanda() : planCalendar();
+    var body = tab === 'program' ? planProgram() : tab === 'uyarilar' ? planAlerts() : tab === 'ek' ? planEk() : tab === 'haftalik' ? planWeek() : tab === 'hplan' ? planHPlan() : tab === 'ajanda' ? planAjanda() : planCalendar();
     return { title: PLAN_TITLES[tab] || 'Planlama', html: '<div class="page flush">' + groupSeg('planlama', '/plan/' + (tab === 'ek' ? 'program' : tab)) + body + '</div>' };
   }
   function planCalendar() {
@@ -958,12 +964,202 @@
     ['KONTROL', 'Donör kaydındaki eksik ya da uyumsuz bilgiler (yöntem, hastane, nakil merkezi yok; personel listede yok; sağlık kontrolü aşıdan ya da toplamadan sonra; aşı toplamadan sonra; son izlem toplamadan önce) kaydın üstünde turuncu kutuda yazar.'],
     ['Donör Raporu', 'Yöneticiye göndermek için temiz kopya: DURUM sütunuyla birlikte. Süzüp “Excel’e aktar” ile .xlsx olarak kaydedebilirsiniz.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
+    ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
+    ['Haftalık Kapanış', 'Her hafta bitince (pazartesi) sıradaki haftayı kapatın: o haftanın personeli seçilmiş görevleri, ek konsültasyonlar ve personeli seçili ajanda notları Görev Kayıtları’na yazılır, İş Yükü ve Taşıma İstatistiği kalıcı olur. Haftalar sırayla kapatılır; personeli seçilmemiş görevler arşive girmez.'],
+    ['Görev Kayıtları', 'İş yükü arşivi: Excel’den gelen belge kayıtları, kapatılan haftaların program görevleri (KAYNAK = Program) ve elle eklenenler (KAYNAK = Elle). Programda olmayan bir işi + ile ekleyin.'],
+    ['Taşıma Kayıtları', 'Ürün Taşıma Tablosu’ndan gelen belge kayıtları. Yeni taşımalar programdan sayılır ve haftalık kapanışla Görev Kayıtları’na geçer.'],
+    ['İş Yükü', 'Personel başına görev sayıları (görev türüne göre), görevli gün, hafta sonu görevli gün ve izin günü; ana gruplar ve aylık tablo. Sayılar Görev Kayıtları’ndan ve henüz kapatılmamış haftalar için programdan canlı gelir.'],
+    ['Taşıma İstatistiği', 'Personel başına şehir içi / şehir dışı ürün taşıma, şehir dışı yöntemi (bizzat gitti, kurye karşılama / teslim), karşı şehir ve aylık dağılım. Yurt dışı ürünleri sayılmaz.'],
     ['Veriler ve yedek', 'Veriler yalnızca bu telefonda saklanır. Ayarlar’dan düzenli yedek alın; Excel’den içe aktarma mevcut verinin yerine geçer, önceki veri saklanır ve geri yüklenebilir.']
   ];
   function scrKilavuz() {
     return { title: 'Kılavuz', html: '<div class="page flush">' + groupSeg('arsiv', '/arsiv/kilavuz') + '<div class="card">' + KILAVUZ.map(function (k) {
       return '<details class="kl"><summary>' + h(k[0]) + '</summary><div>' + h(k[1]) + '</div></details>';
     }).join('') + '</div></div>' };
+  }
+
+  /* ---------------- Haftalık Plan (defter) ---------------- */
+  var PLAN_RENK = { 1: ['KÖK HÜCRE TOPLAMA', 'p-top'], 2: ['KEMİK İLİĞİ TOPLAMA', 'p-yat'], 3: ['HASTANE YATIŞ', 'p-yat'], 4: ['AŞI', 'p-asi'], 5: ['SAĞLIK KONTROLÜ', 'p-sk'], 6: ['ÜRÜN TAŞIMA', 'p-tas'] };
+  function planHPlan() {
+    if (ui.weekStart == null) ui.weekStart = DT.weekStart(today);
+    var ws = ui.weekStart, a = DT.parts(ws), b = DT.parts(ws + 6);
+    var html = '<div class="datebar"><button class="icon" data-act="weekMove" data-v="-7">' + I.left + '</button><div class="inp center">' + a.d + ' ' + DT.AYLAR[a.m - 1] + ' – ' + b.d + ' ' + DT.AYLAR[b.m - 1] + ' ' + b.y +
+      '</div><button class="icon" data-act="weekMove" data-v="7">' + I.right + '</button></div>' + (ws !== DT.weekStart(today) ? '<button class="btn sm block" data-act="weekNow" style="margin-bottom:8px">● Bu hafta</button>' : '');
+    var sum = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }, persSum = {};
+    for (var k = 0; k < 7; k++) {
+      var s = ws + k, p = DT.parts(s);
+      var list = pool.filter(function (t) { return t.date === s && t.slot < 9 && !(t.slot === 7 && t.yd); })
+        .map(function (t) { return { t: t, g: DT.planGroup(D[t.i], t) }; }).sort(function (x, y) { return x.g - y.g || x.t.key - y.t.key; });
+      var kargo = pool.some(function (t) { return t.date === s && t.slot === 1 && D[t.i].yd === 1; }) ? DT.kargoFor(state.lists, s) : '';
+      var notes = state.planNotlar.filter(function (n) { return n.tarih === s; });
+      html += '<div class="nb' + (s === today ? ' today' : '') + '"><div class="nbh' + (holMap[s] ? ' hol' : '') + '"><b>' + DT.GUNLER_B[k] + '</b> ' + pad2(p.d) + '.' + pad2(p.m) + (holMap[s] ? ' · ' + h(holMap[s]) : '') +
+        '<span class="grow"></span><span class="tiny">' + list.length + ' görev</span></div>' +
+        list.map(function (e) {
+          var t = e.t, x = D[t.i], r = PLAN_RENK[e.g]; sum[e.g]++;
+          if (t.kind === 'asi' && x.sabahAksam) r = ['AŞI · S/A', 'p-asi'];
+          var nm = t.slot === 7 ? S(x.d.hastane).replace('PEDİATRİ', 'PED.').replace('ERİŞKİN', 'ERİŞ.') + ' → ' + (x.baslik || x.d.bolge) : DT.planName(x);
+          taskSlots(x, t).forEach(function (sl) { var w = x.pers[sl] || '—'; persSum[w] = (persSum[w] || 0) + 1; });
+          return '<div class="nbr"><span class="pillx ' + r[1] + '">' + h(r[0]) + (t.kind === 'asi' ? ' ' + t.gun : '') + '</span><span class="grow ellipsis" data-act="donor" data-id="' + h(x.d.id) + '">' + h(nm) + '</span>' + whoBtn(x, t) + '</div>';
+        }).join('') + (kargo ? '<div class="nbr"><span class="pillx p-or">KARGO</span><span class="grow">' + h(kargo) + '</span></div>' : '') +
+        notes.map(function (n) { return '<div class="nbr note" data-act="pnEdit" data-id="' + h(n.id) + '"><span class="pillx p-grey">NOT</span><span class="grow">' + h(n.not) + '</span><span class="tiny">' + h(n.personel || '—') + '</span></div>'; }).join('') +
+        '<button class="nbadd" data-act="pnNew" data-v="' + s + '">' + I.plus + ' Not ekle</button></div>';
+    }
+    html += '<div class="sec-title">Hafta özeti</div><div class="card pad">' + tbl(['İşlem', 'Görev'], Object.keys(sum).map(function (g) { return [PLAN_RENK[g][0], sum[g]]; })) + '<div class="hr"></div>' +
+      tbl(['Personel', 'Görev'], Object.keys(persSum).sort(function (x, y) { return persSum[y] - persSum[x]; }).map(function (n) { return [n === '—' ? 'Atanmamış' : n, persSum[n]]; })) +
+      '<div class="note">Notlar o günün Çalışma Programı’na yazılır: personel seçilirse onun altına, seçilmezse NOTLAR bölümüne. Yurt dışı ürün taşıma planda yer almaz.</div></div>';
+    return html;
+  }
+  function pnForm(n, tarih) {
+    var isNew = !n;
+    n = n || { id: DT.uid(), tarih: tarih, not: '', personel: '' };
+    openSheet('<h3>' + (isNew ? 'Not ekle' : 'Notu düzenle') + '</h3><div class="sub">' + h(dateLong(n.tarih)) + '</div><form id="pnform">' +
+      '<div class="field"><label>Not</label><textarea class="inp" name="not" rows="2" autocapitalize="characters">' + h(n.not) + '</textarea></div>' +
+      '<div class="field"><label>Personel</label><select class="inp" name="personel">' + persOptions(n.personel, '— (NOTLAR) —') + '</select></div>' +
+      '<div class="btns">' + (isNew ? '<button type="button" class="btn" data-act="closeSheet">Vazgeç</button>' : '<button type="button" class="btn danger" id="pnDel">Sil</button>') + '<button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#pnform');
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var o = { id: n.id, tarih: n.tarih, not: f.not.value.trim(), personel: f.personel.value };
+      if (!o.not) { toast('Not yazın'); return; }
+      var k = state.planNotlar.findIndex(function (z) { return z.id === n.id; });
+      if (k >= 0) state.planNotlar[k] = o; else state.planNotlar.push(o);
+      closeSheet(); commit();
+    });
+    var del = $('#pnDel');
+    if (del) del.onclick = function () { state.planNotlar = state.planNotlar.filter(function (z) { return z.id !== n.id; }); closeSheet(); commit(); };
+  }
+
+  /* ---------------- Haftalık Kapanış ---------------- */
+  function recRow(r) {
+    return '<div class="trow"' + (r.id && r.kaynak !== 'Belge' ? ' data-act="gkEdit" data-id="' + h(r.id) + '"' : '') + '><div class="h"><span class="name">' + h(r.personel) + ' · ' + h(r.tur) + '</span><span class="pillx ' +
+      (r.kaynak === 'Belge' ? 'p-grey' : r.kaynak === 'Elle' ? 'p-or' : 'p-pri') + '">' + h(DT.fmt(r.tarih)) + '</span></div><div class="small muted">' + h([r.aciklama, r.sehir && r.sehir !== 'Ankara' ? r.sehir : '', r.yontem && r.yontem !== 'Şehir içi' ? r.yontem : '', r.kaynak].filter(Boolean).join(' · ')) + '</div></div>';
+  }
+  function scrKapanis() {
+    var k = state.kapanis.kesim, pend = DT.pendingWeeks(state, today);
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/arsiv/kapanis');
+    if (k == null) {
+      html += '<div class="card pad"><h2>Kapanış henüz başlamadı</h2><div class="small muted" style="margin-bottom:12px">Haftalık kapanış, programdaki görevleri (atanan personeliyle) Görev Kayıtları’na aktarır; İş Yükü ve Taşıma İstatistiği kalıcı olur. Excel dosyasından içe aktarırsanız kapanış tarihi oradan gelir.</div>' +
+        '<button class="btn pri block" data-act="kpStart">Bu haftadan başlat</button></div>';
+      return { title: 'Haftalık Kapanış', html: html + '</div>' };
+    }
+    html += '<div class="summary">Kapatılan son gün: ' + DT.fmt(k - 1) + ' · ' + (pend.length ? pend.length + ' hafta kapatılmayı bekliyor' : 'kapanış güncel') + '. Haftalar sırayla kapatılır; personeli seçilmemiş görevler arşive girmez.</div>';
+    if (!pend.length) return { title: 'Haftalık Kapanış', html: html + '<div class="card">' + emptyBox('Kapanış güncel', 'İçinde bulunduğunuz hafta bitince (pazartesi) kapatılabilir.') + '</div></div>' };
+    var w = pend[0], lr = DT.liveRecords(state, D, pool, w.bas, w.son);
+    html += '<div class="card pad"><h2>' + DT.fmt(w.bas) + ' – ' + DT.fmt(w.son) + '</h2><div class="small" style="margin-bottom:10px">' + lr.rows.length + ' görev arşive yazılacak' +
+      (lr.eksik ? ' · <b style="color:var(--red)">' + lr.eksik + ' görevde personel seçilmemiş</b>' : '') + '</div>' +
+      '<div class="btns">' + (lr.eksik ? '<button class="btn" data-act="kpWeek" data-v="' + DT.weekStart(w.bas) + '">Personel ata</button>' : '') + '<button class="btn pri" data-act="kpClose">Haftayı kapat</button></div></div>' +
+      '<div class="card">' + (lr.rows.length ? lr.rows.map(recRow).join('') : emptyBox('Bu haftada personeli seçili görev yok')) + '</div>';
+    if (pend.length > 1) html += '<div class="note" style="margin:8px 4px">Sırada bekleyen: ' + pend.slice(1).map(function (p) { return DT.fmtShort(p.bas) + '–' + DT.fmtShort(p.son); }).join(', ') + '</div>';
+    return { title: 'Haftalık Kapanış', html: html + '</div>' };
+  }
+
+  /* ---------------- Görev Kayıtları ---------------- */
+  function gkFiltered() {
+    return state.gorevKayit.filter(function (r) {
+      return (!ui.gkP || eqi(r.personel, ui.gkP)) && (!ui.gkY || DT.year(r.tarih) === +ui.gkY) && (!ui.gkT || r.tur === ui.gkT) && (!ui.gkK || r.kaynak === ui.gkK);
+    });
+  }
+  function recYears(list) { var y = {}; list.forEach(function (r) { if (r.tarih != null) y[DT.year(r.tarih)] = 1; }); return Object.keys(y).sort().reverse(); }
+  function selY(key, list) { return '<select class="inp" data-ui="' + key + '"><option value="">Tüm yıllar</option>' + recYears(list).map(function (y) { return '<option' + (String(ui[key]) === y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>'; }
+  function scrGorev() {
+    var rows = gkFiltered(), by = {};
+    rows.forEach(function (r) { by[r.kaynak] = (by[r.kaynak] || 0) + 1; });
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/arsiv/gorev') +
+      '<div class="toolbar"><select class="inp" data-ui="gkP">' + persOptions(ui.gkP, 'Tüm personel') + '</select>' + selY('gkY', state.gorevKayit) + '</div>' +
+      '<div class="toolbar"><select class="inp" data-ui="gkT"><option value="">Tüm görev türleri</option>' + (state.lists.isTuru || DT.IS_TURU).map(function (t) { return '<option' + (t === ui.gkT ? ' selected' : '') + '>' + h(t) + '</option>'; }).join('') + '</select>' +
+      '<select class="inp" data-ui="gkK"><option value="">Tüm kaynaklar</option>' + ['Belge', 'Program', 'Elle'].map(function (t) { return '<option' + (t === ui.gkK ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div>' +
+      '<div class="summary">Toplam ' + rows.length + ' kayıt · ' + Object.keys(by).map(function (k) { return k.toLocaleLowerCase('tr-TR') + ' ' + by[k]; }).join(' · ') + '. Programda olmayan işi + ile elle ekleyin.</div>' +
+      '<div class="card">' + (rows.length ? rows.slice().sort(function (a, b) { return b.tarih - a.tarih; }).slice(0, ui.gkLimit || 100).map(recRow).join('') : emptyBox('Kayıt yok')) + '</div>' +
+      (rows.length > (ui.gkLimit || 100) ? '<button class="btn block" data-act="gkMore">Daha fazla göster</button>' : '') +
+      '<button class="fab" data-act="gkNew" aria-label="Kayıt ekle">' + I.plus + '</button></div>';
+    return { title: 'Görev Kayıtları', html: html };
+  }
+  function gkForm(r) {
+    var isNew = !r;
+    r = r || { id: DT.uid(), tarih: today, personel: '', tur: '', aciklama: '', kaynak: 'Elle' };
+    openSheet('<h3>' + (isNew ? 'Görev kaydı ekle' : 'Görev kaydı') + '</h3><form id="gkform"><div class="grid2">' +
+      '<div class="field"><label>Tarih</label><input class="inp" type="date" name="tarih" value="' + DT.iso(r.tarih) + '" required></div>' +
+      '<div class="field"><label>Personel</label><select class="inp" name="personel" required>' + persOptions(r.personel, '— seçin —') + '</select></div></div>' +
+      '<div class="field"><label>Görev türü</label><select class="inp" name="tur" required>' + listOptions(state.lists.isTuru || DT.IS_TURU, r.tur) + '</select></div>' +
+      '<div class="field"><label>Açıklama</label><input class="inp" name="aciklama" value="' + h(r.aciklama) + '"></div>' +
+      '<div class="btns">' + (isNew ? '<button type="button" class="btn" data-act="closeSheet">Vazgeç</button>' : '<button type="button" class="btn danger" id="gkDel">Sil</button>') + '<button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#gkform');
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var o = Object.assign({}, r, { tarih: DT.fromIso(f.tarih.value), personel: f.personel.value, tur: f.tur.value, aciklama: f.aciklama.value.trim() });
+      if (o.tarih == null || !o.personel || !o.tur) { toast('Tarih, personel ve tür seçin'); return; }
+      var k = state.gorevKayit.findIndex(function (z) { return z.id === r.id; });
+      if (k >= 0) state.gorevKayit[k] = o; else state.gorevKayit.push(o);
+      closeSheet(); commit(); toast('Kaydedildi');
+    });
+    var del = $('#gkDel');
+    if (del) del.onclick = function () { state.gorevKayit = state.gorevKayit.filter(function (z) { return z.id !== r.id; }); closeSheet(); commit(); toast('Silindi'); };
+  }
+
+  /* ---------------- Taşıma Kayıtları ---------------- */
+  function scrTasimaKayit() {
+    var rows = state.tasimaKayit.filter(function (t) { return (!ui.tkrP || eqi(t.personel, ui.tkrP)) && (!ui.tkrY || DT.year(t.tarih) === +ui.tkrY); });
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/arsiv/tasima') + '<div class="toolbar"><select class="inp" data-ui="tkrP">' + persOptions(ui.tkrP, 'Tüm personel') + '</select>' + selY('tkrY', state.tasimaKayit) + '</div>' +
+      '<div class="summary">' + rows.length + ' belge kaydı. Yeni taşımalar programdan sayılır ve haftalık kapanışla Görev Kayıtları’na geçer.</div><div class="card">' +
+      (rows.length ? rows.slice().sort(function (a, b) { return b.tarih - a.tarih; }).slice(0, ui.tkrLimit || 100).map(function (t) {
+        return '<div class="trow"><div class="h"><span class="name">' + h(t.personel) + ' · ' + h(t.nereden) + ' → ' + h(t.nereye) + '</span><span class="pillx ' + (fold(t.kapsam).indexOf('dış') >= 0 || fold(t.kapsam).indexOf('dis') >= 0 ? 'p-tas' : 'p-grey') + '">' + DT.fmt(t.tarih) + '</span></div>' +
+          '<div class="small muted">' + h([t.kapsam, t.yon, t.sehir, t.yontem, t.ekip ? 'Ekip: ' + t.ekip : '', t.not].filter(Boolean).join(' · ')) + '</div></div>';
+      }).join('') : emptyBox('Taşıma kaydı yok', 'Excel dosyasından içe aktarınca gelir.')) + '</div>' +
+      (rows.length > (ui.tkrLimit || 100) ? '<button class="btn block" data-act="tkrMore">Daha fazla göster</button>' : '') + '</div>';
+    return { title: 'Taşıma Kayıtları', html: html };
+  }
+
+  /* ---------------- İş Yükü ve Taşıma İstatistiği ---------------- */
+  function periodBar(key) {
+    var ys = recYears(state.gorevKayit.concat(state.tasimaKayit)); if (ys.indexOf(String(DT.year(today))) < 0) ys.unshift(String(DT.year(today)));
+    if (ui[key + 'Y'] == null) ui[key + 'Y'] = String(DT.year(today));
+    return '<div class="toolbar"><select class="inp" data-ui="' + key + 'Y"><option value="">Tüm dönem</option>' + ys.map(function (y) { return '<option' + (ui[key + 'Y'] === y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<select class="inp" data-ui="' + key + 'M"><option value="">Tüm yıl</option>' + DT.AYLAR.map(function (a, i) { return '<option value="' + (i + 1) + '"' + (String(ui[key + 'M']) === String(i + 1) ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></div>';
+  }
+  function periodOf(key) {
+    if (ui[key + 'Y'] == null) ui[key + 'Y'] = String(DT.year(today));
+    var y = ui[key + 'Y'], m = ui[key + 'M'];
+    if (!y) return { from: 0, to: 99999, label: 'tüm dönem', y: null };
+    y = +y; if (m) return { from: DT.serial(y, +m, 1), to: DT.serial(y, +m + 1, 1) - 1, label: DT.AYLAR[m - 1] + ' ' + y, y: y };
+    return { from: DT.serial(y, 1, 1), to: DT.serial(y, 12, 31), label: String(y), y: y };
+  }
+  function monthTable(recsByPers, y) {
+    return tbl(['Personel'].concat(DT.AYLAR.map(function (a) { return a.slice(0, 3); })).concat(['Toplam']), recsByPers.map(function (r) {
+      var c = DT.AYLAR.map(function (a, i) { return r.ay[y + '-' + pad2(i + 1)] || 0; });
+      return [r.ad].concat(c).concat([c.reduce(function (s0, v) { return s0 + v; }, 0)]);
+    }));
+  }
+  function scrIsYuku() {
+    var P = periodOf('iy'), R = DT.isYuku(state, D, pool, P.from, P.to), kesim = state.kapanis.kesim;
+    var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
+    var tur = state.lists.isTuru || DT.IS_TURU;
+    var html = '<div class="page flush">' + groupSeg('dashboard', '/dash/isyuku') + periodBar('iy') +
+      '<div class="summary">Dönem: ' + h(P.label) + ' · Görev Kayıtları' + (kesim != null ? ' + ' + DT.fmt(kesim) + ' sonrası programdan canlı sayım' : '') + '.</div>';
+    html += card('Personel özeti', tbl(['Personel', 'Toplam', 'Kayıtlardan', 'Programdan (canlı)', 'Görevli gün', 'Hafta sonu', 'İzin günü'], R.rows.map(function (r) { return [r.ad, r.toplam, r.kayit, r.canli, r.gunN, r.hsonuN, r.izinN]; })),
+      'Görevli gün: en az bir görevi olan farklı günler (izin hariç).');
+    html += card('Görev türüne göre', tbl(['Personel'].concat(tur.filter(function (t) { return t !== 'İzin'; })), R.rows.map(function (r) { return [r.ad].concat(tur.filter(function (t) { return t !== 'İzin'; }).map(function (t) { return r.tur[t] || 0; })); })));
+    var grups = ['Bağışçı takibi', 'Transfer', 'Ürün taşıma', 'Bağışçı kazanımı', 'Ofis / lab / koordinasyon', 'Kargo, eğitim ve diğer'];
+    var named = R.rows.filter(function (r) { return r.toplam; });
+    html += card('Ana gruplar', named.length ? barChart(named.map(function (r) { return r.ad; }), grups.slice(0, 3).map(function (g) { return named.map(function (r) { return r.ana[g] || 0; }); }), ['#2F6FB0', '#1E6B3A', '#8A6D0B'], grups.slice(0, 3)) +
+      tbl(['Personel'].concat(grups), named.map(function (r) { return [r.ad].concat(grups.map(function (g) { return r.ana[g] || 0; })); })) : emptyBox('Bu dönemde görev yok'));
+    if (P.y) {
+      var byP = {}; R.recs.forEach(function (rec) { if (rec.tur === 'İzin') return; var n = DT.inPersonel(state.lists, rec.personel) || 'Diğer / listede yok'; var m = DT.parts(rec.tarih); var o = byP[n] = byP[n] || { ad: n, ay: {} }; var key = m.y + '-' + pad2(m.m); o.ay[key] = (o.ay[key] || 0) + 1; });
+      html += card('Aylık görev sayısı · ' + P.y, monthTable(Object.keys(byP).map(function (k) { return byP[k]; }), P.y));
+    }
+    return { title: 'İş Yükü', html: html + '</div>' };
+  }
+  function scrTasimaIst() {
+    var P = periodOf('ts'), R = DT.tasimaStats(state, D, pool, P.from, P.to);
+    var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
+    var tot = R.rows.reduce(function (a, r) { return [a[0] + r.ic, a[1] + r.dis, a[2] + r.bizzat, a[3] + r.kurye, a[4] + r.toplam, a[5] + r.benzersiz]; }, [0, 0, 0, 0, 0, 0]);
+    var html = '<div class="page flush">' + groupSeg('dashboard', '/dash/tasima') + periodBar('ts') + '<div class="summary">Dönem: ' + h(P.label) + ' · ' + R.n + ' taşıma · Taşıma Kayıtları + programdan gelen taşımalar (yurt dışı hariç).</div>' +
+      '<div class="kpis">' + [[tot[4], 'Toplam taşıma'], [tot[0], 'Şehir içi'], [tot[1], 'Şehir dışı'], [tot[2], 'Bizzat gitti'], [tot[3], 'Kurye karşılama / teslim'], [tot[5], 'Benzersiz taşıma']].map(function (k) {
+        return '<div class="kpi"><div class="n">' + num(k[0]) + '</div><div class="l">' + h(k[1]) + '</div></div>'; }).join('') + '</div>';
+    html += card('Personel başına', tbl(['Personel', 'Şehir içi', 'Şehir dışı', 'Bizzat', 'Kurye', 'Toplam', 'Benzersiz'], R.rows.map(function (r) { return [r.ad, r.ic, r.dis, r.bizzat, r.kurye, r.toplam, r.benzersiz]; }), ['Toplam'].concat(tot.slice(0, 2), tot.slice(2, 4), [tot[4], tot[5]])),
+      'Şehir dışında AÇIKLAMA’da “kurye” geçiyorsa yöntem kurye karşılama / teslim sayılır.');
+    html += card('Karşı şehir (şehir dışı)', R.sehirler.length ? tbl(['Şehir', 'Taşıma'], R.sehirler.map(function (c) { return [c.ad, c.n]; })) : emptyBox('Şehir dışı taşıma yok'));
+    if (P.y) html += card('Aylık dağılım · ' + P.y, monthTable(R.rows.filter(function (r) { return r.toplam; }), P.y));
+    return { title: 'Taşıma İstatistiği', html: html + '</div>' };
   }
 
   /* ---------------- Ayarlar ---------------- */
@@ -1068,7 +1264,7 @@
         XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS).then(function (res) {
           busy(false);
           var r = res.report;
-          confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev · ' + (r.ekKons || 0) + ' ek konsültasyon · ' + (r.ajanda || 0) + ' ajanda notu' + (r.lists ? ' · listeler' : '') +
+          confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev · ' + (r.ekKons || 0) + ' ek konsültasyon · ' + (r.ajanda || 0) + ' ajanda notu · ' + (r.gorevKayit || 0) + ' görev kaydı · ' + (r.tasimaKayit || 0) + ' taşıma kaydı' + (r.lists ? ' · listeler' : '') +
             '\n\nTelefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek. Önceki veri saklanır; Ayarlar’dan geri dönebilirsiniz.', 'İçe aktar', false, function () { replaceState(res.state, r.donors + ' donör aktarıldı'); });
         }).catch(function (e) { busy(false); console.error(e); toast('İçe aktarılamadı: ' + e.message); });
       }, 30);
@@ -1116,6 +1312,22 @@
     ekNew: function (el) { if (el.dataset.v) ui.progDate = +el.dataset.v; ekForm(null); },
     ekEdit: function (el) { var e = state.ekGorevler.find(function (z) { return z.id === el.dataset.id; }); if (e) ekForm(e); },
     soon: function () { toast('Bu sayfa sonraki sürümde eklenecek'); },
+    pnNew: function (el) { pnForm(null, +el.dataset.v); },
+    pnEdit: function (el) { var n = state.planNotlar.find(function (z) { return z.id === el.dataset.id; }); if (n) pnForm(n); },
+    kpStart: function () { state.kapanis.kesim = DT.weekStart(today); commit(); },
+    kpWeek: function (el) { ui.weekStart = +el.dataset.v; go('/plan/haftalik'); },
+    kpClose: function () {
+      var w = DT.pendingWeeks(state, today)[0]; if (!w) return;
+      var lr = DT.liveRecords(state, D, pool, w.bas, w.son);
+      confirmSheet('Haftayı kapat', DT.fmt(w.bas) + ' – ' + DT.fmt(w.son) + ': ' + lr.rows.length + ' görev Görev Kayıtları’na yazılacak.' + (lr.eksik ? '\n' + lr.eksik + ' görevde personel seçilmediği için arşive girmeyecek.' : ''), 'Kapat', false, function () {
+        lr.rows.forEach(function (r) { r.id = DT.uid(); r.hafta = DT.weekStart(w.bas); state.gorevKayit.push(r); });
+        state.kapanis.kesim = w.son + 1; commit(); toast('Hafta kapatıldı');
+      });
+    },
+    gkNew: function () { gkForm(null); },
+    gkEdit: function (el) { var r = state.gorevKayit.find(function (z) { return z.id === el.dataset.id; }); if (r) gkForm(r); },
+    gkMore: function () { ui.gkLimit = (ui.gkLimit || 100) + 300; render(true); },
+    tkrMore: function () { ui.tkrLimit = (ui.tkrLimit || 100) + 300; render(true); },
     weekMove: function (el) { ui.weekStart = (ui.weekStart || DT.weekStart(today)) + (+el.dataset.v); render(true); },
     weekNow: function () { ui.weekStart = DT.weekStart(today); render(true); },
     ajMove: function (el) { ui.ajDate = (ui.ajDate || today) + (+el.dataset.v); render(true); },

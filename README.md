@@ -59,5 +59,5 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 - Görev personeli (Haftalık Program'daki seçim) uygulamada görevin kendisine kaydedilir; hafta
   değişse de kaybolmaz. Görevin yanındaki personel düğmesine dokunarak atanır.
 - Görev Listesi, Aşı Takip ve Toplama Takip'te personel olarak görevin atanmış personeli gösterilir.
-- Haftalık Plan, Haftalık Kapanış, Görev Kayıtları, Taşıma Kayıtları, İş Yükü ve Taşıma İstatistiği
-  sonraki sürümde eklenecek.
+- Haftalık Kapanış tek dokunuşla yapılır (Excel'deki kopyala-yapıştır yerine).
+- Uygulama simgesi Türk Kızılay hilalidir.

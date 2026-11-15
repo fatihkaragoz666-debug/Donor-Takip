@@ -2,5 +2,5 @@
 <resources>
     <color name="primary">#FF0F4C5C</color>
     <color name="page">#FFF3F5F7</color>
-    <color name="ic_launcher_background">#FF0F4C5C</color>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
 </resources>

@@ -285,10 +285,13 @@
         wb.sheet('Çalışma Programı', { minCol: 5, maxCol: 8, minRow: 6, maxRow: 305 }),
         wb.sheet('Dashboard', { minCol: 4, maxCol: 4, minRow: 164, maxRow: 164 }),
         wb.sheet('Ek Konsültasyon', { minCol: 4, maxCol: 7, minRow: 6, maxRow: 1005 }),
-        wb.sheet('Ajanda', { minCol: 1, maxCol: 7, minRow: 6 })
+        wb.sheet('Ajanda', { minCol: 1, maxCol: 7, minRow: 6 }),
+        wb.sheet('Görev Kayıtları', { minCol: 2, maxCol: 13, minRow: 6 }),
+        wb.sheet('Taşıma Kayıtları', { minCol: 2, maxCol: 17, minRow: 6, maxRow: 2000 }),
+        wb.sheet('Haftalık Kapanış', { minCol: 28, maxCol: 28, minRow: 2, maxRow: 2 })
       ]);
     }).then(function (s) {
-      var dk = s[0], li = s[1], hp = s[2], pl = s[3], cp = s[4], db = s[5], ek = s[6], aj = s[7];
+      var dk = s[0], li = s[1], hp = s[2], pl = s[3], cp = s[4], db = s[5], ek = s[6], aj = s[7], gk = s[8], tk = s[9], kp = s[10];
       var state = DT.newState(defaults);
       // Başlık satırı ve sütunlar
       var headRow = 5, cols = {};
@@ -345,6 +348,7 @@
         var tas = pairs('AF', 'AG', 'sehir'); if (tas.length) L.tasAnahtar = tas;
         var bas = pairs('AL', 'AM', 'baslik'); if (bas.length) L.basAnahtar = bas;
         var it = txt('Y', 3, 14); if (it.length) L.isTuru = it;
+        var ag = col(X.colIndex('Z'), 3, 14); it.forEach(function (t, i) { if (ag[i] && cellText(ag[i])) DT.ANA_GRUP[t] = cellText(ag[i]); });
         var w = col(X.colIndex('W'), 3, 15);
         DT.PROG_KEYS.forEach(function (pk, i) { if (w[i] && w[i].v != null) L.prog[pk[0]] = cellText(w[i]); });
         report.lists = true;
@@ -378,6 +382,27 @@
         });
       }
       if (db && db[164] && db[164][4] && typeof db[164][4].v === 'number') state.settings.esik = db[164][4].v;
+      // Görev Kayıtları (B: tarih … M: yöntem)
+      report.gorevKayit = 0;
+      var T = function (row, c) { return cellText(row[c]); };
+      if (gk) Object.keys(gk).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+        var row = gk[r], t = cellDate(row[2]);
+        if (t == null || !T(row, 4) || (row[4] && row[4].f && !row[4].v)) return;
+        state.gorevKayit.push({ tarih: t, personel: T(row, 4), tur: T(row, 5), aciklama: T(row, 6), kaynak: T(row, 7) || 'Belge',
+          nereden: T(row, 9), nereye: T(row, 10), yon: T(row, 11), sehir: T(row, 12), yontem: T(row, 13) });
+        report.gorevKayit++;
+      });
+      // Taşıma Kayıtları (B: tarih … P: benzersiz)
+      report.tasimaKayit = 0;
+      if (tk) Object.keys(tk).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+        var row = tk[r], t = cellDate(row[2]);
+        if (t == null || !T(row, 5)) return;
+        state.tasimaKayit.push({ tarih: t, personel: T(row, 5), nereden: T(row, 6), nereye: T(row, 7), kapsam: T(row, 8), yon: T(row, 9), sehir: T(row, 10),
+          yontem: T(row, 11), kurye: T(row, 12), ekip: T(row, 13), not: T(row, 14), ifade: T(row, 15), benzersiz: T(row, 16) });
+        report.tasimaKayit++;
+      });
+      if (kp && kp[2] && kp[2][28] && typeof kp[2][28].v === 'number') state.kapanis.kesim = Math.floor(kp[2][28].v);
+      else if (state.gorevKayit.length) state.kapanis.kesim = state.gorevKayit.reduce(function (m, r) { return Math.max(m, r.tarih); }, 0) + 1;
       // Ek Konsültasyon (D: hasta kodu, E: tarih, F: bölüm, G: personel)
       report.ekKons = 0;
       if (ek) {

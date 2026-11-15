@@ -520,6 +520,10 @@
         var text = (a.saat ? a.saat + ' ' : '') + xtrim(a.not), who = xtrim(a.personel) && DT.inPersonel(L, a.personel);
         if (who) grp(who).ek.push({ text: text, ajanda: a }); else notlar.push(text);
       });
+    (state.planNotlar || []).filter(function (n) { return n.tarih === date && xtrim(n.not) !== ''; }).forEach(function (n) {
+      var who = xtrim(n.personel) && DT.inPersonel(L, n.personel);
+      if (who) grp(who).ek.push({ text: xtrim(n.not), plan: n }); else notlar.push(xtrim(n.not));
+    });
     var posOf = function (name) { var i = persList.indexOf(name); return i >= 0 ? i + 1 : persList.length + 1; };
     var ordered = gorder.map(function (n) { return groups[n]; })
       .sort(function (a, b) { return (a.prio * 100 + posOf(a.name)) - (b.prio * 100 + posOf(b.name)); });
@@ -777,7 +781,125 @@
   };
   DT.uid = function () { return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); };
   DT.newState = function (lists) {
-    return { version: 1, donors: [], overrides: {}, ekGorevler: [], ekKons: [], ajanda: [], lists: JSON.parse(JSON.stringify(lists)), settings: { esik: 35 } };
+    return { version: 1, donors: [], overrides: {}, ekGorevler: [], ekKons: [], ajanda: [], planNotlar: [], gorevKayit: [], tasimaKayit: [], kapanis: { kesim: null },
+      lists: JSON.parse(JSON.stringify(lists)), settings: { esik: 35 } };
+  };
+
+  /* ---------------- Haftalık Plan sırası ---------------- */
+  DT.planGroup = function (x, t) {   // 1 kök hücre toplama · 2 kemik iliği · 3 yatış · 4 aşı · 5 sağlık kontrolü · 6 ürün taşıma
+    if (t.slot === 6) return x.kem ? 2 : 1;
+    if (t.slot === 8) return 3;
+    if (t.slot === 1) return 5;
+    if (t.slot === 7) return 6;
+    return 4;
+  };
+  DT.planName = function (x) {
+    var d = x.d, il = x.ankara === 1 || !S(d.ikamet).trim() ? '' : ' (' + (x.il || xtrim(d.ikamet)) + ')';
+    return S(d.ad) + il + (S(d.hastane) ? ' · ' + S(d.hastane).replace('PEDİATRİ', 'PED.').replace('ERİŞKİN', 'ERİŞ.') : '');
+  };
+
+  /* ---------------- Görev arşivi, haftalık kapanış, iş yükü ---------------- */
+  DT.IS_TURU = ['Sağlık muayenesi', 'Aşı', 'Toplama', 'Ek test / izlem / diğer bağışçı işi', 'Transfer', 'Ürün taşıma – şehir içi',
+    'Ürün taşıma – şehir dışı', 'Bağışçı kazanımı (saha)', 'Kargo / numune gönderimi', 'Ofis / lab / koordinasyon', 'Eğitim / sınav / diğer', 'İzin'];
+  DT.ANA_GRUP = { 'Sağlık muayenesi': 'Bağışçı takibi', 'Aşı': 'Bağışçı takibi', 'Toplama': 'Bağışçı takibi', 'Ek test / izlem / diğer bağışçı işi': 'Bağışçı takibi',
+    'Transfer': 'Transfer', 'Ürün taşıma – şehir içi': 'Ürün taşıma', 'Ürün taşıma – şehir dışı': 'Ürün taşıma', 'Bağışçı kazanımı (saha)': 'Bağışçı kazanımı',
+    'Kargo / numune gönderimi': 'Kargo, eğitim ve diğer', 'Ofis / lab / koordinasyon': 'Ofis / lab / koordinasyon', 'Eğitim / sınav / diğer': 'Kargo, eğitim ve diğer', 'İzin': 'İzin' };
+  // Programdaki görevlerden kayıt satırları (kapanışta arşive yazılır; kapatılmamış haftalar için canlı sayılır)
+  DT.liveRecords = function (state, D, pool, from, to) {
+    var L = state.lists, out = [], eksik = 0;
+    pool.forEach(function (t) {
+      if (t.date < from || t.date > to || (t.slot === 7 && t.yd)) return;
+      var who = DT.inPersonel(L, t.pers), x = D[t.i], d = x.d;
+      if (!who) { eksik++; return; }
+      var r = { tarih: t.date, personel: who, kaynak: 'Program', aciklama: t.islem + ' – ' + S(d.hastane) + ' – ' + (S(d.hk) ? d.hk + ' ' : '') + S(d.ad) };
+      if (t.slot === 1) r.tur = 'Sağlık muayenesi';
+      else if (t.kind === 'asi') r.tur = 'Aşı';
+      else if (t.slot === 6) r.tur = 'Toplama';
+      else if (t.slot === 8) r.tur = 'Ek test / izlem / diğer bağışçı işi';
+      else {
+        var ic = x.sehir === 'Ankara';
+        r.tur = ic ? 'Ürün taşıma – şehir içi' : 'Ürün taşıma – şehir dışı';
+        r.nereden = S(d.hastane); r.nereye = S(d.bolge); r.yon = ic ? 'Ankara içi' : "Ankara'dan çıkış"; r.sehir = x.sehir || 'Diğer';
+        r.yontem = ic ? 'Şehir içi' : (has(d.aciklama, 'kurye') ? 'Kurye karşılama / teslim' : 'Bizzat gitti');
+      }
+      out.push(r);
+    });
+    (state.ekKons || []).forEach(function (e) {
+      if (e.tarih == null || e.tarih < from || e.tarih > to) return;
+      var who = DT.inPersonel(L, DT.konsPersonel(D, e));
+      if (!who) { eksik++; return; }
+      out.push({ tarih: e.tarih, personel: who, kaynak: 'Program', tur: 'Ek test / izlem / diğer bağışçı işi', aciklama: S(L.prog.EkKons || 'EK KONSÜLTASYON') + ' – ' + S(e.hastaKodu) + (e.bolum ? ' – ' + e.bolum : '') });
+    });
+    (state.ajanda || []).forEach(function (a) {
+      if (a.tarih == null || a.tarih < from || a.tarih > to || !xtrim(a.personel)) return;
+      if (['PROGRAMA EKLE', 'YAPILDI', 'EVET'].indexOf(a.durum) < 0) return;
+      var who = DT.inPersonel(L, a.personel); if (!who) return;
+      out.push({ tarih: a.tarih, personel: who, kaynak: 'Program', tur: a.tur || 'Eğitim / sınav / diğer', aciklama: (a.saat ? a.saat + ' ' : '') + xtrim(a.not) });
+    });
+    out.sort(function (a, b) { return a.tarih - b.tarih || S(a.personel).localeCompare(S(b.personel), 'tr'); });
+    return { rows: out, eksik: eksik };
+  };
+  // Kapatılmayı bekleyen haftalar: kesim gününden başlayıp pazar biten pencereler, içinde bulunulan haftaya kadar
+  DT.pendingWeeks = function (state, today) {
+    var k = state.kapanis && state.kapanis.kesim, out = [];
+    if (k == null) return out;
+    var cur = DT.weekStart(today);
+    while (k < cur && out.length < 60) { var end = DT.weekStart(k) + 6; out.push({ bas: k, son: end }); k = end + 1; }
+    return out;
+  };
+  DT.workRecords = function (state, D, pool, from, to) {
+    var kesim = state.kapanis && state.kapanis.kesim;
+    var arc = (state.gorevKayit || []).filter(function (r) { return r.tarih != null && r.tarih >= from && r.tarih <= to; })
+      .map(function (r) { return Object.assign({ canli: false }, r); });
+    var live = [];
+    if (kesim != null) {
+      var lf = Math.max(from, kesim);
+      if (lf <= to) live = DT.liveRecords(state, D, pool, lf, to).rows.map(function (r) { r.canli = true; return r; });
+    }
+    return arc.concat(live);
+  };
+  DT.isYuku = function (state, D, pool, from, to) {
+    var L = state.lists, persList = L.personel.filter(function (p) { return xtrim(p) !== ''; });
+    var recs = DT.workRecords(state, D, pool, from, to);
+    var mk = function (ad) { var r = { ad: ad, tur: {}, kayit: 0, canli: 0, toplam: 0, gun: {}, hsonu: {}, izin: {}, ana: {} }; DT.IS_TURU.forEach(function (t) { r.tur[t] = 0; }); return r; };
+    var rows = persList.map(mk), other = mk('Diğer / listede yok');
+    recs.forEach(function (rec) {
+      var r = null;
+      for (var i = 0; i < persList.length; i++) if (eqi(persList[i], rec.personel)) { r = rows[i]; break; }
+      r = r || other;
+      var tur = DT.IS_TURU.indexOf(rec.tur) >= 0 ? rec.tur : 'Eğitim / sınav / diğer';
+      if (tur === 'İzin') { r.izin[rec.tarih] = 1; return; }
+      r.tur[tur]++; r.toplam++; if (rec.canli) r.canli++; else r.kayit++;
+      r.gun[rec.tarih] = 1; if (DT.weekday(rec.tarih) >= 6) r.hsonu[rec.tarih] = 1;
+      var g = DT.ANA_GRUP[tur] || 'Kargo, eğitim ve diğer'; r.ana[g] = (r.ana[g] || 0) + 1;
+    });
+    rows.push(other);
+    rows.forEach(function (r) { r.gunN = Object.keys(r.gun).length; r.hsonuN = Object.keys(r.hsonu).length; r.izinN = Object.keys(r.izin).length; });
+    return { rows: rows.filter(function (r, i) { return i < rows.length - 1 || r.toplam || r.izinN; }), recs: recs };
+  };
+  DT.tasimaStats = function (state, D, pool, from, to) {
+    var L = state.lists, persList = L.personel.filter(function (p) { return xtrim(p) !== ''; });
+    var recs = [];
+    (state.tasimaKayit || []).forEach(function (t) {
+      if (t.tarih == null || t.tarih < from || t.tarih > to) return;
+      recs.push({ tarih: t.tarih, personel: t.personel, ic: fold(t.kapsam).indexOf('içi') >= 0 || fold(t.kapsam).indexOf('ici') >= 0, sehir: S(t.sehir), yontem: S(t.yontem), benzersiz: S(t.benzersiz) !== '0', kaynak: 'Belge' });
+    });
+    DT.workRecords(state, D, pool, from, to).forEach(function (r) {
+      if (r.kaynak === 'Belge' || S(r.tur).indexOf('Ürün taşıma') !== 0) return;
+      recs.push({ tarih: r.tarih, personel: r.personel, ic: r.tur === 'Ürün taşıma – şehir içi', sehir: S(r.sehir), yontem: S(r.yontem), benzersiz: true, kaynak: r.canli ? 'Canlı' : r.kaynak });
+    });
+    var mk = function (ad) { return { ad: ad, ic: 0, dis: 0, bizzat: 0, kurye: 0, toplam: 0, benzersiz: 0, ay: {} }; };
+    var rows = persList.map(mk), other = mk('Diğer / listede yok'), sehir = {};
+    recs.forEach(function (rec) {
+      var r = null;
+      for (var i = 0; i < persList.length; i++) if (eqi(persList[i], rec.personel)) { r = rows[i]; break; }
+      r = r || other;
+      r.toplam++; if (rec.benzersiz) r.benzersiz++;
+      if (rec.ic) r.ic++; else { r.dis++; if (fold(rec.yontem).indexOf('kurye') >= 0) r.kurye++; else r.bizzat++; var c = rec.sehir || 'Belirtilmemiş'; sehir[c] = (sehir[c] || 0) + 1; }
+      var m = DT.parts(rec.tarih); var key = m.y + '-' + (m.m < 10 ? '0' : '') + m.m; r.ay[key] = (r.ay[key] || 0) + 1;
+    });
+    rows.push(other);
+    return { rows: rows.filter(function (r, i) { return i < rows.length - 1 || r.toplam; }), sehirler: Object.keys(sehir).map(function (k) { return { ad: k, n: sehir[k] }; }).sort(function (a, b) { return b.n - a.n; }), n: recs.length };
   };
 
   root.DT = DT;
