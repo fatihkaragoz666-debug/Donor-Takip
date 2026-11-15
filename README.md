@@ -1,6 +1,7 @@
 # Donör Takip · Android uygulaması
 
-OABKM Donör Takip Excel dosyasının telefon sürümü. Donör kaydı, kontrol uyarıları, geri sayım
+OABKM Donör Takip Excel dosyasının telefon sürümü. Excel'deki gibi Ana Sayfa'da Kızılay görseli ve
+dört grup (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD) vardır; her grubun altında Excel'deki sayfalar yer alır. Donör kaydı, kontrol uyarıları, geri sayım
 uyarıları, takvim, WhatsApp'a gönderilecek Çalışma Programı, takip listeleri (sağlık kontrolü, aşı,
 toplama, ürün taşıma, son izlem, IDM) ve Dashboard istatistikleri Excel'deki formüllerle aynı
 kurallarla hesaplanır.
@@ -58,5 +59,5 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 - Görev personeli (Haftalık Program'daki seçim) uygulamada görevin kendisine kaydedilir; hafta
   değişse de kaybolmaz. Görevin yanındaki personel düğmesine dokunarak atanır.
 - Görev Listesi, Aşı Takip ve Toplama Takip'te personel olarak görevin atanmış personeli gösterilir.
-- Ajanda, Haftalık Plan notları, Ek Konsültasyon, Haftalık Kapanış, İş Yükü ve Taşıma İstatistiği
-  bu sürümde yok.
+- Haftalık Plan, Haftalık Kapanış, Görev Kayıtları, Taşıma Kayıtları, İş Yükü ve Taşıma İstatistiği
+  sonraki sürümde eklenecek.

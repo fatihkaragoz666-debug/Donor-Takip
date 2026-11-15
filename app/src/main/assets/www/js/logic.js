@@ -458,6 +458,29 @@
     if (slot === 8) return S(P.Yat);
     return S(P.Tasima);
   };
+  // Ek Konsültasyon: hasta kodu Donör Kayıt'ta en alttaki eşleşen kayıt; personel = seçilen ya da sağlık kontrolüne bakan
+  DT.konsDonor = function (D, hk) {
+    var k = xtrim(hk), r = null;
+    if (!k) return null;
+    D.forEach(function (x) { if (xtrim(x.d.hk) === k) r = x; });
+    return r;
+  };
+  DT.konsPersonel = function (D, e) {
+    if (xtrim(e.personel)) return xtrim(e.personel);
+    var x = DT.konsDonor(D, e.hastaKodu);
+    return x ? S(x.pers[1]) : '';
+  };
+  DT.konsDurum = function (D, e, today) {
+    if (!xtrim(e.hastaKodu) && e.tarih == null) return '';
+    if (xtrim(e.hastaKodu) && !DT.konsDonor(D, e.hastaKodu)) return 'Hasta kodu Donör Kayıt\'ta yok';
+    if (e.tarih == null) return 'Tarih yazın';
+    if (e.tarih === today) return 'BUGÜN';
+    if (e.tarih > today) return e.tarih - today === 1 ? 'Yarın' : (e.tarih - today) + ' gün sonra';
+    return 'Yapıldı · ' + (today - e.tarih) + ' gün önce';
+  };
+  DT.AJANDA_SAATLER = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+  DT.ajandaProgramda = function (a) { return xtrim(a.not) !== '' && (a.durum === 'PROGRAMA EKLE' || a.durum === 'EVET'); };
+
   DT.program = function (state, D, pool, date) {
     var L = state.lists, P = L.prog || {};
     var persList = L.personel.filter(function (p) { return xtrim(p) !== ''; });
@@ -484,6 +507,19 @@
       var text = x ? DT.donorLine(L, x) + ' ' + S(e.islem) : xtrim(S(e.hastaKodu) + ' ' + S(e.islem));
       grp(canon(e.personel)).ek.push({ text: text, e: e });
     });
+    (state.ekKons || []).forEach(function (e) {
+      if (e.tarih !== date) return;
+      var x = DT.konsDonor(D, e.hastaKodu); if (!x) return;
+      var text = DT.donorLine(L, x) + ' ' + S(P.EkKons) + (xtrim(e.bolum) ? ' (' + xtrim(e.bolum) + ')' : '');
+      grp(canon(DT.konsPersonel(D, e))).ek.push({ text: text, kons: e });
+    });
+    var notlar = [];
+    (state.ajanda || []).filter(function (a) { return a.tarih === date && DT.ajandaProgramda(a); })
+      .sort(function (a, b) { return S(a.saat || '99').localeCompare(S(b.saat || '99')); })
+      .forEach(function (a) {
+        var text = (a.saat ? a.saat + ' ' : '') + xtrim(a.not), who = xtrim(a.personel) && DT.inPersonel(L, a.personel);
+        if (who) grp(who).ek.push({ text: text, ajanda: a }); else notlar.push(text);
+      });
     var posOf = function (name) { var i = persList.indexOf(name); return i >= 0 ? i + 1 : persList.length + 1; };
     var ordered = gorder.map(function (n) { return groups[n]; })
       .sort(function (a, b) { return (a.prio * 100 + posOf(a.name)) - (b.prio * 100 + posOf(b.name)); });
@@ -497,6 +533,7 @@
       g.ek.forEach(function (it) { lines.push(it.text); });
       lines.push('');
     });
+    if (notlar.length) { lines.push('NOTLAR'); notlar.forEach(function (n) { lines.push(n); }); lines.push(''); }
     var tasLines = dayTasks.filter(function (t) { return t.slot === 7 && !t.yd; });
     tasLines.forEach(function (t) { lines.push(t.islem + ' ' + S(P.Tasima) + (t.pers ? ' (' + t.pers + ')' : '')); });
     var wd = DT.weekday(date);
@@ -508,7 +545,7 @@
       [P.Sabit1, P.Sabit2].forEach(function (s) { if (xtrim(s) !== '') lines.push(xtrim(s)); });
     }
     lines.push('İYİ ÇALIŞMALAR');
-    return { lines: lines, text: lines.join('\n'), groups: ordered, tasks: dayTasks, tasima: tasLines };
+    return { lines: lines, text: lines.join('\n'), groups: ordered, tasks: dayTasks, tasima: tasLines, notlar: notlar };
   };
 
   /* ---------------- Dashboard ---------------- */
@@ -666,8 +703,8 @@
     var persList = L.personel.filter(function (p) { return xtrim(p) !== ''; });
     var PY = Y || DT.year(today), PM = opts.month || DT.month(today);
     function persRows(from, to) {
-      var rows = persList.map(function (p) { return { ad: p, sk: 0, asi: 0, top: 0, yat: 0, tas: 0, yapilan: 0 }; });
-      var other = { ad: 'Atanmamış / listede yok', sk: 0, asi: 0, top: 0, yat: 0, tas: 0, yapilan: 0 };
+      var rows = persList.map(function (p) { return { ad: p, sk: 0, asi: 0, top: 0, yat: 0, tas: 0, ek: 0, yapilan: 0 }; });
+      var other = { ad: 'Atanmamış / listede yok', sk: 0, asi: 0, top: 0, yat: 0, tas: 0, ek: 0, yapilan: 0 };
       pool.forEach(function (t) {
         if (t.date < from || t.date >= to) return;
         if (t.slot === 7 && t.yd) return;
@@ -678,8 +715,15 @@
         else if (t.slot === 8) r.yat++; else if (t.slot === 7) r.tas++;
         if (t.date <= today) r.yapilan++;
       });
+      (state.ekKons || []).forEach(function (e) {
+        if (e.tarih == null || e.tarih < from || e.tarih >= to) return;
+        var nm = DT.konsPersonel(D, e); if (!nm && !xtrim(e.hastaKodu)) return;
+        var r = null;
+        for (var i = 0; i < persList.length; i++) if (eqi(persList[i], nm)) { r = rows[i]; break; }
+        r = r || other; r.ek++; if (e.tarih <= today) r.yapilan++;
+      });
       rows.push(other);
-      rows.forEach(function (r) { r.toplam = r.sk + r.asi + r.top + r.yat + r.tas; r.plan = r.toplam - r.yapilan; });
+      rows.forEach(function (r) { r.toplam = r.sk + r.asi + r.top + r.yat + r.tas + r.ek; r.plan = r.toplam - r.yapilan; });
       return rows;
     }
     R.persAy = { y: PY, m: PM, rows: persRows(mStart(PY, PM), mStart(PY, PM + 1)) };
@@ -698,10 +742,12 @@
       var isOther = i === persList.length;
       var weeks = [0, 1, 2, 3].map(function (w) {
         var a = ws + w * 7, b = a + 7;
+        var match = function (name) { var n2 = DT.inPersonel(L, name); return isOther ? !n2 : eqi(n2 || '', p); };
         return pool.filter(function (t) {
           if (t.date < a || t.date >= b || (t.slot === 7 && t.yd)) return false;
-          var named2 = DT.inPersonel(L, t.pers);
-          return isOther ? !named2 : eqi(named2 || '', p);
+          return match(t.pers);
+        }).length + (state.ekKons || []).filter(function (e) {
+          return e.tarih != null && e.tarih >= a && e.tarih < b && (xtrim(e.hastaKodu) || xtrim(e.personel)) && match(DT.konsPersonel(D, e));
         }).length;
       });
       return { ad: p, weeks: weeks, toplam: weeks.reduce(function (s, v) { return s + v; }, 0) };
@@ -731,7 +777,7 @@
   };
   DT.uid = function () { return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); };
   DT.newState = function (lists) {
-    return { version: 1, donors: [], overrides: {}, ekGorevler: [], lists: JSON.parse(JSON.stringify(lists)), settings: { esik: 35 } };
+    return { version: 1, donors: [], overrides: {}, ekGorevler: [], ekKons: [], ajanda: [], lists: JSON.parse(JSON.stringify(lists)), settings: { esik: 35 } };
   };
 
   root.DT = DT;

@@ -12,6 +12,7 @@
     search: '', dfilter: 'all', dsort: 'new', dlimit: 60,
     calY: null, calM: null, calSel: null, calP: '',
     progDate: null, alBase: null, alP: '', tkP: '', utYil: '', dashYil: null, dashAy: '', ekPast: false,
+    weekStart: null, hwP: '', ajDate: null, rpF: 'all', rpH: '', rpY: '', rpLimit: 80,
     scroll: {}
   };
 
@@ -79,7 +80,7 @@
   }
   function migrate(s) {
     var base = DT.newState(window.DT_DEFAULT_LISTS);
-    s.donors = s.donors || []; s.overrides = s.overrides || {}; s.ekGorevler = s.ekGorevler || [];
+    s.donors = s.donors || []; s.overrides = s.overrides || {}; s.ekGorevler = s.ekGorevler || []; s.ekKons = s.ekKons || []; s.ajanda = s.ajanda || [];
     s.settings = Object.assign({}, base.settings, s.settings || {});
     s.lists = Object.assign({}, base.lists, s.lists || {});
     s.lists.prog = Object.assign({}, base.lists.prog, s.lists.prog || {});
@@ -105,14 +106,52 @@
   function go(hash, replace) {
     if (replace) location.replace('#' + hash); else location.hash = hash;
   }
-  var TABS = [['home', '/', 'Ana Sayfa', I.home], ['donorler', '/donorler', 'Donörler', I.users], ['plan', '/plan/takvim', 'Planlama', I.cal],
-    ['takip', '/takip/saglik', 'Takip', I.track], ['dashboard', '/dashboard', 'Dashboard', I.chart]];
+  var NAVY = '#1F3A5F';
+  var GROUPS = {
+    planlama: { ad: 'PLANLAMA', renk: '#2F6FB0', acik: '#E3EDF8', alt: 'Günlük ve haftalık iş planı', pages: [
+      ['/plan/takvim', 'Takvim', 'Aylık görünüm: her günün görevleri'], ['/plan/program', 'Çalışma Programı', 'Yarının programı, WhatsApp metni'],
+      ['/plan/haftalik', 'Haftalık Program', 'Haftanın görevleri: gün gün liste'], ['/plan/hplan', 'Haftalık Plan', 'Hafta defteri: görevler, personel, notlar', 1],
+      ['/plan/ajanda', 'Ajanda', 'Saatli notlar, programa eklenecek işler'], ['/plan/uyarilar', 'Görev Listesi', 'Geri sayım uyarıları']] },
+    takip: { ad: 'TAKİP', renk: '#1E6B3A', acik: '#E2F1E7', alt: 'Donörlerin süreç takibi', pages: [
+      ['/takip/saglik', 'Sağlık Kontrolü Takip', 'Sağlık kontrolü yaklaşan donörler'], ['/takip/asi', 'Aşı Takip', 'Aşıdaki ve aşıya başlayacak donörler'],
+      ['/takip/toplama', 'Toplama Takip', 'Toplaması yaklaşan donörler'], ['/takip/tasima', 'Ürün Taşıma', 'Taşınacak ürünler ve taşıyan personel'],
+      ['/takip/ekkons', 'Ek Konsültasyon', 'Ek konsültasyona gidecek donörler'], ['/takip/sonizlem', 'Son İzlem Takip', 'Son izlem tarihi yaklaşan donörler'],
+      ['/takip/idm', 'IDM', 'IDM tarih aralığı işaretlenen donörler']] },
+    arsiv: { ad: 'DONÖR KAYIT VE ARŞİV', renk: '#8A6D0B', acik: '#F5EEDA', alt: 'Donör kayıtları, raporlar ve arşiv', pages: [
+      ['/donorler', 'Donör Kayıt', 'Donör bilgileri: ana tablo'], ['/arsiv/rapor', 'Donör Raporu', 'Yöneticiye gönderilecek temiz kopya'],
+      ['/arsiv/kapanis', 'Haftalık Kapanış', 'Haftayı kapatıp görevleri arşive aktarma', 1], ['/arsiv/gorev', 'Görev Kayıtları', 'Personel görev arşivi', 1],
+      ['/arsiv/tasima', 'Taşıma Kayıtları', 'Ürün taşıma arşivi', 1], ['/arsiv/kilavuz', 'Kılavuz', 'Sayfaların kullanım açıklamaları'],
+      ['/ayarlar/listeler', 'Listeler', 'Personel, hastane ve açılır listeler']] },
+    dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
+      ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü', 1],
+      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri', 1]] }
+  };
+  function groupOf(path) {
+    if (path === '/' || path === '') return null;
+    var k = path.split('/')[1];
+    if (k === 'g') return path.split('/')[2];
+    if (k === 'plan') return 'planlama';
+    if (k === 'takip') return 'takip';
+    if (k === 'donorler' || k === 'donor' || k === 'arsiv' || path === '/ayarlar/listeler') return 'arsiv';
+    if (k === 'dashboard' || k === 'dash') return 'dashboard';
+    return null;
+  }
+  var TABS = [['home', '/', 'Ana Sayfa', I.home], ['planlama', '/g/planlama', 'Planlama', I.cal], ['takip', '/g/takip', 'Takip', I.track],
+    ['arsiv', '/g/arsiv', 'Donör Kayıt', I.users], ['dashboard', '/g/dashboard', 'Dashboard', I.chart]];
+  function groupSeg(key, cur) {
+    return '<div class="seg">' + GROUPS[key].pages.filter(function (pg) { return !pg[3]; }).map(function (pg) {
+      return '<button class="' + (pg[0] === cur ? 'on' : '') + '" data-act="goto" data-h="' + pg[0] + '" data-replace="1">' + h(pg[1]) + '</button>';
+    }).join('') + '</div>';
+  }
 
   function render(keepScroll) {
     var p = route(), out;
     var top = keepScroll ? view.scrollTop : null;
     try {
       if (p.length === 0) out = scrHome();
+      else if (p[0] === 'g' && GROUPS[p[1]]) out = scrGroup(p[1]);
+      else if (p[0] === 'arsiv' && p[1] === 'rapor') out = scrRapor();
+      else if (p[0] === 'arsiv' && p[1] === 'kilavuz') out = scrKilavuz();
       else if (p[0] === 'donorler') out = scrDonors();
       else if (p[0] === 'donor' && p[1] === 'yeni') out = scrDonorForm(null);
       else if (p[0] === 'donor' && p[2] === 'duzenle') out = scrDonorForm(p[1]);
@@ -127,11 +166,14 @@
       console.error(e);
       out = { title: 'Hata', html: '<div class="page"><div class="card pad"><b>Bir hata oluştu.</b><div class="small muted">' + h(e.message) + '</div></div></div>' };
     }
+    var gk = groupOf('/' + p.join('/'));
+    document.documentElement.style.setProperty('--g', gk ? GROUPS[gk].renk : NAVY);
+    document.documentElement.style.setProperty('--g-soft', gk ? GROUPS[gk].acik : '#E4E9F0');
     $('#title').textContent = out.title;
-    $('#btnBack').hidden = !out.back;
+    $('#btnBack').hidden = !(out.back || (p.length && p[0] !== 'g'));
     $('#topActions').innerHTML = out.actions || '';
     view.innerHTML = out.html;
-    var tab = out.tab || (p[0] === 'donor' ? 'donorler' : p[0] || 'home');
+    var tab = gk || 'home';
     $('#tabs').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
     view.scrollTop = top != null ? top : (ui.scroll[location.hash] || 0);
     if (out.after) out.after();
@@ -194,15 +236,20 @@
     var t = today, todayTasks = DT.calendarTasks(pool, D, t, t + 1, ''), tomorrow = DT.calendarTasks(pool, D, t + 1, t + 2, '');
     var alerts = DT.alerts(D, t, ''), kontrol = D.filter(function (x) { return x.kontrol; }).length;
     var unassigned = tomorrow.filter(function (k) { var x = D[k.i]; return !(k.slot === 7 && k.yd) && !x.pers[k.slot]; }).length;
-    var html = '<div class="page flush"><div class="hero"><div class="d">' + h(DT.fmt(t)) + '</div><div class="s">' + h(gunAd(t)) + ' · ' + h(state.donors.length) + ' donör kaydı</div>' +
-      (holMap[t] ? '<div class="hol">' + h(holMap[t]) + '</div>' : '') + '</div>';
+    var html = '<div class="banner"><img src="img/kizilay-banner.jpg" alt=""></div><div class="page home">' +
+      '<div class="hometitle"><div class="ht">Donör Takip</div><div class="hs">Bugün  ' + h(DT.fmt(t)) + '  ·  ' + h(gunAd(t)) + (holMap[t] ? '  ·  <b>' + h(holMap[t]) + '</b>' : '') + '</div></div>';
     if (!state.donors.length) html += noDataCard();
     html += '<div class="tiles">' +
-      '<button class="tile" data-act="calToday"><div class="n">' + todayTasks.length + '</div><div class="l">Bugün görev</div></button>' +
-      '<button class="tile" data-act="goto" data-h="/plan/program"><div class="n">' + tomorrow.length + '</div><div class="l">Yarın görev' + (unassigned ? ' · <span style="color:var(--red)">' + unassigned + ' atanmamış</span>' : '') + '</div></button>' +
-      '<button class="tile' + (alerts.length ? ' warn' : ' ok') + '" data-act="goto" data-h="/plan/uyarilar"><div class="n">' + alerts.length + '</div><div class="l">Geri sayım uyarısı</div></button>' +
-      '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu olan kayıt</div></button></div>' +
-      '<div class="actions"><button class="btn pri" data-act="newDonor">' + I.plus + 'Yeni donör</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
+      '<button class="tile" data-act="calToday"><div class="n">' + todayTasks.length + '</div><div class="l">Bugün · görev</div><div class="s">Takvim’de bugünün görevleri</div></button>' +
+      '<button class="tile" data-act="goto" data-h="/plan/program"><div class="n">' + tomorrow.length + '</div><div class="l">Yarın · görev' + (unassigned ? ' · <span style="color:var(--red)">' + unassigned + ' atanmamış</span>' : '') + '</div><div class="s">Çalışma Programı: yarının programı</div></button>' +
+      '<button class="tile' + (alerts.length ? ' warn' : ' ok') + '" data-act="goto" data-h="/plan/uyarilar"><div class="n">' + alerts.length + '</div><div class="l">Geri sayım uyarısı</div><div class="s">Görev Listesi: kaç gün kaldı</div></button>' +
+      '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu</div><div class="s">Donör Kayıt’ta eksik ya da uyumsuz bilgi</div></button></div>' +
+      '<div class="actions"><button class="btn newdonor" data-act="newDonor">' + I.plus + 'YENİ DONÖR EKLE</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
+      '<div class="groups">' + Object.keys(GROUPS).map(function (k) {
+        var g = GROUPS[k];
+        return '<button class="gbtn" style="background:' + g.renk + '" data-act="goto" data-h="/g/' + k + '"><span class="gt">' + h(g.ad) + '</span><span class="gs">' + h(g.alt) + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="hint" style="margin:2px 4px 6px">Bir gruba dokununca o grubun sayfaları açılır. Her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçebilirsiniz.</div>' +
       '<div class="sec-title">Bugünün görevleri</div><div class="card">' +
       (todayTasks.length ? todayTasks.map(function (k) { return taskCard(k); }).join('') : emptyBox('Bugün için görev yok', '')) + '</div>';
     if (alerts.length) {
@@ -210,7 +257,18 @@
         (alerts.length > 4 ? '<button class="btn ghost block" data-act="goto" data-h="/plan/uyarilar">Tümünü gör (' + alerts.length + ')</button>' : '') + '</div>';
     }
     html += '</div>';
-    return { title: 'Donör Takip', html: html, tab: 'home', actions: '<button class="icon" data-act="goto" data-h="/ayarlar" aria-label="Ayarlar">' + I.gear + '</button>' };
+    return { title: 'Ana Sayfa', html: html, actions: '<button class="icon" data-act="goto" data-h="/ayarlar" aria-label="Ayarlar">' + I.gear + '</button>' };
+  }
+
+  /* ---------------- Grup menüleri (Excel'deki PLANLAMA / TAKİP / DONÖR KAYIT VE ARŞİV / DASHBOARD sayfaları) ---------------- */
+  function scrGroup(k) {
+    var g = GROUPS[k];
+    var html = '<div class="page"><div class="ghead" style="background:' + g.renk + '"><div class="gt">' + h(g.ad) + '</div><div class="gs">' + h(g.alt) + ' · açmak istediğiniz sayfaya dokunun</div></div>' +
+      '<div class="gcards">' + g.pages.map(function (pg) {
+        return '<button class="gcard' + (pg[3] ? ' soon' : '') + '" style="background:' + g.renk + '" ' + (pg[3] ? 'data-act="soon"' : 'data-act="goto" data-h="' + pg[0] + '"') + '>' +
+          '<span class="ct">' + h(pg[1]) + '</span><span class="cs" style="color:' + g.acik + '">' + h(pg[3] ? 'Sonraki sürümde' : pg[2]) + '</span></button>';
+      }).join('') + '</div></div>';
+    return { title: g.ad.charAt(0) + g.ad.slice(1).toLocaleLowerCase('tr-TR'), html: html };
   }
 
   /* ---------------- Donör listesi ---------------- */
@@ -259,7 +317,7 @@
   }
   function scrDonors() {
     var counts = {}; DFILTERS.forEach(function (f) { counts[f[0]] = D.filter(dfilterFn(f[0])).length; });
-    var html = '<div class="page flush"><div class="seg">' + DFILTERS.map(function (f) {
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/donorler') + '<div class="seg sub">' + DFILTERS.map(function (f) {
       return '<button class="' + (ui.dfilter === f[0] ? 'on' : '') + '" data-act="dfilter" data-v="' + f[0] + '">' + f[1] + '<span class="c">' + counts[f[0]] + '</span></button>';
     }).join('') + '</div>' +
       '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Ad, hasta kodu, telefon, hastane…" value="' + h(ui.search) + '" data-ui="search"></div>' +
@@ -267,7 +325,7 @@
       [['new', 'Son eklenen'], ['top', 'Toplama'], ['sk', 'Sağlık k.'], ['ad', 'Ad']].map(function (o) { return '<option value="' + o[0] + '"' + (ui.dsort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
       '</select></div><div id="dlist">' + donorListHtml() + '</div></div>' +
       '<button class="fab" data-act="newDonor" aria-label="Yeni donör">' + I.plus + '</button>';
-    return { title: 'Donörler', html: html, tab: 'donorler' };
+    return { title: 'Donör Kayıt', html: html };
   }
 
   /* ---------------- Donör ayrıntısı ---------------- */
@@ -445,13 +503,10 @@
   }
 
   /* ---------------- Planlama ---------------- */
-  var PLANTABS = [['takvim', 'Takvim'], ['program', 'Çalışma Programı'], ['uyarilar', 'Uyarılar'], ['ek', 'Ek görevler']];
-  function planSeg(cur) {
-    return '<div class="seg">' + PLANTABS.map(function (t) { return '<button class="' + (t[0] === cur ? 'on' : '') + '" data-act="goto" data-h="/plan/' + t[0] + '" data-replace="1">' + t[1] + '</button>'; }).join('') + '</div>';
-  }
+  var PLAN_TITLES = { takvim: 'Takvim', program: 'Çalışma Programı', haftalik: 'Haftalık Program', ajanda: 'Ajanda', uyarilar: 'Görev Listesi', ek: 'Ek görevler' };
   function scrPlan(tab) {
-    var body = tab === 'program' ? planProgram() : tab === 'uyarilar' ? planAlerts() : tab === 'ek' ? planEk() : planCalendar();
-    return { title: 'Planlama', tab: 'plan', html: '<div class="page flush">' + planSeg(tab) + body + '</div>' };
+    var body = tab === 'program' ? planProgram() : tab === 'uyarilar' ? planAlerts() : tab === 'ek' ? planEk() : tab === 'haftalik' ? planWeek() : tab === 'ajanda' ? planAjanda() : planCalendar();
+    return { title: PLAN_TITLES[tab] || 'Planlama', html: '<div class="page flush">' + groupSeg('planlama', '/plan/' + (tab === 'ek' ? 'program' : tab)) + body + '</div>' };
   }
   function planCalendar() {
     if (ui.calY == null) { var p0 = DT.parts(today); ui.calY = p0.y; ui.calM = p0.m; }
@@ -495,7 +550,8 @@
       '<div class="card pad"><div class="prog">' + h(prog.text) + '</div><div class="btns" style="margin-top:12px"><button class="btn" data-act="copyProg">' + I.copy + 'Kopyala</button><button class="btn wa" data-act="shareProg" data-wa="1">' + I.wa + 'WhatsApp</button><button class="btn" data-act="shareProg">' + I.share + 'Paylaş</button></div></div>' +
       '<div class="sec-title">Görev atamaları (' + dayTasks.length + ')</div><div class="card">' + (dayTasks.length ? dayTasks.map(function (t) { return taskCard(t); }).join('') : emptyBox('Bu gün için takvim görevi yok')) + '</div>' +
       '<div class="sec-title">Ek görevler (' + ek.length + ')</div><div class="card">' + (ek.length ? ek.map(ekRow).join('') : emptyBox('Ek görev yok', 'Takvimde olmayan işler (ek konsültasyon vb.) için ekleyin.')) + '</div>' +
-      '<button class="btn block" data-act="ekNew" data-v="' + s + '">' + I.plus + 'Bu güne ek görev ekle</button>';
+      '<div class="btns"><button class="btn" data-act="ekNew" data-v="' + s + '">' + I.plus + 'Ek görev ekle</button><button class="btn" data-act="goto" data-h="/plan/ek">Tüm ek görevler</button></div>' +
+      '<div class="note" style="margin:8px 4px">Ek konsültasyonlar Takip › Ek Konsültasyon’dan, saatli notlar Ajanda’dan (DURUM: PROGRAMA EKLE) programa yazılır.</div>';
     return html;
   }
   function alertRow(a) {
@@ -562,7 +618,9 @@
   /* ---------------- Takip ---------------- */
   var TKTABS = [['saglik', 'Sağlık kontrolü'], ['asi', 'Aşı'], ['toplama', 'Toplama'], ['tasima', 'Ürün taşıma'], ['sonizlem', 'Son izlem'], ['idm', 'IDM']];
   function scrTakip(tab) {
-    var seg = '<div class="seg">' + TKTABS.map(function (t) { return '<button class="' + (t[0] === tab ? 'on' : '') + '" data-act="goto" data-h="/takip/' + t[0] + '" data-replace="1">' + t[1] + '</button>'; }).join('') + '</div>';
+    var seg = groupSeg('takip', '/takip/' + tab);
+    if (tab === 'ekkons') return { title: 'Ek Konsültasyon', html: '<div class="page flush">' + seg + takipKons() + '</div>' };
+    var TT = { saglik: 'Sağlık Kontrolü Takip', asi: 'Aşı Takip', toplama: 'Toplama Takip', tasima: 'Ürün Taşıma', sonizlem: 'Son İzlem Takip', idm: 'IDM' };
     var pLabel = tab === 'idm' ? 'Tüm ilgilenenler' : tab === 'tasima' ? 'Tüm taşıyanlar' : tab === 'sonizlem' ? 'Tüm takip edenler' : 'Herkes';
     var html = '<div class="page flush">' + seg + '<div class="toolbar"><select class="inp" data-ui="tkP">' + persOptions(ui.tkP, pLabel) + '</select></div>';
     var f = ui.tkP, t = today, head = 'Bugün: ' + DT.fmt(t) + ' (' + gunAd(t) + ')';
@@ -623,7 +681,7 @@
         (mx.cols.length ? '<div class="tscroll"><table class="t"><tr><th>Hastane</th>' + mx.cols.map(function (c) { return '<th style="white-space:normal;min-width:84px">' + h(c) + '</th>'; }).join('') + '<th>Toplam</th></tr>' +
           mx.rows.map(function (r) { return '<tr><td>' + h(r.hastane) + '</td>' + r.cells.map(function (v) { return '<td>' + (v || '') + '</td>'; }).join('') + '<td><b>' + r.toplam + '</b></td></tr>'; }).join('') + '</table></div>' : emptyBox('Veri yok')) +
         '<div class="note">En çok ürün giden 8 nakil merkezi gösterilir. Yurt dışı ve süreci durmuş kayıtlar hariç.</div></div>';
-      return { title: 'Takip', tab: 'takip', html: html + '<div class="summary">' + h(head) + '</div>' + body + '</div>' };
+      return { title: TT[tab], html: html + '<div class="summary">' + h(head) + '</div>' + body + '</div>' };
     } else if (tab === 'sonizlem') {
       rows = DT.listSonIzlem(D, t, f);
       head += ' · ' + rows.filter(function (r) { return r.durum === 2; }).length + ' son izlem bugün · ' + rows.filter(function (r) { return r.date > t && r.date <= t + 7; }).length + ' önümüzdeki 7 günde';
@@ -645,7 +703,7 @@
       }).join('');
       if (!rows.length) body = emptyBox('IDM işaretli donör yok.', 'Donör kaydında IDM ✓ işaretleyip tarih aralığını girin.');
     }
-    return { title: 'Takip', tab: 'takip', html: html + '<div class="summary">' + h(head) + '</div><div class="card">' + body + '</div></div>' };
+    return { title: TT[tab], html: html + '<div class="summary">' + h(head) + '</div><div class="card">' + body + '</div></div>' };
   }
   function yearsInData() {
     var ys = {};
@@ -682,7 +740,7 @@
     var years = yearsInData();
     var card = function (title, inner, note) { return '<div class="card pad"><h2>' + h(title) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
     var kpi = function (n, l) { return '<div class="kpi"><div class="n">' + h(n) + '</div><div class="l">' + h(l) + '</div></div>'; };
-    var html = '<div class="page"><div class="toolbar"><select class="inp" data-ui="dashYil"><option value="">Tüm yıllar</option>' + years.map(function (y) { return '<option' + (String(y) === String(ui.dashYil) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>' +
+    var html = '<div class="page flush">' + groupSeg('dashboard', '/dashboard') + '<div class="toolbar"><select class="inp" data-ui="dashYil"><option value="">Tüm yıllar</option>' + years.map(function (y) { return '<option' + (String(y) === String(ui.dashYil) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>' +
       '<div class="summary">Dönem: ' + (Y || 'tüm yıllar') + ' · Toplama sayılarına süreci durmuş (iptal, erteleme, red, vazgeç, hasta ex) kayıtlar dahil değildir.</div>' +
       '<div class="kpis">' + kpi(num(R.kayitli), 'Kayıtlı donör') + kpi(num(R.skYap), 'Sağlık kontrolü yapılan') + kpi(num(R.topGer), 'Toplama gerçekleşen') +
       kpi(num(R.topPlan), 'Planlanan toplama') + kpi(num(R.durdu), 'Süreç durdu') + kpi(pct(R.oran), 'Gerçekleşme oranı') + '</div>';
@@ -726,14 +784,186 @@
       tbl(['Personel', 'Sağlık k.', 'Aşı', 'Toplama', 'Taşıma', 'Toplam'], pa.rows.map(function (r) { return [r.ad, r.sk, r.asi, r.top, r.tas, r.sk + r.asi + r.top + r.tas]; })),
       'Görev günleri sayılır (aşı günü = 4 günün her biri; sabah-akşam ayrı). Ürün taşıma taşıyan personele yazılır.');
     var py = R.persYil;
-    html += card('Personel iş yükü · ' + py.y, tbl(['Personel', 'SK', 'Aşı', 'Top.', 'Yatış', 'Taşıma', 'Toplam', 'Yapılan', 'Plan.', 'Pay'], py.rows.map(function (r) { return [r.ad, r.sk, r.asi, r.top, r.yat, r.tas, r.toplam, r.yapilan, r.plan, pct(r.pay)]; })) +
+    html += card('Personel iş yükü · ' + py.y, tbl(['Personel', 'SK', 'Aşı', 'Top.', 'Yatış', 'Taşıma', 'Ek kons.', 'Toplam', 'Yapılan', 'Plan.', 'Pay'], py.rows.map(function (r) { return [r.ad, r.sk, r.asi, r.top, r.yat, r.tas, r.ek, r.toplam, r.yapilan, r.plan, pct(r.pay)]; })) +
       '<div class="hr"></div>' + tbl(['Özet', 'Değer'], [['Toplam görev', py.toplam], ['Personele atanan', py.atanan], ['Atanma oranı', pct(py.oran)], ['Görev alan personel', py.aktif], ['Personel başına ortalama', py.ort == null ? '–' : py.ort], ['En çok görev alan', py.enCok], ['En az görev alan', py.enAz]]));
     html += card('Önümüzdeki 4 hafta · personel planı', tbl(['Personel'].concat(R.dortHafta.map(function (w) { return DT.fmtShort(w.bas); })).concat(['Toplam']), R.persHafta.map(function (r) { return [r.ad].concat(r.weeks).concat([r.toplam]); })));
     var dl = R.dli;
     html += card('DLİ', tbl(['', 'Donör', 'Pay'], [['DLİ kaydı', dl.kayit, pct(dl.kayitPay)], ['Toplama gerçekleşen', dl.ger, pct(dl.gerPay)], ['Planlanan toplama', dl.plan, pct(dl.planPay)], ['Süreç durdu', dl.durdu, pct(dl.durduPay)]]) +
       '<div class="hr"></div>' + tbl(['Hastane', 'DLİ kaydı', 'Toplama gerç.'], dl.hastane.map(function (r) { return [r.ad, r.kayit, r.ger]; })), 'AÇIKLAMA’da ayrı kelime olarak DLİ geçen kayıtlar.');
     html += '</div>';
-    return { title: 'Dashboard', tab: 'dashboard', html: html };
+    return { title: 'Dashboard', html: html };
+  }
+
+  /* ---------------- Haftalık Program ---------------- */
+  function planWeek() {
+    if (ui.weekStart == null) ui.weekStart = DT.weekStart(today);
+    var ws = ui.weekStart, a = DT.parts(ws), b = DT.parts(ws + 6);
+    var html = '<div class="datebar"><button class="icon" data-act="weekMove" data-v="-7">' + I.left + '</button><div class="inp center">' +
+      a.d + ' ' + DT.AYLAR[a.m - 1] + ' – ' + b.d + ' ' + DT.AYLAR[b.m - 1] + ' ' + b.y + '</div><button class="icon" data-act="weekMove" data-v="7">' + I.right + '</button></div>' +
+      '<div class="toolbar"><select class="inp" data-ui="hwP">' + persOptions(ui.hwP, 'Herkes') + '</select><button class="btn sm" data-act="weekNow">Bu hafta</button></div>';
+    var total = 0, body = '';
+    for (var k = 0; k < 7; k++) {
+      var s = ws + k, p = DT.parts(s);
+      var list = DT.calendarTasks(pool, D, s, s + 1, ui.hwP || '').filter(function (t) { return !(t.slot === 7 && t.yd); });
+      total += list.length;
+      body += '<div class="dayhead' + (s === today ? ' today' : '') + (holMap[s] ? ' hol' : '') + '"><span>' + pad2(p.d) + '.' + pad2(p.m) + '.' + p.y + ' (' + DT.GUNLER_B[k] + ') ÇALIŞMA PROGRAMIMIZ</span>' +
+        (holMap[s] ? '<span class="tiny">' + h(holMap[s]) + '</span>' : '') + '<button class="btn sm ghost" data-act="progFor" data-v="' + s + '">Program</button></div>' +
+        '<div class="card">' + (list.length ? list.map(function (t) { return taskCard(t); }).join('') : emptyBox('Bu gün için görev yok.')) + '</div>';
+    }
+    return html + '<div class="summary">' + total + ' görev' + (ui.hwP ? ' · ' + h(ui.hwP) : '') + ' · Personel düğmesinden göreve kişi atayın; seçim programa ve tüm sayfalara geçer. Yurt dışı ürün taşıma bu sayfada yer almaz.</div>' + body;
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /* ---------------- Ajanda ---------------- */
+  function planAjanda() {
+    if (ui.ajDate == null) ui.ajDate = today;
+    var s = ui.ajDate, p = DT.parts(s), cnt = pool.filter(function (t) { return t.date === s; }).length;
+    var notes = state.ajanda.filter(function (a) { return a.tarih === s; });
+    var html = '<div class="datebar"><button class="icon" data-act="ajMove" data-v="-1">' + I.left + '</button><input class="inp" type="date" value="' + DT.iso(s) + '" data-ui="ajDate" data-type="date">' +
+      '<button class="icon" data-act="ajMove" data-v="1">' + I.right + '</button></div>' +
+      '<div class="dayhead' + (s === today ? ' today' : '') + (holMap[s] ? ' hol' : '') + '"><span>' + p.d + ' ' + DT.AYLAR_B[p.m - 1] + ' ' + p.y + '  ·  ' + DT.GUNLER_B[DT.weekday(s) - 1] +
+      (holMap[s] ? '  ·  ' + h(holMap[s]) : '') + (cnt ? '  ·  ' + cnt + ' görev' : '') + (s === today ? '  ·  BUGÜN' : '') + '</span>' + (s !== today ? '<button class="btn sm ghost" data-act="ajSet" data-v="' + today + '">Bugüne git</button>' : '') + '</div><div class="card agenda">';
+    var row = function (saat, list) {
+      return '<div class="arow"><div class="atime">' + (saat || 'Serbest') + '</div><div class="anotes">' + list.map(function (a) {
+        var cls = a.durum === 'PROGRAMA EKLE' || a.durum === 'EVET' ? 'p-pri' : a.durum === 'YAPILDI' ? 'p-top' : a.durum === 'İPTAL' ? 'p-grey' : '';
+        return '<button class="anote' + (a.durum === 'İPTAL' ? ' cancel' : '') + '" data-act="ajEdit" data-id="' + h(a.id) + '"><span class="at">' + h(a.not) + '</span><span class="am">' +
+          (a.personel ? '<span class="pillx p-grey">' + h(a.personel) + '</span>' : '') + (a.durum ? '<span class="pillx ' + cls + '">' + h(a.durum) + '</span>' : '') +
+          (a.tur ? '<span class="pillx p-or">' + h(a.tur) + '</span>' : '') + '</span></button>';
+      }).join('') + '<button class="aadd" data-act="ajNew" data-saat="' + (saat || '') + '">' + I.plus + '</button></div></div>';
+    };
+    DT.AJANDA_SAATLER.forEach(function (h0) { html += row(h0, notes.filter(function (a) { return a.saat === h0; })); });
+    html += row('', notes.filter(function (a) { return DT.AJANDA_SAATLER.indexOf(a.saat) < 0; }));
+    html += '</div><div class="note" style="margin:8px 4px">Programa girmesini istediğiniz notta DURUM: PROGRAMA EKLE seçin (personel seçerseniz onun altına, seçmezseniz NOTLAR başlığı altına yazılır). Biten işi YAPILDI, vazgeçileni İPTAL yapın.</div>';
+    var up = state.ajanda.filter(function (a) { return a.tarih > s && a.durum !== 'YAPILDI' && a.durum !== 'İPTAL'; }).sort(function (a, b) { return a.tarih - b.tarih || S(a.saat).localeCompare(S(b.saat)); }).slice(0, 8);
+    if (up.length) html += '<div class="sec-title">Sonraki notlar</div><div class="card">' + up.map(function (a) {
+      return '<div class="trow" data-act="ajEdit" data-id="' + h(a.id) + '"><div class="h"><span class="name">' + h(a.not) + '</span><span class="pillx p-pri">' + DT.fmtShort(a.tarih) + (a.saat ? ' ' + a.saat : '') + '</span></div>' +
+        '<div class="small muted">' + h([a.personel, a.durum, a.tur].filter(Boolean).join(' · ') || '—') + '</div></div>';
+    }).join('') + '</div>';
+    return html;
+  }
+  function ajForm(a, saat) {
+    var isNew = !a;
+    a = a || { id: DT.uid(), tarih: ui.ajDate || today, saat: saat || '', not: '', personel: '', durum: 'PROGRAMA EKLE', tur: '' };
+    var durs = ['', 'PROGRAMA EKLE', 'YAPILDI', 'İPTAL'];
+    openSheet('<h3>' + (isNew ? 'Not ekle' : 'Notu düzenle') + '</h3><form id="ajform"><div class="grid2">' +
+      '<div class="field"><label>Tarih</label><input class="inp" type="date" name="tarih" value="' + DT.iso(a.tarih) + '" required></div>' +
+      '<div class="field"><label>Saat</label><select class="inp" name="saat"><option value="">Serbest</option>' + DT.AJANDA_SAATLER.map(function (x) { return '<option' + (x === a.saat ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="field"><label>Not</label><textarea class="inp" name="not" rows="2" autocapitalize="characters">' + h(a.not) + '</textarea></div>' +
+      '<div class="grid2"><div class="field"><label>Personel</label><select class="inp" name="personel">' + persOptions(a.personel, '— (NOTLAR) —') + '</select></div>' +
+      '<div class="field"><label>Durum</label><select class="inp" name="durum">' + durs.map(function (x) { return '<option value="' + x + '"' + (x === a.durum ? ' selected' : '') + '>' + (x || '—') + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="field"><label>Tür</label><select class="inp" name="tur">' + listOptions(state.lists.isTuru || [], a.tur, '—') + '</select></div>' +
+      '<div class="btns">' + (isNew ? '<button type="button" class="btn" data-act="closeSheet">Vazgeç</button>' : '<button type="button" class="btn danger" id="ajDel">Sil</button>') + '<button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#ajform');
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var o = { id: a.id, tarih: DT.fromIso(f.tarih.value), saat: f.saat.value, not: f.not.value.trim(), personel: f.personel.value, durum: f.durum.value, tur: f.tur.value };
+      if (o.tarih == null || !o.not) { toast('Tarih ve not girin'); return; }
+      var k = state.ajanda.findIndex(function (z) { return z.id === a.id; });
+      if (k >= 0) state.ajanda[k] = o; else state.ajanda.push(o);
+      closeSheet(); commit(); toast('Kaydedildi');
+    });
+    var del = $('#ajDel');
+    if (del) del.onclick = function () { state.ajanda = state.ajanda.filter(function (z) { return z.id !== a.id; }); closeSheet(); commit(); toast('Silindi'); };
+  }
+
+  /* ---------------- Ek Konsültasyon ---------------- */
+  function takipKons() {
+    var t = today, list = state.ekKons.slice();
+    var up = list.filter(function (e) { return e.tarih == null || e.tarih >= t; }).sort(function (a, b) { return (a.tarih || 9e9) - (b.tarih || 9e9); });
+    var past = list.filter(function (e) { return e.tarih != null && e.tarih < t; }).sort(function (a, b) { return b.tarih - a.tarih; });
+    var row = function (e) {
+      var x = DT.konsDonor(D, e.hastaKodu), dur = DT.konsDurum(D, e, t), who = DT.konsPersonel(D, e);
+      var cls = dur === 'BUGÜN' ? 'p-top' : dur.indexOf('Yapıldı') === 0 ? 'p-grey' : (dur.indexOf('yok') >= 0 || dur.indexOf('Tarih') === 0) ? 'p-red' : 'p-sk';
+      return '<div class="trow" data-act="konsEdit" data-id="' + h(e.id) + '"><div class="h"><span class="name">' + h(x ? x.d.ad : e.hastaKodu || '—') + '</span><span class="pillx ' + cls + '">' + h(dur) + '</span></div><dl class="kv">' +
+        '<dt>Tarih</dt><dd>' + (e.tarih != null ? h(dateLong(e.tarih)) : '—') + '</dd><dt>Hasta kodu</dt><dd>' + h([e.hastaKodu, x ? x.d.dno : ''].filter(Boolean).join(' · ')) + '</dd>' +
+        (e.bolum ? '<dt>Bölüm</dt><dd>' + h(e.bolum) + '</dd>' : '') + (x ? '<dt>Hastane</dt><dd>' + h(x.d.hastane) + '</dd>' + (x.d.tel ? '<dt>Telefon</dt><dd>' + h(x.d.tel) + '</dd>' : '') + '<dt>Sağlık k.</dt><dd>' + h(DT.fmt(x.d.sk) || '—') + '</dd>' : '') +
+        '<dt>Programda</dt><dd>' + h(who || 'PERSONEL ATANMAMIŞ') + (e.personel ? ' (değiştirildi)' : '') + '</dd></dl></div>';
+    };
+    var today0 = list.filter(function (e) { return e.tarih === t; }).length;
+    return '<div class="summary">' + up.filter(function (e) { return e.tarih != null; }).length + ' yaklaşan konsültasyon · ' + today0 + ' bugün. Konsültasyon günü Çalışma Programı’nda sağlık kontrolüne bakan personelin altına “' + h(state.lists.prog.EkKons || 'EK KONSÜLTASYON') + '” olarak yazılır.</div>' +
+      '<div class="card">' + (up.length ? up.map(row).join('') : emptyBox('Yaklaşan ek konsültasyon yok')) + '</div>' +
+      (past.length ? '<div class="sec-title">Yapılanlar</div><div class="card">' + past.slice(0, 30).map(row).join('') + '</div>' : '') +
+      '<button class="fab" data-act="konsNew" aria-label="Ek konsültasyon ekle">' + I.plus + '</button>';
+  }
+  function konsForm(e) {
+    var isNew = !e;
+    e = e || { id: DT.uid(), hastaKodu: '', tarih: today + 1, bolum: '', personel: '' };
+    var codes = state.donors.filter(function (d) { return S(d.hk) && !(byId[d.id] && byId[d.id].stopped); }).slice(-300).reverse();
+    var x = DT.konsDonor(D, e.hastaKodu);
+    openSheet('<h3>' + (isNew ? 'Ek konsültasyon ekle' : 'Ek konsültasyon') + '</h3><form id="kform">' +
+      '<div class="field"><label>Hasta kodu</label><input class="inp" name="hastaKodu" list="khk" value="' + h(e.hastaKodu) + '" autocapitalize="characters" required><datalist id="khk">' +
+      codes.map(function (d) { return '<option value="' + h(d.hk) + '">' + h(d.ad) + '</option>'; }).join('') + '</datalist></div>' +
+      '<div class="field"><label>Konsültasyon tarihi</label><input class="inp" type="date" name="tarih" value="' + DT.iso(e.tarih) + '" required></div>' +
+      '<div class="field"><label>Bölüm / açıklama</label><input class="inp" name="bolum" value="' + h(e.bolum) + '" autocapitalize="characters"></div>' +
+      '<div class="field"><label>Personel (değiştir)</label><select class="inp" name="personel">' + persOptions(e.personel, 'Sağlık kontrolüne bakan' + (x && x.pers[1] ? ' (' + x.pers[1] + ')' : '')) + '</select></div>' +
+      '<div class="btns">' + (isNew ? '<button type="button" class="btn" data-act="closeSheet">Vazgeç</button>' : '<button type="button" class="btn danger" id="kDel">Sil</button>') + '<button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#kform');
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var o = { id: e.id, hastaKodu: upperTR(f.hastaKodu.value.trim()), tarih: DT.fromIso(f.tarih.value), bolum: upperTR(f.bolum.value.trim()), personel: f.personel.value };
+      if (!o.hastaKodu || o.tarih == null) { toast('Hasta kodu ve tarih girin'); return; }
+      if (!DT.konsDonor(D, o.hastaKodu)) toast('Uyarı: hasta kodu Donör Kayıt’ta yok');
+      var k = state.ekKons.findIndex(function (z) { return z.id === e.id; });
+      if (k >= 0) state.ekKons[k] = o; else state.ekKons.push(o);
+      closeSheet(); commit();
+    });
+    var del = $('#kDel');
+    if (del) del.onclick = function () { state.ekKons = state.ekKons.filter(function (z) { return z.id !== e.id; }); closeSheet(); commit(); toast('Silindi'); };
+  }
+
+  /* ---------------- Donör Raporu ---------------- */
+  function raporRows() {
+    return D.filter(function (x) {
+      if (!x.durum) return false;
+      if (ui.rpF === 'devam' && (x.stopped || x.durum === 'Toplama yapıldı')) return false;
+      if (ui.rpF === 'yapildi' && x.durum !== 'Toplama yapıldı') return false;
+      if (ui.rpF === 'durdu' && !x.stopped) return false;
+      if (ui.rpH && !eqi(x.d.hastane, ui.rpH)) return false;
+      if (ui.rpY && !((x.d.top != null ? DT.year(x.d.top) : x.d.sk != null ? DT.year(x.d.sk) : null) === +ui.rpY)) return false;
+      return true;
+    });
+  }
+  function scrRapor() {
+    ui.rpF = ui.rpF || 'all';
+    var rows = raporRows(), yap = rows.filter(function (x) { return x.durum === 'Toplama yapıldı'; }).length, dur = rows.filter(function (x) { return x.stopped; }).length;
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/arsiv/rapor') + '<div class="seg sub">' +
+      [['all', 'Tümü'], ['devam', 'Devam eden'], ['yapildi', 'Toplama yapıldı'], ['durdu', 'Süreç durdu']].map(function (f) { return '<button class="' + (ui.rpF === f[0] ? 'on' : '') + '" data-act="rpF" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="toolbar"><select class="inp" data-ui="rpH"><option value="">Tüm hastaneler</option>' + state.lists.hastane.map(function (e) { return '<option' + (eqi(e.ad, ui.rpH) ? ' selected' : '') + '>' + h(e.ad) + '</option>'; }).join('') + '</select>' +
+      '<select class="inp" data-ui="rpY"><option value="">Tüm yıllar</option>' + yearsInData().map(function (y) { return '<option' + (String(y) === String(ui.rpY) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>' +
+      '<div class="summary">Rapor tarihi: ' + DT.fmt(today) + ' · ' + rows.length + ' donör · Toplama yapıldı: ' + yap + ' · Devam eden: ' + (rows.length - yap - dur) + ' · Süreç durdu: ' + dur + '</div>' +
+      '<button class="btn pri block" data-act="exportRapor" style="margin-bottom:10px">' + I.down + 'Excel’e aktar (Donör Raporu)</button>' +
+      '<div class="card list">' + rows.slice().reverse().slice(0, ui.rpLimit || 80).map(function (x) {
+        var d = x.d;
+        return '<a class="item" data-act="donor" data-id="' + h(d.id) + '"><div class="t1"><span class="name">' + h(d.ad) + '</span><span class="pillx ' + durumCls(x.durum) + '">' + h(x.durum) + '</span></div>' +
+          '<div class="t2">' + h([d.hk, d.hastane, d.yontem].filter(Boolean).join(' · ')) + '</div><div class="t2 muted">' +
+          h(['SK ' + (DT.fmt(d.sk) || '—'), 'Toplama ' + (DT.fmt(d.top) || '—'), d.bolge].filter(Boolean).join(' · ')) + '</div></a>';
+      }).join('') + '</div>' + (rows.length > (ui.rpLimit || 80) ? '<button class="btn block" data-act="rpMore">Daha fazla göster</button>' : '') + '</div>';
+    return { title: 'Donör Raporu', html: html };
+  }
+
+  /* ---------------- Kılavuz ---------------- */
+  var KILAVUZ = [
+    ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
+    ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
+    ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
+    ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
+    ['Takvim', 'Ay ay görünüm. Renkler: mavi sağlık kontrolü, turuncu aşı, yeşil toplama, koyu yeşil ürün taşıma, mor hastane yatış; kırmızı zemin resmi tatil. Bir güne dokununca o günün görevleri altta listelenir.'],
+    ['Çalışma Programı', 'Seçilen günün (varsayılan yarın) programını WhatsApp metni olarak hazırlar: başlık, her personelin adı ve altında görevleri, NOTLAR, ürün taşıma satırları, kargo satırı (yurt dışı nakil merkezli donörün sağlık kontrolü varsa), hafta içi sabit satırlar ve İYİ ÇALIŞMALAR. WhatsApp düğmesi metni doğrudan paylaşır.'],
+    ['Haftalık Program', 'Haftanın 7 günü alt alta, her günün görevleri ve atanmış personel. Görevlere buradan da kişi atanabilir.'],
+    ['Ajanda', 'Her gün 08:00–18:00 saatleri ve serbest satır. Programa girmesini istediğiniz notta DURUM: PROGRAMA EKLE seçin; personel seçerseniz onun altına, seçmezseniz NOTLAR başlığı altına yazılır.'],
+    ['Görev Listesi', 'Geri sayım uyarıları: aşı başlangıcı, sağlık kontrolü, toplama ve ürün taşıma. İKAMETİ’nde “Ankara” yazmayanlarda 10 gün (YÜKSEK), yazanlarda 5 gün (ORTA) önceden; ürün taşımada şehir dışı 10, Ankara içi 5 gün önceden.'],
+    ['Takip sayfaları', 'Sağlık Kontrolü, Aşı, Toplama, Ürün Taşıma, Son İzlem ve IDM sayfaları bugün ya da sonrasındaki kayıtları en yakın tarih üstte olacak şekilde listeler. Hafta sonu ya da resmi tatile denk gelen tarih turuncu görünür.'],
+    ['Ek Konsültasyon', 'HASTA KODU ve KONSÜLTASYON TARİHİ girin; donör bilgileri ve sağlık kontrolüne bakan personel kendiliğinden gelir. Başka biri gidecekse PERSONEL (DEĞİŞTİR) seçin. Konsültasyon günü programa yazılır.'],
+    ['İptal / erteleme / red / vazgeçme / hasta ex', 'AÇIKLAMA’ya iptal, erteleme, red, vazgeç ya da hasta ex yazılan donör takvimden, programlardan, uyarılardan ve takip listelerinden çıkar; Dashboard’da “süreç durdu” sayılır. Kelime silinince donör planlara geri döner.'],
+    ['KONTROL', 'Donör kaydındaki eksik ya da uyumsuz bilgiler (yöntem, hastane, nakil merkezi yok; personel listede yok; sağlık kontrolü aşıdan ya da toplamadan sonra; aşı toplamadan sonra; son izlem toplamadan önce) kaydın üstünde turuncu kutuda yazar.'],
+    ['Donör Raporu', 'Yöneticiye göndermek için temiz kopya: DURUM sütunuyla birlikte. Süzüp “Excel’e aktar” ile .xlsx olarak kaydedebilirsiniz.'],
+    ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
+    ['Veriler ve yedek', 'Veriler yalnızca bu telefonda saklanır. Ayarlar’dan düzenli yedek alın; Excel’den içe aktarma mevcut verinin yerine geçer, önceki veri saklanır ve geri yüklenebilir.']
+  ];
+  function scrKilavuz() {
+    return { title: 'Kılavuz', html: '<div class="page flush">' + groupSeg('arsiv', '/arsiv/kilavuz') + '<div class="card">' + KILAVUZ.map(function (k) {
+      return '<details class="kl"><summary>' + h(k[0]) + '</summary><div>' + h(k[1]) + '</div></details>';
+    }).join('') + '</div></div>' };
   }
 
   /* ---------------- Ayarlar ---------------- */
@@ -741,7 +971,7 @@
     var prev = null; try { prev = localStorage.getItem(PREV); } catch (e) { /* yok */ }
     var size = 0; try { size = (localStorage.getItem(KEY) || '').length; } catch (e) { /* yok */ }
     var html = '<div class="page"><div class="sec-title">Veri</div><div class="card pad">' +
-      '<div class="small muted" style="margin-bottom:12px">' + state.donors.length + ' donör · ' + Object.keys(state.overrides).length + ' personel ataması · ' + state.ekGorevler.length + ' ek görev · ' + Math.round(size / 1024) + ' KB. Veriler yalnızca bu telefonda saklanır; düzenli yedek alın.</div>' +
+      '<div class="small muted" style="margin-bottom:12px">' + state.donors.length + ' donör · ' + Object.keys(state.overrides).length + ' personel ataması · ' + state.ekGorevler.length + ' ek görev · ' + state.ekKons.length + ' ek konsültasyon · ' + state.ajanda.length + ' ajanda notu · ' + Math.round(size / 1024) + ' KB. Veriler yalnızca bu telefonda saklanır; düzenli yedek alın.</div>' +
       '<button class="btn pri block" data-act="import" style="margin-bottom:8px">' + I.up + 'Excel’den içe aktar (.xlsx)</button>' +
       '<button class="btn block" data-act="exportXlsx" style="margin-bottom:8px">' + I.down + 'Excel’e aktar (Donör Kayıt)</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
@@ -761,7 +991,7 @@
     var ta = function (name, label, lines, hint) {
       return '<div class="field"><label>' + label + '</label><textarea class="inp" name="' + name + '" rows="' + Math.min(10, Math.max(3, lines.length + 1)) + '">' + h(lines.join('\n')) + '</textarea>' + (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div>';
     };
-    var html = '<div class="page"><form id="lform"><div class="card pad">' +
+    var html = '<div class="page flush">' + groupSeg('arsiv', '/ayarlar/listeler') + '<form id="lform"><div class="card pad">' +
       ta('personel', 'Personel', L.personel, 'Her satıra bir kişi. Çalışma Programı’ndaki sıra bu sıradır.') +
       ta('hastane', 'Hastane | Programdaki adı', L.hastane.map(function (e) { return e.ad + (e.prog ? ' | ' + e.prog : ''); }), 'ör. ONKOLOJİ | ONKOLOJİ HASTANESİ') +
       ta('yontem', 'Yöntem', L.yontem) + ta('ulasim', 'Ulaşım türü', L.ulasim) + ta('konaklama', 'Konaklama', L.konaklama) +
@@ -838,7 +1068,7 @@
         XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS).then(function (res) {
           busy(false);
           var r = res.report;
-          confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev' + (r.lists ? ' · listeler' : '') +
+          confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev · ' + (r.ekKons || 0) + ' ek konsültasyon · ' + (r.ajanda || 0) + ' ajanda notu' + (r.lists ? ' · listeler' : '') +
             '\n\nTelefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek. Önceki veri saklanır; Ayarlar’dan geri dönebilirsiniz.', 'İçe aktar', false, function () { replaceState(res.state, r.donors + ' donör aktarıldı'); });
         }).catch(function (e) { busy(false); console.error(e); toast('İçe aktarılamadı: ' + e.message); });
       }, 30);
@@ -885,6 +1115,21 @@
     shareTomorrow: function () { shareText(DT.program(state, D, pool, today + 1).text, true); },
     ekNew: function (el) { if (el.dataset.v) ui.progDate = +el.dataset.v; ekForm(null); },
     ekEdit: function (el) { var e = state.ekGorevler.find(function (z) { return z.id === el.dataset.id; }); if (e) ekForm(e); },
+    soon: function () { toast('Bu sayfa sonraki sürümde eklenecek'); },
+    weekMove: function (el) { ui.weekStart = (ui.weekStart || DT.weekStart(today)) + (+el.dataset.v); render(true); },
+    weekNow: function () { ui.weekStart = DT.weekStart(today); render(true); },
+    ajMove: function (el) { ui.ajDate = (ui.ajDate || today) + (+el.dataset.v); render(true); },
+    ajSet: function (el) { ui.ajDate = +el.dataset.v; render(true); },
+    ajNew: function (el) { ajForm(null, el.dataset.saat); },
+    ajEdit: function (el) { var a = state.ajanda.find(function (z) { return z.id === el.dataset.id; }); if (a) ajForm(a); },
+    konsNew: function () { konsForm(null); },
+    konsEdit: function (el) { var e = state.ekKons.find(function (z) { return z.id === el.dataset.id; }); if (e) konsForm(e); },
+    rpF: function (el) { ui.rpF = el.dataset.v; ui.rpLimit = 80; render(true); },
+    rpMore: function () { ui.rpLimit = (ui.rpLimit || 80) + 200; render(true); },
+    exportRapor: function () {
+      busy(true, 'Excel hazırlanıyor…');
+      setTimeout(function () { try { saveFile(XLSXIO.exportReport(state, D, today, raporRows()), 'Donor_Raporu_' + stamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch (e) { toast('Hata: ' + e.message); } busy(false); }, 30);
+    },
     import: function () { pickFile('xlsx'); },
     importJson: function () { pickFile('json'); },
     exportXlsx: function () {

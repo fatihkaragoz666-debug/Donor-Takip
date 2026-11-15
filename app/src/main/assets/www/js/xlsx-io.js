@@ -283,10 +283,12 @@
         wb.sheet('Haftalık Program', { minCol: 27, maxCol: 28, maxRow: 207 }),
         wb.sheet('Haftalık Plan', { minCol: 95, maxCol: 96, maxRow: 126 }),
         wb.sheet('Çalışma Programı', { minCol: 5, maxCol: 8, minRow: 6, maxRow: 305 }),
-        wb.sheet('Dashboard', { minCol: 4, maxCol: 4, minRow: 164, maxRow: 164 })
+        wb.sheet('Dashboard', { minCol: 4, maxCol: 4, minRow: 164, maxRow: 164 }),
+        wb.sheet('Ek Konsültasyon', { minCol: 4, maxCol: 7, minRow: 6, maxRow: 1005 }),
+        wb.sheet('Ajanda', { minCol: 1, maxCol: 7, minRow: 6 })
       ]);
     }).then(function (s) {
-      var dk = s[0], li = s[1], hp = s[2], pl = s[3], cp = s[4], db = s[5];
+      var dk = s[0], li = s[1], hp = s[2], pl = s[3], cp = s[4], db = s[5], ek = s[6], aj = s[7];
       var state = DT.newState(defaults);
       // Başlık satırı ve sütunlar
       var headRow = 5, cols = {};
@@ -342,6 +344,7 @@
         };
         var tas = pairs('AF', 'AG', 'sehir'); if (tas.length) L.tasAnahtar = tas;
         var bas = pairs('AL', 'AM', 'baslik'); if (bas.length) L.basAnahtar = bas;
+        var it = txt('Y', 3, 14); if (it.length) L.isTuru = it;
         var w = col(X.colIndex('W'), 3, 15);
         DT.PROG_KEYS.forEach(function (pk, i) { if (w[i] && w[i].v != null) L.prog[pk[0]] = cellText(w[i]); });
         report.lists = true;
@@ -375,6 +378,30 @@
         });
       }
       if (db && db[164] && db[164][4] && typeof db[164][4].v === 'number') state.settings.esik = db[164][4].v;
+      // Ek Konsültasyon (D: hasta kodu, E: tarih, F: bölüm, G: personel)
+      report.ekKons = 0;
+      if (ek) {
+        Object.keys(ek).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+          var row = ek[r], e = { id: DT.uid(), hastaKodu: cellText(row[4]), tarih: cellDate(row[5]), bolum: cellText(row[6]), personel: cellText(row[7]) };
+          if (!e.hastaKodu && e.tarih == null) return;
+          state.ekKons.push(e); report.ekKons++;
+        });
+      }
+      // Ajanda (A: tarih, C: saat, D: not, E: personel, F: durum, G: tür)
+      report.ajanda = 0;
+      if (aj) {
+        Object.keys(aj).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+          var row = aj[r], not = cellText(row[4]), t = cellDate(row[1]);
+          if (!not || t == null || (row[4] && row[4].f)) return;
+          var saat = row[3] ? row[3].v : '';
+          if (typeof saat === 'number') { var mins = Math.round((saat % 1) * 1440); saat = ('0' + Math.floor(mins / 60)).slice(-2) + ':' + ('0' + mins % 60).slice(-2); }
+          saat = /^\d{1,2}:\d{2}$/.test(String(saat || '').trim()) ? String(saat).trim().padStart(5, '0') : '';
+          var dur = cellText(row[6]).toLocaleUpperCase('tr-TR');
+          state.ajanda.push({ id: DT.uid(), tarih: t, saat: saat, not: not, personel: cellText(row[5]) === 'PERSONEL' ? '' : cellText(row[5]),
+            durum: dur === 'DURUM' ? '' : dur, tur: cellText(row[7]) === 'TÜR' ? '' : cellText(row[7]) });
+          report.ajanda++;
+        });
+      }
       // Elle yazılmış ama otomatik değerle aynı olan tarihler otomatik sayılır (toplama değişince güncellensin).
       state.donors.forEach(function (d) {
         delete d.excelRow;
@@ -533,6 +560,23 @@
     var heights = []; heights[4] = 32;
     return X.buildXlsx([{ name: 'Donör Kayıt', cols: [12, 18, 24, 16, 22, 12, 12, 18, 34, 12, 12, 34, 14, 12, 12, 12, 14, 30, 6, 11, 11, 26],
       rows: rows, freezeRow: 5, filterRow: 5, heights: heights }]);
+  };
+
+  // Donör Raporu: yöneticiye gönderilecek temiz kopya (KONTROL ve IDM yok)
+  X.exportReport = function (state, D, today, rows) {
+    var head = ['HASTA KODU', 'DONÖR NUMARASI', 'AD SOYAD', 'TELEFON NO', 'İKAMETİ', 'SAĞLIK KONTROLÜ TARİHİ', 'YÖNTEMİ', 'HASTANE',
+      'AÇIKLAMA', 'AŞI BAŞLAMA TARİHİ', 'KÖK HÜCRE TOPLAMA TARİHİ', 'NAKİL MERKEZİ BÖLGE', 'İLGİLENEN PERSONEL', 'SON İZLEM TARİHİ',
+      'ULAŞIM TÜRÜ', 'KONAKLAMA', 'TAŞIYAN PERSONEL', 'DURUM'];
+    rows = rows || D;
+    var yap = rows.filter(function (x) { return x.durum === 'Toplama yapıldı'; }).length, dur = rows.filter(function (x) { return x.stopped; }).length;
+    var out = [[], [{ v: 'Donör Raporu', s: 3 }], ['Rapor tarihi: ' + DT.fmt(today) + '   ·   ' + rows.length + ' donör   ·   Toplama yapıldı: ' + yap + '   ·   Devam eden: ' + (rows.length - yap - dur) + '   ·   Süreç durdu: ' + dur], [], head.map(function (h) { return { v: h, s: 2 }; })];
+    rows.forEach(function (x) {
+      var d = x.d, dt = function (v) { return v == null ? '' : { v: v, s: 1 }; };
+      out.push([d.hk, d.dno, d.ad, d.tel, d.ikamet, dt(d.sk), d.yontem, d.hastane, d.aciklama,
+        x.asiYok ? 'Aşı yok' : dt(x.asi), dt(d.top), d.bolge, d.personel, dt(x.sonIzlem), d.ulasim, d.konaklama, d.tasiyan, x.durum]);
+    });
+    var heights = []; heights[4] = 32;
+    return X.buildXlsx([{ name: 'Donör Raporu', cols: [12, 18, 24, 16, 22, 12, 12, 18, 34, 12, 12, 34, 14, 12, 12, 12, 14, 26], rows: out, freezeRow: 5, filterRow: 5, heights: heights }]);
   };
 
   root.XLSXIO = X;
