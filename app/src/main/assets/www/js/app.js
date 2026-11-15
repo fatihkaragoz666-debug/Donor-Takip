@@ -47,6 +47,7 @@
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
     warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
     down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6.5 9-6.5"/></svg>',
     up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>'
   };
 
@@ -595,7 +596,8 @@
       '<div class="row wrap" style="margin-bottom:10px;gap:6px"><button class="chip' + (s === today ? ' on' : '') + '" data-act="progSet" data-v="' + today + '">Bugün</button><button class="chip' + (s === today + 1 ? ' on' : '') + '" data-act="progSet" data-v="' + (today + 1) + '">Yarın</button>' +
       '<span class="small muted grow right">' + h(gunAd(s)) + (holMap[s] ? ' · ' + h(holMap[s]) : '') + '</span></div>' +
       (unassigned ? '<div class="issues"><b>' + unassigned + ' görevde personel atanmamış</b>Aşağıdaki listeden atayabilirsiniz.</div>' : '') +
-      '<div class="card pad"><div class="prog">' + h(prog.text) + '</div><div class="btns" style="margin-top:12px"><button class="btn" data-act="copyProg">' + I.copy + 'Kopyala</button><button class="btn wa" data-act="shareProg" data-wa="1">' + I.wa + 'WhatsApp</button><button class="btn" data-act="shareProg">' + I.share + 'Paylaş</button></div></div>' +
+      '<div class="card pad"><div class="prog">' + h(prog.text) + '</div><div class="btns" style="margin-top:12px"><button class="btn" data-act="copyProg">' + I.copy + 'Kopyala</button><button class="btn wa" data-act="shareProg" data-wa="1">' + I.wa + 'WhatsApp</button><button class="btn" data-act="shareProg">' + I.share + 'Paylaş</button></div>' +
+      '<button class="btn block outlook" data-act="mailProg" style="margin-top:8px">' + I.mail + 'Outlook ile e-posta gönder</button></div>' +
       '<div class="sec-title">Görev atamaları (' + dayTasks.length + ')</div><div class="card">' + (dayTasks.length ? dayTasks.map(function (t) { return taskCard(t); }).join('') : emptyBox('Bu gün için takvim görevi yok')) + '</div>' +
       '<div class="sec-title">Ek görevler (' + ek.length + ')</div><div class="card">' + (ek.length ? ek.map(ekRow).join('') : emptyBox('Ek görev yok', 'Takvimde olmayan işler (ek konsültasyon vb.) için ekleyin.')) + '</div>' +
       '<div class="btns"><button class="btn" data-act="ekNew" data-v="' + s + '">' + I.plus + 'Ek görev ekle</button><button class="btn" data-act="goto" data-h="/plan/ek">Tüm ek görevler</button></div>' +
@@ -979,7 +981,7 @@
       '<div class="toolbar"><select class="inp" data-ui="rpH"><option value="">Tüm hastaneler</option>' + state.lists.hastane.map(function (e) { return '<option' + (eqi(e.ad, ui.rpH) ? ' selected' : '') + '>' + h(e.ad) + '</option>'; }).join('') + '</select>' +
       '<select class="inp" data-ui="rpY"><option value="">Tüm yıllar</option>' + yearsInData().map(function (y) { return '<option' + (String(y) === String(ui.rpY) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>' +
       '<div class="summary">Rapor tarihi: ' + DT.fmt(today) + ' · ' + rows.length + ' donör · Toplama yapıldı: ' + yap + ' · Devam eden: ' + (rows.length - yap - dur) + ' · Süreç durdu: ' + dur + '</div>' +
-      '<button class="btn pri block" data-act="exportRapor" style="margin-bottom:10px">' + I.down + 'Excel’e aktar (Donör Raporu)</button>' +
+      '<div class="btns" style="margin-bottom:10px"><button class="btn pri" data-act="exportRapor">' + I.down + 'Excel’e aktar</button><button class="btn outlook" data-act="mailRapor">' + I.mail + 'Outlook ile gönder</button></div>' +
       '<div class="card list">' + rows.slice().reverse().slice(0, ui.rpLimit || 80).map(function (x) {
         var d = x.d;
         return '<a class="item" data-act="donor" data-id="' + h(d.id) + '"><div class="t1"><span class="name">' + h(d.ad) + '</span><span class="pillx ' + durumCls(x.durum) + '">' + h(x.durum) + '</span></div>' +
@@ -994,6 +996,7 @@
     ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
+    ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
     ['Takvim', 'Ay ay görünüm. Renkler: mavi sağlık kontrolü, turuncu aşı, yeşil toplama, koyu yeşil ürün taşıma, mor hastane yatış; kırmızı zemin resmi tatil. Bir güne dokununca o günün görevleri altta listelenir.'],
@@ -1292,8 +1295,14 @@
     if (!file) return;
     var reader = new FileReader();
     busy(true, 'Dosya okunuyor…');
-    reader.onload = function () {
-      var buf = reader.result, isJson = /\.json$/i.test(file.name) || fileMode === 'json' && !/\.xlsx$/i.test(file.name);
+    reader.onload = function () { processBuffer(reader.result, file.name); };
+    reader.onerror = function () { busy(false); toast('Dosya okunamadı'); };
+    reader.readAsArrayBuffer(file);
+  }
+  function processBuffer(buf, fname) {
+    var file = { name: fname || 'dosya' };
+    (function () {
+      var isJson = /\.json$/i.test(file.name) || fileMode === 'json' && !/\.xlsx$/i.test(file.name);
       var head = new Uint8Array(buf, 0, Math.min(5, buf.byteLength));
       if (/\.pdf$/i.test(file.name) || String.fromCharCode.apply(null, head) === '%PDF-') {
         PDFText.extract(buf).then(function (res) { busy(false); handlePdf(res, file.name); })
@@ -1317,9 +1326,32 @@
             '\n\nTelefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek. Önceki veri saklanır; Ayarlar’dan geri dönebilirsiniz.', 'İçe aktar', false, function () { replaceState(res.state, r.donors + ' donör aktarıldı'); });
         }).catch(function (e) { busy(false); console.error(e); toast('İçe aktarılamadı: ' + e.message); });
       }, 30);
-    };
-    reader.onerror = function () { busy(false); toast('Dosya okunamadı'); };
-    reader.readAsArrayBuffer(file);
+    })();
+  }
+  // Outlook vb. uygulamalardan "Paylaş" ile gelen dosya (Android tarafı /paylasilan/ adresinden sunar)
+  window.receiveSharedFile = function (name, mime) {
+    busy(true, 'Dosya alınıyor…');
+    fetch('/paylasilan/' + encodeURIComponent(name || 'dosya')).then(function (r) {
+      if (!r.ok) throw new Error('dosya açılamadı');
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      var nm = name || 'dosya';
+      if (!/\.(pdf|xlsx|xlsm|json)$/i.test(nm)) nm += /pdf/.test(mime) ? '.pdf' : /json/.test(mime) ? '.json' : '.xlsx';
+      fileMode = /\.json$/i.test(nm) ? 'json' : 'xlsx';
+      processBuffer(buf, nm);
+    }).catch(function (e) { busy(false); toast('Paylaşılan dosya okunamadı: ' + e.message); });
+  };
+  function emailText(subject, text) {
+    if (NB && NB.shareEmail) { NB.shareEmail(subject, text); return; }
+    location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+  }
+  function emailFile(bytes, name, mime, subject, text) {
+    if (NB && NB.shareFile) { NB.shareFile(b64(bytes), name, mime, subject, text); return; }
+    try {
+      var f = new File([bytes], name, { type: mime });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: subject, text: text }).catch(function () {}); return; }
+    } catch (e) { /* desteklenmiyor */ }
+    saveFile(bytes, name, mime);
   }
   function replaceState(s, msg) {
     try { if (state.donors.length) localStorage.setItem(PREV, JSON.stringify(state)); } catch (e) { /* yer yoksa geç */ }
@@ -1355,6 +1387,22 @@
     progFor: function (el) { ui.progDate = +el.dataset.v; go('/plan/program', true); },
     progMove: function (el) { ui.progDate = (ui.progDate || today + 1) + (+el.dataset.v); render(true); },
     progSet: function (el) { ui.progDate = +el.dataset.v; render(true); },
+    mailProg: function () {
+      var p = DT.parts(ui.progDate);
+      emailText(('0' + p.d).slice(-2) + '.' + ('0' + p.m).slice(-2) + '.' + p.y + ' Çalışma Programı', DT.program(state, D, pool, ui.progDate).text);
+    },
+    mailRapor: function () {
+      busy(true, 'Rapor hazırlanıyor…');
+      setTimeout(function () {
+        try {
+          var rows = raporRows(), yap = rows.filter(function (x) { return x.durum === 'Toplama yapıldı'; }).length, dur = rows.filter(function (x) { return x.stopped; }).length;
+          emailFile(XLSXIO.exportReport(state, D, today, rows), 'Donor_Raporu_' + stamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Donör Raporu · ' + DT.fmt(today),
+            'Merhaba,\n\nDonör Raporu ektedir (' + DT.fmt(today) + ').\n' + rows.length + ' donör · Toplama yapıldı: ' + yap + ' · Devam eden: ' + (rows.length - yap - dur) + ' · Süreç durdu: ' + dur + '\n\nİyi çalışmalar.');
+        } catch (e) { toast('Hata: ' + e.message); }
+        busy(false);
+      }, 30);
+    },
     copyProg: function () { copyText(DT.program(state, D, pool, ui.progDate).text); },
     shareProg: function (el) { shareText(DT.program(state, D, pool, ui.progDate).text, !!el.dataset.wa); },
     shareTomorrow: function () { shareText(DT.program(state, D, pool, today + 1).text, true); },

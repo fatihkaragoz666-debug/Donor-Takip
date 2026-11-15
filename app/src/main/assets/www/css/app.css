@@ -328,3 +328,4 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .pdfbtn { background: #fff; border: 1px dashed var(--line-2); color: var(--g); margin: 0 0 6px; }
 .pdfcard h2 { display: flex; align-items: center; gap: 8px; color: var(--g); }
 .pdfcard h2 svg { width: 20px; height: 20px; }
+.btn.outlook { background: #0F6CBD; color: #fff; }

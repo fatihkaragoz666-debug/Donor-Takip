@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Base64
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -26,9 +27,13 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import androidx.core.content.IntentCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import org.json.JSONObject
+import java.io.File
 
 /**
  * Donör Takip: uygulamanın tamamı assets/www içindeki HTML/JS dosyalarıdır.
@@ -41,12 +46,18 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private var pendingSaveBytes: ByteArray? = null
+    private var sharedUri: Uri? = null
+    private var sharedName = "dosya"
+    private var sharedMime = "application/octet-stream"
+    private var sharedDelivered = true
+    private var pageReady = false
     private var insetTop = 0
     private var insetBottom = 0
 
     private val assetLoader by lazy {
         WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/paylasilan/", SharedFileHandler())
             .build()
     }
 
@@ -140,7 +151,9 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                pageReady = true
                 pushInsets()
+                deliverShared()
             }
         }
 
@@ -190,6 +203,69 @@ class MainActivity : ComponentActivity() {
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl("https://$APP_HOST/assets/www/index.html")
+        }
+        handleIncoming(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncoming(intent)
+    }
+
+    /** Outlook vb. uygulamalardan paylaşılan ya da "Birlikte aç" ile açılan dosya */
+    private fun handleIncoming(intent: Intent?) {
+        if (intent == null) return
+        val uri: Uri = when (intent.action) {
+            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            Intent.ACTION_VIEW -> intent.data
+            else -> null
+        } ?: return
+        var name = "dosya"
+        try {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (i >= 0) name = c.getString(i) ?: name
+                }
+            }
+        } catch (e: Exception) {
+            // ad okunamazsa varsayılan kalır
+        }
+        sharedUri = uri
+        sharedName = name
+        sharedMime = intent.type ?: contentResolver.getType(uri) ?: "application/octet-stream"
+        sharedDelivered = false
+        deliverShared()
+    }
+
+    private fun deliverShared() {
+        if (!pageReady || sharedDelivered || sharedUri == null) return
+        sharedDelivered = true
+        webView.evaluateJavascript(
+            "window.receiveSharedFile && window.receiveSharedFile(${JSONObject.quote(sharedName)}, ${JSONObject.quote(sharedMime)})", null
+        )
+    }
+
+    /** Sayfa paylaşılan dosyayı https://appassets.androidplatform.net/paylasilan/… adresinden okur */
+    inner class SharedFileHandler : WebViewAssetLoader.PathHandler {
+        override fun handle(path: String): WebResourceResponse? {
+            val uri = sharedUri ?: return null
+            return try {
+                val stream = contentResolver.openInputStream(uri) ?: return null
+                WebResourceResponse(sharedMime, null, stream)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    private fun installedPackage(vararg packages: String): String? = packages.firstOrNull { pkg ->
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -253,6 +329,56 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /** E-posta: Outlook kuruluysa doğrudan Outlook açılır */
+        @JavascriptInterface
+        fun shareEmail(subject: String, text: String) {
+            runOnUiThread {
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+                startShare(send)
+            }
+        }
+
+        /** Dosyayı (ör. Donör Raporu .xlsx) e-postaya ekleyerek gönder */
+        @JavascriptInterface
+        fun shareFile(base64: String, fileName: String, mimeType: String, subject: String, text: String) {
+            val bytes = try {
+                Base64.decode(base64, Base64.DEFAULT)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+            runOnUiThread {
+                if (bytes == null) {
+                    toast("Dosya hazırlanamadı")
+                    return@runOnUiThread
+                }
+                try {
+                    val dir = File(cacheDir, "paylas")
+                    dir.mkdirs()
+                    val file = File(dir, fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_"))
+                    file.writeBytes(bytes)
+                    val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.files", file)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = mimeType
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, subject)
+                        putExtra(Intent.EXTRA_TEXT, text)
+                        clipData = ClipData.newRawUri(fileName, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startShare(send)
+                } catch (e: Exception) {
+                    toast("Dosya paylaşılamadı")
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun hasOutlook(): Boolean = installedPackage(OUTLOOK) != null
+
         @JavascriptInterface
         fun copyText(text: String) {
             runOnUiThread {
@@ -297,7 +423,21 @@ class MainActivity : ComponentActivity() {
         fun appVersion(): String = BuildConfig.VERSION_NAME
     }
 
+    private fun startShare(send: Intent) {
+        val outlook = installedPackage(OUTLOOK)
+        if (outlook != null) {
+            try {
+                startActivity(Intent(send).setPackage(outlook))
+                return
+            } catch (e: ActivityNotFoundException) {
+                // seçiciye düş
+            }
+        }
+        startActivity(Intent.createChooser(send, "E-posta ile gönder"))
+    }
+
     companion object {
+        private const val OUTLOOK = "com.microsoft.office.outlook"
         /** WebViewAssetLoader'ın varsayılan alan adı: sayfa güvenli (https) kökenden yüklenir. */
         private const val APP_HOST = "appassets.androidplatform.net"
     }
