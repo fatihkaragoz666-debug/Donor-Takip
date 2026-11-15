@@ -948,11 +948,13 @@
     (raw.match(/\b(?:[A-Z]{2}\d{4,}[A-Z]?|T\d{14})\b/g) || []).forEach(function (c) { if (!known[fold(c)] && r.kodlar.indexOf(c) < 0) r.kodlar.push(c); });
     return r;
   };
-  DT.durumNotu = function (durum, tarih, sebep, mail) {
+  // Açıklamaya yalnızca anahtar kelime yazılır (ör. ERTELENDİ); elle not girilirse yanına eklenir
+  DT.durumNotu = function (durum, sebep) {
     var z = DT.DURUMLAR.filter(function (q) { return q[0] === durum; })[0];
     if (!z) return '';
-    return z[2] + ' ' + DT.fmt(tarih) + (mail ? ' (mail)' : '') + (xtrim(sebep) ? ': ' + xtrim(sebep) : '');
+    return z[2] + (xtrim(sebep) ? ': ' + xtrim(sebep) : '');
   };
+
 
   root.DT = DT;
   if (typeof module !== 'undefined' && module.exports) module.exports = DT;

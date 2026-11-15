@@ -507,21 +507,27 @@
     openSheet('<h3>' + (o.mail ? 'Mailden süreç durumu' : 'Süreç durumu ekle') + '</h3>' +
       (o.mail ? '<div class="sub">' + (p.durum ? 'Mailde “' + h(DT.DURUMLAR.filter(function (z) { return z[0] === p.durum; })[0][1].toLocaleLowerCase('tr-TR')) + '” bulundu. Kontrol edip ekleyin.' : 'Mailde iptal, red ya da erteleme ifadesi bulunamadı; durumu siz seçin.') + '</div>' : '') +
       '<form id="durform">' + donorField +
-      '<div class="field"><label>Durum</label>' + radios + '</div>' +
-      '<div class="field"><label>Not (isteğe bağlı)</label><textarea class="inp" name="sebep" rows="2" placeholder="ör. hastanın klinik durumu nedeniyle">' + h(p.cumle) + '</textarea></div>' +
+      '<div class="field"><label>Durum</label>' + radios + (p.cumle ? '<div class="hint">Mailde: “' + h(p.cumle) + '”</div>' : '') + '</div>' +
+      '<div class="field"><label>Ek not (isteğe bağlı)</label><input class="inp" name="sebep" placeholder="Boş bırakılırsa yalnızca anahtar kelime yazılır"></div>' +
       '<div class="calc small" id="durPrev"></div>' +
       '<div class="hint" style="margin:8px 2px 12px">Açıklamasında iptal, red, ertele, vazgeç ya da hasta ex yazan donörün görevleri Excel’deki gibi plan ve listelerden çıkar.</div>' +
       '<div class="btns"><button type="button" class="btn" data-act="closeSheet">Vazgeç</button><button class="btn pri">Açıklamaya ekle</button></div></form>');
     var f = $('#durform');
     var cur = function () { return fixed || byId[f.id ? f.id.value : ''] || null; };
     var durum = function () { var r = f.querySelector('[name=durum]:checked'); return r ? r.value : null; };
+    var zatenVar = function (x) {   // aynı anahtar kelime açıklamada zaten varsa tekrar yazma
+      var z = DT.DURUMLAR.filter(function (q) { return q[0] === durum(); })[0];
+      return !!(x && z && !S(f.sebep.value).trim() && DT.fold(x.d.aciklama).indexOf(DT.fold(z[2])) >= 0);
+    };
     var yeni = function (x) {
-      var not = DT.durumNotu(durum(), today, f.sebep.value, !!o.mail);
-      return not ? (x && S(x.d.aciklama).trim() ? S(x.d.aciklama).trim() + ' · ' : '') + not : '';
+      var not = DT.durumNotu(durum(), f.sebep.value), ac = x ? S(x.d.aciklama).trim() : '';
+      if (!not || zatenVar(x)) return ac;
+      return (ac ? ac + ' · ' : '') + not;
     };
     var prev = function () {
-      var x = cur(), n = DT.durumNotu(durum(), today, f.sebep.value, !!o.mail);
-      $('#durPrev').innerHTML = '<b>Yeni açıklama:</b> ' + (n ? h(yeni(x)) : '<span class="muted">durum seçin</span>');
+      var x = cur(), n = DT.durumNotu(durum(), f.sebep.value);
+      $('#durPrev').innerHTML = !n ? '<b>Yeni açıklama:</b> <span class="muted">durum seçin</span>' :
+        zatenVar(x) ? '<b>Açıklamada zaten yazıyor:</b> ' + h(x.d.aciklama) : '<b>Yeni açıklama:</b> ' + h(yeni(x));
     };
     f.addEventListener('change', function () { f.querySelectorAll('.radios label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); prev(); });
     f.addEventListener('input', prev);
@@ -531,6 +537,7 @@
       var x = cur();
       if (!x) { toast('Donör seçin'); return; }
       if (!durum()) { toast('Durum seçin'); return; }
+      if (zatenVar(x)) { closeSheet(); toast('Açıklamada zaten yazıyor'); if (location.hash !== '#/donor/' + x.d.id) go('/donor/' + x.d.id); return; }
       x.d.aciklama = yeni(x);
       var id = x.d.id;
       closeSheet(); commit(); toast('Açıklamaya eklendi · süreç durdu');
@@ -1071,7 +1078,7 @@
     ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
-    ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; “İPTAL 15.11.2026 (mail): …” gibi bir notu, siz onaylayınca açıklamaya ekler. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
+    ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; siz onaylayınca açıklamaya yalnızca anahtar kelimeyi (İPTAL, RED, ERTELENDİ, VAZGEÇTİ, HASTA EX) ekler; mail metni kopyalanmaz. İsterseniz ek not yazabilirsiniz. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
