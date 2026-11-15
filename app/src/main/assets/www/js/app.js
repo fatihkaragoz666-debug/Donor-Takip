@@ -1166,7 +1166,7 @@
       (r.kaynak === 'Belge' ? 'p-grey' : r.kaynak === 'Elle' ? 'p-or' : 'p-pri') + '">' + h(DT.fmt(r.tarih)) + '</span></div><div class="small muted">' + h([r.aciklama, r.sehir && r.sehir !== 'Ankara' ? r.sehir : '', r.yontem && r.yontem !== 'Şehir içi' ? r.yontem : '', r.kaynak].filter(Boolean).join(' · ')) + '</div></div>';
   }
   function scrKapanis() {
-    var k = state.kapanis.kesim, pend = DT.pendingWeeks(state, today);
+    var k = DT.kesimOf(state), pend = DT.pendingWeeks(state, today);
     var html = '<div class="page flush">' + groupSeg('arsiv', '/arsiv/kapanis');
     if (k == null) {
       html += '<div class="card pad"><h2>Kapanış henüz başlamadı</h2><div class="small muted" style="margin-bottom:12px">Haftalık kapanış, programdaki görevleri (atanan personeliyle) Görev Kayıtları’na aktarır; İş Yükü ve Taşıma İstatistiği kalıcı olur. Excel dosyasından içe aktarırsanız kapanış tarihi oradan gelir.</div>' +
@@ -1260,12 +1260,30 @@
       return [r.ad].concat(c).concat([c.reduce(function (s0, v) { return s0 + v; }, 0)]);
     }));
   }
+  function arsivCard(ad) {
+    return '<div class="card pad" style="margin:0 12px 10px"><div class="small"><b>' + h(ad) + ' boş.</b> Excel’deki geçmiş kayıtlar uygulamaya alınmamış; şu an yalnızca programdaki görevler sayılıyor. ' +
+      'Excel tablonuzdan yalnızca arşivi (Görev ve Taşıma Kayıtları, kapanış tarihi) alabilirsiniz; donörler ve diğer bilgiler değişmez.</div>' +
+      '<button class="btn pri block" data-act="arsivAl" style="margin-top:10px">' + I.up + 'Excel’deki geçmiş kayıtları al</button></div>';
+  }
+  function arsivYukle(buf, name) {
+    busy(true, 'Kayıtlar okunuyor…');
+    XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS).then(function (res) {
+      busy(false);
+      var ex = res.state;
+      confirmSheet('Geçmiş kayıtları al', name + '\n\n' + ex.gorevKayit.length + ' görev kaydı · ' + ex.tasimaKayit.length + ' taşıma kaydı' +
+        (ex.kapanis.kesim != null ? ' · kapanış ' + DT.fmt(ex.kapanis.kesim) : '') + '\n\nUygulamadaki kayıtlarla birleştirilir (aynısı iki kez girmez). Donörler, personel seçimleri ve diğer bilgiler değişmez.', 'Al', false, function () {
+        var r = DT.mergeArchive(state, ex);
+        commit(); toast(r.gorev + ' görev, ' + r.tasima + ' taşıma kaydı eklendi');
+      });
+    }).catch(function (e) { busy(false); toast('Okunamadı: ' + e.message); });
+  }
   function scrIsYuku() {
-    var P = periodOf('iy'), R = DT.isYuku(state, D, pool, P.from, P.to), kesim = state.kapanis.kesim;
+    var P = periodOf('iy'), R = DT.isYuku(state, D, pool, P.from, P.to), kesim = DT.kesimOf(state);
     var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
     var tur = state.lists.isTuru || DT.IS_TURU;
     var html = '<div class="page flush">' + groupSeg('dashboard', '/dash/isyuku') + periodBar('iy') +
-      '<div class="summary">Dönem: ' + h(P.label) + ' · Görev Kayıtları' + (kesim != null ? ' + ' + DT.fmt(kesim) + ' sonrası programdan canlı sayım' : '') + '.</div>';
+      '<div class="summary">Dönem: ' + h(P.label) + ' · ' + (kesim != null ? 'Görev Kayıtları + ' + DT.fmt(kesim) + ' sonrası programdan canlı sayım' : 'programdaki görevlerden canlı sayım (Görev Kayıtları boş)') + '.</div>' +
+      (state.gorevKayit.length ? '' : arsivCard('Görev Kayıtları'));
     html += card('Personel özeti', tbl(['Personel', 'Toplam', 'Kayıtlardan', 'Programdan (canlı)', 'Görevli gün', 'Hafta sonu', 'İzin günü'], R.rows.map(function (r) { return [r.ad, r.toplam, r.kayit, r.canli, r.gunN, r.hsonuN, r.izinN]; })),
       'Görevli gün: en az bir görevi olan farklı günler (izin hariç).');
     html += card('Görev türüne göre', tbl(['Personel'].concat(tur.filter(function (t) { return t !== 'İzin'; })), R.rows.map(function (r) { return [r.ad].concat(tur.filter(function (t) { return t !== 'İzin'; }).map(function (t) { return r.tur[t] || 0; })); })));
@@ -1284,6 +1302,7 @@
     var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
     var tot = R.rows.reduce(function (a, r) { return [a[0] + r.ic, a[1] + r.dis, a[2] + r.bizzat, a[3] + r.kurye, a[4] + r.toplam, a[5] + r.benzersiz]; }, [0, 0, 0, 0, 0, 0]);
     var html = '<div class="page flush">' + groupSeg('dashboard', '/dash/tasima') + periodBar('ts') + '<div class="summary">Dönem: ' + h(P.label) + ' · ' + R.n + ' taşıma · Taşıma Kayıtları + programdan gelen taşımalar (yurt dışı hariç).</div>' +
+      (state.tasimaKayit.length ? '' : arsivCard('Taşıma Kayıtları')) +
       '<div class="kpis">' + [[tot[4], 'Toplam taşıma'], [tot[0], 'Şehir içi'], [tot[1], 'Şehir dışı'], [tot[2], 'Bizzat gitti'], [tot[3], 'Kurye karşılama / teslim'], [tot[5], 'Benzersiz taşıma']].map(function (k) {
         return '<div class="kpi"><div class="n">' + num(k[0]) + '</div><div class="l">' + h(k[1]) + '</div></div>'; }).join('') + '</div>';
     html += card('Personel başına', tbl(['Personel', 'Şehir içi', 'Şehir dışı', 'Bizzat', 'Kurye', 'Toplam', 'Benzersiz'], R.rows.map(function (r) { return [r.ad, r.ic, r.dis, r.bizzat, r.kurye, r.toplam, r.benzersiz]; }), ['Toplam'].concat(tot.slice(0, 2), tot.slice(2, 4), [tot[4], tot[5]])),
@@ -1301,6 +1320,7 @@
       '<div class="small muted" style="margin-bottom:12px">' + state.donors.length + ' donör · ' + Object.keys(state.overrides).length + ' personel ataması · ' + state.ekGorevler.length + ' ek görev · ' + state.ekKons.length + ' ek konsültasyon · ' + state.ajanda.length + ' ajanda notu · ' + Math.round(size / 1024) + ' KB. Veriler yalnızca bu telefonda saklanır; düzenli yedek alın.</div>' +
       '<button class="btn pri block" data-act="import" style="margin-bottom:8px">' + I.up + 'Excel’den içe aktar (.xlsx)</button>' +
       '<button class="btn block" data-act="exportXlsx" style="margin-bottom:8px">' + I.down + 'Excel’e aktar (Donör Kayıt)</button>' +
+      '<button class="btn block" data-act="arsivAl" style="margin-bottom:8px">' + I.up + 'Excel’den yalnızca geçmiş kayıtları al</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
       (prev ? '<button class="btn ghost block" data-act="restorePrev">İçe aktarmadan önceki veriye dön</button>' : '') +
       '</div>' + tabloCard() + '<div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
@@ -1403,6 +1423,7 @@
         } catch (e) { toast('Yedek okunamadı: ' + e.message); }
         return;
       }
+      if (fileMode === 'arsiv') { busy(false); arsivYukle(buf, file.name); return; }
       if (fileMode === 'sablon') {
         XLSXTablo.check(buf).then(function () { return saveTemplate(buf, file.name); })
           .then(function () { busy(false); render(true); toast('Excel şablonu kaydedildi'); })
@@ -1642,6 +1663,10 @@
     import: function () { pickFile('xlsx'); },
     pdfPick: function () { pickFile('pdf'); },
     tabloSablon: function () { pickFile('sablon'); },
+    arsivAl: function () {
+      // Kayıtlı Excel şablonu varsa onu kullan, yoksa dosya seçtir
+      IDB.get('sablon').then(function (t) { if (t && t.buf) arsivYukle(t.buf, t.ad); else pickFile('arsiv'); }, function () { pickFile('arsiv'); });
+    },
     tabloWa: function () { tabloGonder('whatsapp'); },
     tabloSave: function () { tabloGonder('save'); },
     tabloKaydet: function () {

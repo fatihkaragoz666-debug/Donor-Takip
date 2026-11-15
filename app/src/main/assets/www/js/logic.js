@@ -840,23 +840,48 @@
     return { rows: out, eksik: eksik };
   };
   // Kapatılmayı bekleyen haftalar: kesim gününden başlayıp pazar biten pencereler, içinde bulunulan haftaya kadar
+  // Kapanış kesim tarihi; kaydedilmemişse arşivin son gününden sonrası (arşiv de yoksa null)
+  DT.kesimOf = function (state) {
+    var k = state.kapanis && state.kapanis.kesim;
+    if (k != null) return k;
+    var mx = null;
+    (state.gorevKayit || []).forEach(function (r) { if (r.tarih != null && (mx == null || r.tarih > mx)) mx = r.tarih; });
+    return mx != null ? mx + 1 : null;
+  };
   DT.pendingWeeks = function (state, today) {
-    var k = state.kapanis && state.kapanis.kesim, out = [];
+    var k = DT.kesimOf(state), out = [];
     if (k == null) return out;
     var cur = DT.weekStart(today);
     while (k < cur && out.length < 60) { var end = DT.weekStart(k) + 6; out.push({ bas: k, son: end }); k = end + 1; }
     return out;
   };
   DT.workRecords = function (state, D, pool, from, to) {
-    var kesim = state.kapanis && state.kapanis.kesim;
+    // Arşiv (Görev Kayıtları) + kesimden sonrası programdan canlı sayım; arşiv hiç yoksa bütün dönem programdan sayılır
+    var kesim = DT.kesimOf(state);
     var arc = (state.gorevKayit || []).filter(function (r) { return r.tarih != null && r.tarih >= from && r.tarih <= to; })
       .map(function (r) { return Object.assign({ canli: false }, r); });
-    var live = [];
-    if (kesim != null) {
-      var lf = Math.max(from, kesim);
-      if (lf <= to) live = DT.liveRecords(state, D, pool, lf, to).rows.map(function (r) { r.canli = true; return r; });
-    }
+    var live = [], lf = kesim != null ? Math.max(from, kesim) : from;
+    if (lf <= to) live = DT.liveRecords(state, D, pool, lf, to).rows.map(function (r) { r.canli = true; return r; });
     return arc.concat(live);
+  };
+  // Excel'deki arşivi uygulamadakiyle birleştirir (aynı kayıt iki kez girmez)
+  DT.mergeArchive = function (state, ex) {
+    var gk = function (r) { return [r.tarih, xtrim(r.personel), r.tur, xtrim(r.aciklama), r.kaynak].join('|'); };
+    var tk = function (r) { return [r.tarih, xtrim(r.personel), xtrim(r.nereden), xtrim(r.nereye), xtrim(r.ifade)].join('|'); };
+    // Excel'deki kayıtların hepsi + uygulamada Excel'dekinden fazla olanlar (aynı gün aynı iş iki kez yapılmış olabilir)
+    var union = function (ex, app, key) {
+      var cnt = {}, seen = {}, out = ex.slice();
+      ex.forEach(function (r) { var k = key(r); cnt[k] = (cnt[k] || 0) + 1; });
+      app.forEach(function (r) { var k = key(r); seen[k] = (seen[k] || 0) + 1; if (seen[k] > (cnt[k] || 0)) out.push(r); });
+      return out.sort(function (x, y) { return (x.tarih || 0) - (y.tarih || 0); });
+    };
+    var g0 = (state.gorevKayit || []).length, t0 = (state.tasimaKayit || []).length;
+    state.gorevKayit = union(ex.gorevKayit || [], state.gorevKayit || [], gk);
+    state.tasimaKayit = union(ex.tasimaKayit || [], state.tasimaKayit || [], tk);
+    var a = state.kapanis && state.kapanis.kesim, b = ex.kapanis && ex.kapanis.kesim;
+    state.kapanis = state.kapanis || {};
+    state.kapanis.kesim = a == null ? (b == null ? null : b) : (b == null ? a : Math.max(a, b));
+    return { gorev: state.gorevKayit.length - g0, tasima: state.tasimaKayit.length - t0 };
   };
   DT.isYuku = function (state, D, pool, from, to) {
     var L = state.lists, persList = L.personel.filter(function (p) { return xtrim(p) !== ''; });
