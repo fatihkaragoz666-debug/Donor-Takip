@@ -282,11 +282,13 @@
     if (hk) f.hk = hk;
     var dno = (/\bT\d{14}\b/.exec(all) || [])[0]; if (dno) f.dno = dno;
     // yöntem
-    var iY = idx(/toplama yöntemi/i), yt = iY >= 0 && next(iY) ? lower(next(iY).text) : '';
+    var iY = idx(/toplama yöntemi/i);
+    var yt = iY >= 0 ? lower(L1[iY].text.replace(/^.*yöntemi\s*[;:]?/i, '') + ' ' + (next(iY) ? next(iY).text : '')) : '';
     var yl = (lists.yontem || []);
     var pick = function (word) { for (var k = 0; k < yl.length; k++) if (lower(yl[k]).indexOf(word) >= 0) return yl[k]; return null; };
-    if (yt.indexOf('perifer') >= 0) f.yontem = pick('perifer') || 'PERİFERİK';
-    else if (yt.indexOf('kemik') >= 0) f.yontem = pick('kemik') || 'KEMİK İLİĞİ';
+    // BM / Bone Marrow / Kemik İliği → KEMİK İLİĞİ · PBSC / Periferik → PERİFERİK
+    if (/(^|[^a-zçğıöşü])bm([^a-zçğıöşü]|$)|bone\s*marrow|kemik/.test(yt)) f.yontem = pick('kemik') || 'KEMİK İLİĞİ';
+    else if (/perifer|pbsc|pksh/.test(yt)) f.yontem = pick('perifer') || 'PERİFERİK';
     // toplama merkezi → hastane
     var iM = idx(/Ürün Toplama Merkezi/i);
     if (iM >= 0 && next(iM)) {
