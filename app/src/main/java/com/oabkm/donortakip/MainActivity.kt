@@ -478,10 +478,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Hafta içi hatırlatma; tatiller "yyyy-MM-dd,…" */
+        /** Günlük hatırlatma; tatiller "yyyy-MM-dd,…"; everyDay = hafta sonu ve tatiller dahil */
         @JavascriptInterface
-        fun setReminder(on: Boolean, hour: Int, minute: Int, holidays: String) {
-            Hatirlatma.save(this@MainActivity, on, hour, minute, holidays)
+        fun setReminder(on: Boolean, hour: Int, minute: Int, holidays: String, everyDay: Boolean) {
+            Hatirlatma.save(this@MainActivity, on, hour, minute, holidays, everyDay)
             if (on && Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) {

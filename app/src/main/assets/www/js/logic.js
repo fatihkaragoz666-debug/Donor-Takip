@@ -157,7 +157,8 @@
     else if (x.yd === 1) { x.sehir = 'Yurt dışı'; x.baslik = xtrim(b); }
     else {
       var s1 = lastMatch(c.tas, ea); x.sehir = s1 == null ? 'Diğer' : s1;
-      var s2 = lastMatch(c.bas, ea); x.baslik = s2 == null ? xtrim(b) : s2;
+      // Başlık ANKARA çıkan (Ankara'daki) merkezler başlık yerine NAKİL MERKEZİ adıyla yazar
+      var s2 = lastMatch(c.bas, ea); x.baslik = s2 == null || fold(xtrim(s2)) === 'ankara' ? xtrim(b) : s2;
     }
     x.sabahAksam = (L.asiCift || []).some(function (h) { return eqi(h, d.hastane); });
     var slash = ik.indexOf('/');

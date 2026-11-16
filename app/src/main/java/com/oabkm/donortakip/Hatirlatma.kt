@@ -15,7 +15,7 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * Hafta içi (resmi tatiller hariç) seçilen saatte "güncel tabloyu WhatsApp'ta gönder" bildirimi.
+ * Seçilen saatte (hafta içi, resmi tatiller hariç; ya da her gün) "güncel tabloyu WhatsApp'ta gönder" bildirimi.
  * Bildirime dokununca uygulama açılır, tabloyu hazırlar ve WhatsApp'ı açar; mesajı kullanıcı gönderir.
  */
 object Hatirlatma {
@@ -27,9 +27,10 @@ object Hatirlatma {
 
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun save(c: Context, on: Boolean, hour: Int, minute: Int, holidays: String) {
+    fun save(c: Context, on: Boolean, hour: Int, minute: Int, holidays: String, everyDay: Boolean) {
         prefs(c).edit()
             .putBoolean("on", on)
+            .putBoolean("hergun", everyDay)
             .putInt("saat", hour.coerceIn(0, 23))
             .putInt("dakika", minute.coerceIn(0, 59))
             .putString("tatil", holidays)
@@ -43,7 +44,8 @@ object Hatirlatma {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    private fun isWorkday(cal: Calendar, holidays: Set<String>): Boolean {
+    private fun isWorkday(c: Context, cal: Calendar, holidays: Set<String>): Boolean {
+        if (prefs(c).getBoolean("hergun", false)) return true
         val dow = cal.get(Calendar.DAY_OF_WEEK)
         if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) return false
         val key = String.format(
@@ -68,7 +70,7 @@ object Hatirlatma {
         cal.set(Calendar.MILLISECOND, 0)
         if (cal.timeInMillis <= now + 30_000L) cal.add(Calendar.DAY_OF_YEAR, 1)
         var guard = 0
-        while (!isWorkday(cal, tat) && guard++ < 40) cal.add(Calendar.DAY_OF_YEAR, 1)
+        while (!isWorkday(c, cal, tat) && guard++ < 40) cal.add(Calendar.DAY_OF_YEAR, 1)
         return cal.timeInMillis
     }
 
@@ -82,7 +84,7 @@ object Hatirlatma {
 
     fun fire(c: Context) {
         if (!prefs(c).getBoolean("on", false)) return
-        if (isWorkday(Calendar.getInstance(), holidays(c))) notify(c)
+        if (isWorkday(c, Calendar.getInstance(), holidays(c))) notify(c)
         schedule(c)
     }
 
