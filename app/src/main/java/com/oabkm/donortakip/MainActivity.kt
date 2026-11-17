@@ -468,12 +468,14 @@ class MainActivity : ComponentActivity() {
                             }
                             createFileLauncher.launch(intent)
                         }
-                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
+                        "whatsapp" -> shareToWhatsApp(f, mimeType, text)
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
                     }
                 } catch (e: Exception) {
-                    toast("Dosya paylaşılamadı")
+                    webView.evaluateJavascript(
+                        "window.onShareError && window.onShareError(${JSONObject.quote(e.toString())})", null
+                    )
                 }
             }
         }
@@ -548,20 +550,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Dosyayı WhatsApp'ta açar; numara verilmişse doğrudan o sohbete gitmeyi dener */
-    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String) {
+    /** Dosyayı WhatsApp'ta açar; WhatsApp sohbet seçme ekranını gösterir (kendinize mesaj dahil) */
+    private fun shareToWhatsApp(file: File, mimeType: String, text: String) {
         val pkg = installedPackage("com.whatsapp", "com.whatsapp.w4b")
         val send = fileIntent(file, mimeType, "", text)
         if (pkg == null) {
+            toast("WhatsApp bulunamadı; paylaşma ekranı açılıyor")
             startActivity(Intent.createChooser(send, "Paylaş"))
             return
         }
         send.setPackage(pkg)
-        var digits = phone.filter { it.isDigit() }
-        if (digits.startsWith("00")) digits = digits.substring(2)
-        if (digits.length == 11 && digits.startsWith("0")) digits = "9$digits"
-        if (digits.length == 10 && digits.startsWith("5")) digits = "90$digits"
-        if (digits.length >= 11) send.putExtra("jid", "$digits@s.whatsapp.net")
         try {
             startActivity(send)
         } catch (e: ActivityNotFoundException) {
