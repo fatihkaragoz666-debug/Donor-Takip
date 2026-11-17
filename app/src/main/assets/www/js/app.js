@@ -276,7 +276,7 @@
         (canli ? '<span class="gc">' + h(canli) + '</span>' : '') + '</span><span class="ar">' + I.right + '</span></button>';
     };
     var html = '<div class="banner k"><img src="img/kizilay-banner.jpg" alt=""></div><div class="page home">' +
-      '<div class="hometitle"><div class="ht">Donör Takip</div><div class="hs">Bugün  ' + h(DT.fmt(t)) + '  ·  ' + h(gunAd(t)) + (holMap[t] ? '  ·  <b>' + h(holMap[t]) + '</b>' : '') + '</div></div>';
+      '<div class="hometitle k"><div class="ht">OABKM KÖK HÜCRE BİRİMİ</div><div class="hs">Bugün  ' + h(DT.fmt(t)) + '  ·  ' + h(gunAd(t)) + (holMap[t] ? '  ·  <b>' + h(holMap[t]) + '</b>' : '') + '</div></div>';
     if (!state.donors.length) html += noDataCard();
     html += '<div class="anabtns">' +
       btn('/mihmandarlik', MIH.renk, I.users, MIH.ad, 'Planlama, takip, donör kayıt ve arşiv', 'Bugün ' + bugun + ' · yarın ' + yarin + ' görev' + (uyari ? ' · ' + uyari + ' uyarı' : '')) +

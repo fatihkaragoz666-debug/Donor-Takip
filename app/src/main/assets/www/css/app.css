@@ -392,7 +392,9 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .ykasama .b i { display: block; height: 100%; border-radius: 4px; }
 
 /* ---- Ana sayfa: dört bölüm ---- */
-.home .banner-k img, .banner.k img { max-height: 190px; width: auto; max-width: 100%; }
+.banner.k img { width: 100%; max-width: 760px; height: auto; }
+.hometitle.k { text-align: center; margin: 2px 2px 6px; }
+.hometitle.k .ht { font-size: 22px; letter-spacing: .6px; }
 .anabtns { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 10px; }
 .anabtn { border: 0; border-radius: 18px; color: #fff; padding: 13px 14px; text-align: left; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.16); font: inherit; }
 .anabtn:active { filter: brightness(.92); }
