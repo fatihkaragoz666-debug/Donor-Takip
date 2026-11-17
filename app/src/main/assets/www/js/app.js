@@ -360,7 +360,6 @@
       '<button class="btn block pdfbtn" data-act="durumNew" data-id="' + h(id) + '" style="margin-top:8px">İptal / red / erteleme ekle</button></div>';
     if (x.issues.length) html += '<div class="issues"><b>Kontrol</b>' + x.issues.map(h).join('<br>') + '</div>';
     if (x.dupAd) html += '<div class="issues"><b>Aynı ad soyad</b>Bu ad soyad başka bir kayıtta da var.</div>';
-    html += hrDonorSection(x);
     // Süreç
     var tl = [];
     if (d.sk != null) tl.push([d.sk, 'Sağlık kontrolü', 'sk']);
@@ -386,6 +385,7 @@
       ['Yöntemi', d.yontem], ['Hastane', d.hastane], ['Açıklama', d.aciklama], ['Nakil merkezi', S(d.bolge) + (x.sehir ? ' · ' + x.sehir : '')],
       ['İlgilenen personel', d.personel], ['Taşıyan personel', d.tasiyan], ['Ulaşım', d.ulasim], ['Konaklama', d.konaklama], ['IDM', d.idm ? '✓' : '']];
     html += '<div class="sec-title">Bilgiler</div><div class="card dl">' + rows.map(function (r) { return '<div>' + h(r[0]) + '</div><div>' + (r[1] ? h(r[1]) : '<span class="muted">—</span>') + '</div>'; }).join('') + '</div>' +
+      hrDonorSection(x) +
       '<button class="btn danger block" data-act="delDonor" data-id="' + h(id) + '" style="margin-top:8px">Kaydı sil</button></div>';
     return { title: d.ad || 'Donör', back: true, html: html, tab: 'donorler' };
   }
