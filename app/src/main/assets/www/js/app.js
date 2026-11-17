@@ -360,6 +360,7 @@
       '<button class="btn block pdfbtn" data-act="durumNew" data-id="' + h(id) + '" style="margin-top:8px">İptal / red / erteleme ekle</button></div>';
     if (x.issues.length) html += '<div class="issues"><b>Kontrol</b>' + x.issues.map(h).join('<br>') + '</div>';
     if (x.dupAd) html += '<div class="issues"><b>Aynı ad soyad</b>Bu ad soyad başka bir kayıtta da var.</div>';
+    html += hrDonorSection(x);
     // Süreç
     var tl = [];
     if (d.sk != null) tl.push([d.sk, 'Sağlık kontrolü', 'sk']);
@@ -384,7 +385,6 @@
     var rows = [['Hasta kodu', d.hk], ['Donör numarası', d.dno], ['Ad soyad', d.ad], ['Telefon', d.tel], ['İkameti', d.ikamet + (x.ankara === 1 ? ' (Ankara içi)' : x.ankara === 0 ? ' (Ankara dışı)' : '')],
       ['Yöntemi', d.yontem], ['Hastane', d.hastane], ['Açıklama', d.aciklama], ['Nakil merkezi', S(d.bolge) + (x.sehir ? ' · ' + x.sehir : '')],
       ['İlgilenen personel', d.personel], ['Taşıyan personel', d.tasiyan], ['Ulaşım', d.ulasim], ['Konaklama', d.konaklama], ['IDM', d.idm ? '✓' : '']];
-    html += hrDonorSection(x);
     html += '<div class="sec-title">Bilgiler</div><div class="card dl">' + rows.map(function (r) { return '<div>' + h(r[0]) + '</div><div>' + (r[1] ? h(r[1]) : '<span class="muted">—</span>') + '</div>'; }).join('') + '</div>' +
       '<button class="btn danger block" data-act="delDonor" data-id="' + h(id) + '" style="margin-top:8px">Kaydı sil</button></div>';
     return { title: d.ad || 'Donör', back: true, html: html, tab: 'donorler' };
@@ -1307,19 +1307,28 @@
   function kisaTL(v) { return v >= 1e6 ? (v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' Mn' : v >= 1e3 ? Math.round(v / 1e3) + ' B' : String(Math.round(v)); }
   var HRCH = { fmt: kisaTL, full: true };
   function degisim(a, b) { return b ? ((a / b - 1) >= 0 ? '+' : '') + pct(a / b - 1) : '–'; }
+  // Donör sayfası: Excel'deki "Donör Harcama" satırının bilgileri + harcama kalemleri
   function hrDonorSection(x) {
     var mine = hrows.filter(function (o) { return o.x === x; }).sort(function (a, b) { return (b.r.tarih || 0) - (a.r.tarih || 0); });
-    var hh = x.h, html = '<div class="sec-title">Harcamalar</div><div class="card pad">';
+    var hh = x.h, yillar = Object.keys(hh.yil).sort();
+    var html = '<div class="sec-title">Harcama bilgileri</div><div class="card pad hrcard">';
     if (mine.length) {
-      html += '<div class="row" style="align-items:baseline"><b style="font-size:20px">' + tl(hh.toplam, true) + '</b><span class="small muted grow" style="margin-left:8px">' + mine.length + ' harcama' +
-        (hh.refakatci ? ' · refakatçi ' + hh.refakatci.toLocaleLowerCase('tr-TR') : '') + (hh.gece ? ' · ' + hh.gece + ' gece' : '') + '</span></div>' +
-        '<div class="small" style="margin:4px 0 8px">' + HR.KATEGORI.filter(function (k) { return hh.kat[k]; }).map(function (k) { return h(k) + ': <b>' + tl(hh.kat[k]) + '</b>'; }).join(' · ') + '</div>' +
-        mine.map(function (o) {
-          var r = o.r;
-          return '<button class="hrrow" data-act="hrEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(r.detay) + '</b><span class="small muted"><br>' + h(DT.fmt(r.tarih)) +
-            (r.refakatci ? ' · refakatçi ' + h(r.refakatci.toLocaleLowerCase('tr-TR')) : '') + (r.gece ? ' · ' + r.gece + ' gece' : '') + (r.not ? ' · ' + h(r.not) : '') + '</span></span><b class="amt">' + tl(r.tutar, true) + '</b></button>';
-        }).join('');
-    } else html += '<div class="small muted">Bu donör için harcama girilmemiş.</div>';
+      html += '<div class="hrtop"><div><div class="hrsum">' + tl(hh.toplam, true) + '</div><div class="small muted">Toplam harcama · ' + mine.length + ' kalem</div></div>' +
+        (yillar.length ? '<div class="hryil">' + yillar.map(function (y) { return '<div><b>' + tl(hh.yil[y]) + '</b><span>' + y + '</span></div>'; }).join('') + '</div>' : '') + '</div>' +
+        '<div class="hrkat">' + HR.KATEGORI.map(function (k) {
+          return '<div' + (hh.kat[k] ? '' : ' class="sifir"') + '><span>' + h(k) + '</span><b>' + (hh.kat[k] ? tl(hh.kat[k], true) : '–') + '</b></div>';
+        }).join('') + '<div><span>Toplam</span><b>' + tl(hh.toplam, true) + '</b></div></div>';
+    } else html += '<div class="small muted" style="margin-bottom:8px">Bu donör için harcama girilmemiş.</div>';
+    var bilgi = [['İl', hh.il || '–'], ['Konum', hh.konum], ['Ulaşım türü', hh.ulasim || '–'], ['Refakatçi', hh.refakatci || (mine.length ? 'Bilgi yok' : '–')],
+      ['Konaklama', hh.gece ? hh.gece + ' gece' : '–'], ['Durum grubu', hh.grup]];
+    html += '<div class="hrbilgi">' + bilgi.map(function (b) { return '<div><span>' + h(b[0]) + '</span><b>' + h(b[1]) + '</b></div>'; }).join('') + '</div>';
+    if (mine.length) {
+      html += '<div class="hrbas">Harcama kalemleri</div>' + mine.map(function (o) {
+        var r = o.r;
+        return '<button class="hrrow" data-act="hrEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(r.detay) + '</b><span class="small muted"><br>' + h(DT.fmt(r.tarih)) + ' · ' + h(r.kategori) +
+          (r.refakatci ? ' · refakatçi ' + h(r.refakatci.toLocaleLowerCase('tr-TR')) : '') + (r.gece ? ' · ' + r.gece + ' gece' : '') + (r.not ? ' · ' + h(r.not) : '') + '</span></span><b class="amt">' + tl(r.tutar, true) + '</b></button>';
+      }).join('');
+    }
     return html + '<button class="btn block" data-act="hrNew" data-donor="' + h(x.d.id) + '" style="margin-top:10px">' + I.plus + 'Harcama ekle</button></div>';
   }
   function hrForm(o) {

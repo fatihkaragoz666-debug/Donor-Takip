@@ -338,3 +338,17 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .hrrow .amt { white-space: nowrap; }
 .hrrow .rank { flex: none; width: 24px; height: 24px; border-radius: 12px; background: var(--g-soft); color: var(--g); display: grid; place-items: center; font-weight: 700; font-size: 12px; }
 .card.pad .hrrow { padding-left: 2px; padding-right: 2px; }
+
+/* Donör sayfası · harcama bilgileri */
+.hrcard .hrtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.hrcard .hrsum { font-size: 24px; font-weight: 750; color: #A3262A; line-height: 1.1; }
+.hrcard .hryil { display: flex; gap: 12px; text-align: right; }
+.hrcard .hryil div { display: flex; flex-direction: column; }
+.hrcard .hryil b { font-size: 14px; }
+.hrcard .hryil span { font-size: 11.5px; color: var(--ink-3); }
+.hrcard .hrkat, .hrcard .hrbilgi { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.hrcard .hrkat > div, .hrcard .hrbilgi > div { background: var(--grey-bg, #f3f4f6); border-radius: 10px; padding: 7px 10px; display: flex; flex-direction: column; min-width: 0; }
+.hrcard .hrkat span, .hrcard .hrbilgi span { font-size: 11.5px; color: var(--ink-3); }
+.hrcard .hrkat b, .hrcard .hrbilgi b { font-size: 14px; overflow-wrap: anywhere; }
+.hrcard .hrkat .sifir b { color: var(--ink-3); font-weight: 500; }
+.hrcard .hrbas { font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; margin: 4px 2px 2px; }
