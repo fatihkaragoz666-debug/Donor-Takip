@@ -51,6 +51,7 @@
     down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
     mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6.5 9-6.5"/></svg>',
     up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5"/><path d="M8.5 17v-3M12 17v-5M15.5 17v-2"/></svg>',
     open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
@@ -135,13 +136,18 @@
     dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
       ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü'],
       ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri'], ['/dash/raporlar', 'Raporlar', 'Tarih aralığına göre PDF ve Excel rapor']] },
-    harcama: { ad: 'DONÖR HARCAMA', renk: '#A3262A', acik: '#F8E4E3', alt: 'Bağışçı harcamaları ve harcama dashboard', pages: [
+    eslesme: { ad: 'EŞLEŞME', renk: '#0E7C86', acik: '#DDF1F2', alt: 'Eşleşme takibi', pages: [] },
+    harcama: { ad: 'MALİ İŞLER', renk: '#A3262A', acik: '#F8E4E3', alt: 'Donör harcaması, yemek kartı ve harcama dashboard', pages: [
       ['/harcama', 'Harcama Dashboard', 'Yıllara, kategoriye, ulaşıma ve ile göre harcama'], ['/harcama/kayitlar', 'Harcama Kayıtları', 'Harcama satırları: ekle, düzenle, Excel’den al'],
       ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti'], ['/harcama/yemek', 'Yemek Kartı', 'Yükleme detayı: sağlık kontrolü, aşı + toplama, toplama süreci']] }
   };
+  // Ana Sayfa'daki dört bölüm; PLANLAMA, TAKİP ve DONÖR KAYIT VE ARŞİV, MİHMANDARLIK'ın içindedir
+  var MIH = { ad: 'MİHMANDARLIK', renk: '#1F3A5F', acik: '#E4E9F0', alt: 'Planlama, takip, donör kayıt ve arşiv', gruplar: ['planlama', 'takip', 'arsiv'] };
+  function topOf(gk) { return gk && MIH.gruplar.indexOf(gk) >= 0 ? 'mihmandarlik' : gk; }
   function groupOf(path) {
     if (path === '/' || path === '') return null;
     var k = path.split('/')[1];
+    if (k === 'mihmandarlik') return 'mihmandarlik';
     if (k === 'g') return path.split('/')[2];
     if (k === 'plan') return 'planlama';
     if (k === 'takip') return 'takip';
@@ -150,8 +156,8 @@
     if (k === 'harcama') return 'harcama';
     return null;
   }
-  var TABS = [['home', '/', 'Ana Sayfa', I.home], ['planlama', '/g/planlama', 'Planlama', I.cal], ['takip', '/g/takip', 'Takip', I.track],
-    ['arsiv', '/g/arsiv', 'Donör Kayıt', I.users], ['dashboard', '/g/dashboard', 'Dashboard', I.chart], ['harcama', '/g/harcama', 'Harcama', I.tl]];
+  var TABS = [['home', '/', 'Ana Sayfa', I.home], ['mihmandarlik', '/mihmandarlik', 'Mihmandarlık', I.users], ['eslesme', '/g/eslesme', 'Eşleşme', I.link],
+    ['harcama', '/g/harcama', 'Mali İşler', I.tl], ['dashboard', '/g/dashboard', 'Dashboard', I.chart]];
   function groupSeg(key, cur) {
     return '<div class="seg">' + GROUPS[key].pages.filter(function (pg) { return !pg[3]; }).map(function (pg) {
       return '<button class="' + (pg[0] === cur ? 'on' : '') + '" data-act="goto" data-h="' + pg[0] + '" data-replace="1">' + h(pg[1]) + '</button>';
@@ -163,6 +169,7 @@
     var top = keepScroll ? view.scrollTop : null;
     try {
       if (p.length === 0) out = scrHome();
+      else if (p[0] === 'mihmandarlik') out = scrMihmandarlik();
       else if (p[0] === 'g' && GROUPS[p[1]]) out = scrGroup(p[1]);
       else if (p[0] === 'arsiv' && p[1] === 'rapor') out = scrRapor();
       else if (p[0] === 'arsiv' && p[1] === 'kilavuz') out = scrKilavuz();
@@ -190,16 +197,18 @@
       console.error(e);
       out = { title: 'Hata', html: '<div class="page"><div class="card pad"><b>Bir hata oluştu.</b><div class="small muted">' + h(e.message) + '</div></div></div>' };
     }
-    var gk = groupOf('/' + p.join('/'));
-    document.documentElement.style.setProperty('--g', gk ? GROUPS[gk].renk : NAVY);
-    document.documentElement.style.setProperty('--g-soft', gk ? GROUPS[gk].acik : '#E4E9F0');
+    var gk = groupOf('/' + p.join('/')), G = gk === 'mihmandarlik' ? MIH : gk ? GROUPS[gk] : null;
+    document.documentElement.style.setProperty('--g', G ? G.renk : NAVY);
+    document.documentElement.style.setProperty('--g-soft', G ? G.acik : '#E4E9F0');
     $('#title').textContent = out.title;
-    $('#btnBack').hidden = !(out.back || (p.length && p[0] !== 'g'));
+    // geri düğmesi: Ana Sayfa ve alt sekmelerdeki bölüm sayfaları dışında
+    var kok = p.length === 0 || p[0] === 'mihmandarlik' || (p[0] === 'g' && MIH.gruplar.indexOf(p[1]) < 0);
+    $('#btnBack').hidden = !(out.back || !kok);
     $('#topActions').innerHTML = out.actions || '';
     view.innerHTML = out.html;
     // sayfa düğmeleri satırında seçili düğme görünür olsun
     view.querySelectorAll('.seg').forEach(function (sg) { var b = sg.querySelector('button.on'); if (b && b.offsetLeft + b.offsetWidth > sg.clientWidth) sg.scrollLeft = b.offsetLeft - 12; });
-    var tab = gk || 'home';
+    var tab = topOf(gk) || 'home';
     $('#tabs').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
     view.scrollTop = top != null ? top : (ui.scroll[location.hash] || 0);
     if (out.after) out.after();
@@ -257,13 +266,33 @@
       '<div class="btns"><button class="btn pri" data-act="import">' + I.up + 'Excel dosyası seç</button><button class="btn" data-act="newDonor">' + I.plus + 'Elle ekle</button></div></div>';
   }
 
-  /* ---------------- Ana sayfa ---------------- */
+  /* ---------------- Ana sayfa: MİHMANDARLIK · EŞLEŞME · MALİ İŞLER · DASHBOARD ---------------- */
   function scrHome() {
+    var t = today, bugun = DT.calendarTasks(pool, D, t, t + 1, '').length, yarin = DT.calendarTasks(pool, D, t + 1, t + 2, '').length, uyari = DT.alerts(D, t, '').length;
+    var Y = DT.year(t), hY = hrows.reduce(function (a, o) { return a + (o.yil === Y ? o.tutar : 0); }, 0), yY = yrows.reduce(function (a, o) { return a + (DT.year(o.r.tarih) === Y ? o.tutar : 0); }, 0);
+    var topY = D.filter(function (x) { return !x.stopped && x.d.top != null && x.d.top <= t && DT.year(x.d.top) === Y; }).length;
+    var btn = function (h0, renk, ikon, ad, alt, canli) {
+      return '<button class="anabtn" style="background:' + renk + '" data-act="goto" data-h="' + h0 + '"><span class="ai">' + ikon + '</span><span class="grow"><span class="gt">' + h(ad) + '</span><span class="gs">' + h(alt) + '</span>' +
+        (canli ? '<span class="gc">' + h(canli) + '</span>' : '') + '</span><span class="ar">' + I.right + '</span></button>';
+    };
+    var html = '<div class="banner k"><img src="img/kizilay-banner.jpg" alt=""></div><div class="page home">' +
+      '<div class="hometitle"><div class="ht">Donör Takip</div><div class="hs">Bugün  ' + h(DT.fmt(t)) + '  ·  ' + h(gunAd(t)) + (holMap[t] ? '  ·  <b>' + h(holMap[t]) + '</b>' : '') + '</div></div>';
+    if (!state.donors.length) html += noDataCard();
+    html += '<div class="anabtns">' +
+      btn('/mihmandarlik', MIH.renk, I.users, MIH.ad, 'Planlama, takip, donör kayıt ve arşiv', 'Bugün ' + bugun + ' · yarın ' + yarin + ' görev' + (uyari ? ' · ' + uyari + ' uyarı' : '')) +
+      btn('/g/eslesme', GROUPS.eslesme.renk, I.link, GROUPS.eslesme.ad, 'Eşleşme takibi', 'Hazırlanıyor') +
+      btn('/g/harcama', GROUPS.harcama.renk, I.tl, GROUPS.harcama.ad, 'Donör harcaması ve yemek kartı', Y + ': ' + tl(hY) + ' harcama · ' + tl(yY) + ' yemek kartı') +
+      btn('/g/dashboard', GROUPS.dashboard.renk, I.chart, GROUPS.dashboard.ad, 'İstatistikler, iş yükü, taşıma ve raporlar', Y + ': ' + topY + ' toplama gerçekleşti') + '</div>';
+    html += '</div>';
+    return { title: 'Ana Sayfa', html: html, actions: '<button class="icon" data-act="goto" data-h="/ayarlar" aria-label="Ayarlar">' + I.gear + '</button>' };
+  }
+  /* ---------------- MİHMANDARLIK (önceki ana sayfa) ---------------- */
+  function scrMihmandarlik() {
     var t = today, todayTasks = DT.calendarTasks(pool, D, t, t + 1, ''), tomorrow = DT.calendarTasks(pool, D, t + 1, t + 2, '');
     var alerts = DT.alerts(D, t, ''), kontrol = D.filter(function (x) { return x.kontrol; }).length;
     var unassigned = tomorrow.filter(function (k) { var x = D[k.i]; return !(k.slot === 7 && k.yd) && !x.pers[k.slot]; }).length;
-    var html = '<div class="banner"><img src="img/kizilay-banner.jpg" alt=""></div><div class="page home">' +
-      '<div class="hometitle"><div class="ht">Donör Takip</div><div class="hs">Bugün  ' + h(DT.fmt(t)) + '  ·  ' + h(gunAd(t)) + (holMap[t] ? '  ·  <b>' + h(holMap[t]) + '</b>' : '') + '</div></div>';
+    var html = '<div class="page home">' +
+      '<div class="ghead" style="background:' + MIH.renk + '"><div class="gt">' + MIH.ad + '</div><div class="gs">Bugün ' + h(DT.fmt(t)) + ' · ' + h(gunAd(t)) + (holMap[t] ? ' · ' + h(holMap[t]) : '') + '</div></div>';
     if (!state.donors.length) html += noDataCard();
     html += '<div class="tiles">' +
       '<button class="tile" data-act="calToday"><div class="n">' + todayTasks.length + '</div><div class="l">Bugün · görev</div><div class="s">Takvim’de bugünün görevleri</div></button>' +
@@ -272,8 +301,7 @@
       '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu</div><div class="s">Donör Kayıt’ta eksik ya da uyumsuz bilgi</div></button></div>' +
       '<div class="actions"><button class="btn newdonor" data-act="newDonor">' + I.plus + 'YENİ DONÖR EKLE</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
       '<div class="btns"><button class="btn pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle</button><button class="btn pdfbtn" data-act="mailDurum">' + I.mail + 'Mailden iptal / erteleme</button></div>' +
-      '<button class="btn block rpbtn" data-act="goto" data-h="/dash/raporlar">' + I.doc + 'Rapor al <span class="muted">· PDF / Excel</span></button>' +
-      '<div class="groups">' + Object.keys(GROUPS).map(function (k) {
+      '<div class="groups">' + MIH.gruplar.map(function (k) {
         var g = GROUPS[k];
         return '<button class="gbtn" style="background:' + g.renk + '" data-act="goto" data-h="/g/' + k + '"><span class="gt">' + h(g.ad) + '</span><span class="gs">' + h(g.alt) + '</span></button>';
       }).join('') + '</div>' +
@@ -285,13 +313,14 @@
         (alerts.length > 4 ? '<button class="btn ghost block" data-act="goto" data-h="/plan/uyarilar">Tümünü gör (' + alerts.length + ')</button>' : '') + '</div>';
     }
     html += '</div>';
-    return { title: 'Ana Sayfa', html: html, actions: '<button class="icon" data-act="goto" data-h="/ayarlar" aria-label="Ayarlar">' + I.gear + '</button>' };
+    return { title: 'Mihmandarlık', html: html, actions: '<button class="icon" data-act="goto" data-h="/ayarlar" aria-label="Ayarlar">' + I.gear + '</button>' };
   }
 
   /* ---------------- Grup menüleri (Excel'deki PLANLAMA / TAKİP / DONÖR KAYIT VE ARŞİV / DASHBOARD sayfaları) ---------------- */
   function scrGroup(k) {
     var g = GROUPS[k];
     var html = '<div class="page"><div class="ghead" style="background:' + g.renk + '"><div class="gt">' + h(g.ad) + '</div><div class="gs">' + h(g.alt) + ' · açmak istediğiniz sayfaya dokunun</div></div>' +
+      (g.pages.length ? '' : '<div class="card pad"><b>Bu bölüm hazırlanıyor.</b><div class="small muted" style="margin-top:6px">Eşleşme tablosunun sayfaları buraya eklenecek.</div></div>') +
       '<div class="gcards">' + g.pages.map(function (pg) {
         return '<button class="gcard' + (pg[3] ? ' soon' : '') + '" style="background:' + g.renk + '" ' + (pg[3] ? 'data-act="soon"' : 'data-act="goto" data-h="' + pg[0] + '"') + '>' +
           '<span class="ct">' + h(pg[1]) + '</span><span class="cs" style="color:' + g.acik + '">' + h(pg[3] ? 'Sonraki sürümde' : pg[2]) + '</span></button>';
@@ -1107,11 +1136,11 @@
 
   /* ---------------- Kılavuz ---------------- */
   var KILAVUZ = [
-    ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört grup düğmesi vardır: PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV, DASHBOARD. Gruba dokununca o grubun sayfaları açılır; her sayfanın üstündeki düğmelerle gruptaki sayfalar arasında geçilir. Alttaki sekmeler de gruplara gider. Üstteki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir.'],
-    ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
-    ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
+    ['Ana Sayfa', 'Uygulama açılınca gelen ilk sayfa. Dört bölüm düğmesi vardır: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV), EŞLEŞME, MALİ İŞLER (donör harcaması, yemek kartı) ve DASHBOARD (istatistikler, iş yükü, taşıma, raporlar). Alttaki sekmeler de bu bölümlere gider. MİHMANDARLIK sayfasındaki kutucuklar bugünkü ve yarınki görev sayısını, geri sayım uyarılarını ve kontrol notlarını gösterir; yeni donör ekleme, yarının programı, PDF’ten donör ekleme ve mailden iptal / erteleme düğmeleri de oradadır.'],
+    ['Yeni donör eklemek', 'MİHMANDARLIK sayfasındaki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
+    ['PDF’ten donör ekle', 'MİHMANDARLIK sayfasındaki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
     ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; siz onaylayınca açıklamaya yalnızca anahtar kelimeyi (İPTAL, RED, ERTELENDİ, VAZGEÇTİ, HASTA EX) ekler; mail metni kopyalanmaz. İsterseniz ek not yazabilirsiniz. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
-    ['Donör harcama', 'DONÖR HARCAMA grubunda üç sayfa var. Harcama Kayıtları: harcama satırları; “Harcama ekle” ile donör, tarih, tutar ve harcama türü (uçak bileti, otobüs bileti, konaklama, yemek, akaryakıt…) girilir; kategori, ulaşım türü ve muhasebe kalemi türden kendiliğinden gelir. Konaklamada refakatçi ve gece sayısı da yazılır. Donör sayfasında da o donörün harcamaları ve “Harcama ekle” vardır. “Excel’den al” Donor_Harcama_Dashboard tablosundaki Harcama Detay satırlarını donörlere (hasta kodu ve donör no ile) bağlayarak yükler. Harcama Dashboard, Excel’deki dashboard’un bölümlerini gösterir: özet, yıllara ve kategoriye göre, ulaşım türü, refakatçi, durum, en yüksek 10 donör, şehir içi (ikamet ili Ankara) / şehir dışı, iller, aylık ve yıl karşılaştırma (seçilen yıl ile önceki yılın aynı dönemi). Donör Harcama, donör başına toplamları listeler. Üstteki indirme düğmesi Donör Harcama ve Harcama Detay sayfalı bir Excel verir.'],
+    ['Donör harcama', 'MALİ İŞLER bölümünde (donör harcaması) dört sayfa var: Harcama Dashboard, Harcama Kayıtları, Donör Harcama ve Yemek Kartı. Harcama Kayıtları: harcama satırları; “Harcama ekle” ile donör, tarih, tutar ve harcama türü (uçak bileti, otobüs bileti, konaklama, yemek, akaryakıt…) girilir; kategori, ulaşım türü ve muhasebe kalemi türden kendiliğinden gelir. Konaklamada refakatçi ve gece sayısı da yazılır. Donör sayfasında da o donörün harcamaları ve “Harcama ekle” vardır. “Excel’den al” Donor_Harcama_Dashboard tablosundaki Harcama Detay satırlarını donörlere (hasta kodu ve donör no ile) bağlayarak yükler. Harcama Dashboard, Excel’deki dashboard’un bölümlerini gösterir: özet, yıllara ve kategoriye göre, ulaşım türü, refakatçi, durum, en yüksek 10 donör, şehir içi (ikamet ili Ankara) / şehir dışı, iller, aylık ve yıl karşılaştırma (seçilen yıl ile önceki yılın aynı dönemi). Donör Harcama, donör başına toplamları listeler. Üstteki indirme düğmesi Donör Harcama ve Harcama Detay sayfalı bir Excel verir.'],
     ['WhatsApp’ta güncel tablo', 'Ayarlar › WhatsApp’ta güncel tablo’dan “Günlük hatırlatma”yı açın; hafta içi (tatiller hariç) ya da her gün ve saati seçin. O saatte gelen bildirime dokununca Excel tablonuzun aynısı (bütün sayfalar, formüller, Kızılay resmi) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp açılır; Gönder’e siz basarsınız. Excel’den içe aktardığınız dosya şablon olarak saklanır; yoksa bir kez “Excel şablonunu seç” ile seçin. Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları, listeler ve kapanış tarihi güncellenir; Excel açılınca formüller yeniden hesaplanır. “Şimdi gönder” ile istediğiniz an, Donör Raporu sayfasından da gönderebilirsiniz.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA); Ankara’daki merkezler (BAŞLIK ANKARA) başlık yerine NAKİL MERKEZİ adıyla yazar (ör. BİLKENT ERİŞKİN-GAZİ ÜNİVERSİTESİ). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
@@ -1126,8 +1155,8 @@
     ['İptal / erteleme / red / vazgeçme / hasta ex', 'AÇIKLAMA’ya iptal, erteleme, red, vazgeç ya da hasta ex yazılan donör takvimden, programlardan, uyarılardan ve takip listelerinden çıkar; Dashboard’da “süreç durdu” sayılır. Kelime silinince donör planlara geri döner.'],
     ['KONTROL', 'Donör kaydındaki eksik ya da uyumsuz bilgiler (yöntem, hastane, nakil merkezi yok; personel listede yok; sağlık kontrolü aşıdan ya da toplamadan sonra; aşı toplamadan sonra; son izlem toplamadan önce) kaydın üstünde turuncu kutuda yazar.'],
     ['Donör Raporu', 'Yöneticiye göndermek için temiz kopya: DURUM sütunuyla birlikte. Süzüp “Excel’e aktar” ile .xlsx olarak kaydedebilirsiniz.'],
-    ['Yemek kartı', 'DONÖR HARCAMA › Yemek Kartı’nda “Excel’den al” ile MetropolCard’ın Yükleme Detay Raporu Excel’ini seçin (Outlook’tan Paylaş › Donör Takip ile de olur). Her yükleme ad soyaddan (bulunamazsa telefondan) donöre bağlanır ve tarihine göre ayrılır: sağlık kontrolü tarihinden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerindeyse “Toplama süreci”; uymayanlar “Diğer”. Sayfada toplam yükleme, aşamalara göre tutarlar ve her aşamanın altında donörler görünür. Yanlış aşamayı ya da donörü Yüklemeler’de yüklemeye dokunarak değiştirin. Aynı rapor ya da çakışan dönem tekrar yüklenirse aynı yükleme iki kez girmez. TC kimlik no ve kart numarası saklanmaz (kartın son 4 hanesi hariç). Donör sayfasında da o donörün yemek kartı yüklemeleri görünür; Raporlar’da Yemek kartı raporu vardır.'],
-    ['Raporlar', 'Ana Sayfa’daki “Rapor al” ya da DASHBOARD › Raporlar. Raporlar: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için) ve Yemek kartı raporu (yüklemeler aşamalara ve donörlere göre). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
+    ['Yemek kartı', 'MALİ İŞLER › Yemek Kartı’nda “Excel’den al” ile MetropolCard’ın Yükleme Detay Raporu Excel’ini seçin (Outlook’tan Paylaş › Donör Takip ile de olur). Her yükleme ad soyaddan (bulunamazsa telefondan) donöre bağlanır ve tarihine göre ayrılır: sağlık kontrolü tarihinden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerindeyse “Toplama süreci”; uymayanlar “Diğer”. Sayfada toplam yükleme, aşamalara göre tutarlar ve her aşamanın altında donörler görünür. Yanlış aşamayı ya da donörü Yüklemeler’de yüklemeye dokunarak değiştirin. Aynı rapor ya da çakışan dönem tekrar yüklenirse aynı yükleme iki kez girmez. TC kimlik no ve kart numarası saklanmaz (kartın son 4 hanesi hariç). Donör sayfasında da o donörün yemek kartı yüklemeleri görünür; Raporlar’da Yemek kartı raporu vardır.'],
+    ['Raporlar', 'DASHBOARD › Raporlar (Donör Raporu, Harcama Dashboard ve Yemek Kartı sayfalarından da açılır). Raporlar: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için) ve Yemek kartı raporu (yüklemeler aşamalara ve donörlere göre). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
     ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
     ['Haftalık Kapanış', 'Her hafta bitince (pazartesi) sıradaki haftayı kapatın: o haftanın personeli seçilmiş görevleri, ek konsültasyonlar ve personeli seçili ajanda notları Görev Kayıtları’na yazılır, İş Yükü ve Taşıma İstatistiği kalıcı olur. Haftalar sırayla kapatılır; personeli seçilmemiş görevler arşive girmez.'],

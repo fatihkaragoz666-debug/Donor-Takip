@@ -42,22 +42,27 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 3. Sonraki değişiklikleri uygulamada yapın. Ayarlar'dan **Yedek al** ile düzenli yedek alın;
    **Excel'e aktar** Donör Kayıt sayfasını (KONTROL ve DURUM dahil) `.xlsx` olarak kaydeder.
 
+## Ana sayfa
+
+Dört bölüm: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV; günün görevleri, uyarılar, yeni donör), EŞLEŞME (hazırlanıyor),
+MALİ İŞLER (donör harcaması, yemek kartı) ve DASHBOARD (istatistikler, iş yükü, taşıma, raporlar). Alt sekmeler de bu bölümlerdir.
+
 ## Donör harcama
 
-DONÖR HARCAMA grubu (alt sekmede “Harcama”): Harcama Dashboard, Harcama Kayıtları, Donör Harcama. Harcamalar donöre bağlı
+MALİ İŞLER bölümü (alt sekmede “Mali İşler”): Harcama Dashboard, Harcama Kayıtları, Donör Harcama. Harcamalar donöre bağlı
 satırlardır (tarih, tür, tutar; konaklamada refakatçi ve gece). Donor_Harcama_Dashboard.xlsx’teki Harcama Detay satırları
 “Excel’den al” ile donörlere (hasta kodu + donör no) bağlanarak yüklenir. Dashboard hesapları Excel’deki dashboard’la
 karşılaştırılarak doğrulandı; şehir içi = ikamet ili Ankara.
 
 ## Yemek kartı
 
-DONÖR HARCAMA › Yemek Kartı: MetropolCard “Yükleme Detay Raporu” Excel’i taranır (`js/yemekkart.js`). Yüklemeler ad soyaddan
+MALİ İŞLER › Yemek Kartı: MetropolCard “Yükleme Detay Raporu” Excel’i taranır (`js/yemekkart.js`). Yüklemeler ad soyaddan
 (bulunamazsa telefondan) donöre bağlanır, tarihine göre Sağlık kontrolü · Aşı + toplama · Toplama süreci · Diğer olarak ayrılır;
 aşama ve donör elle değiştirilebilir. Tekrar yüklemede aynı satır iki kez girmez. TCKN ve kart numarası saklanmaz (son 4 hane hariç).
 
 ## Raporlar (PDF ve Excel)
 
-DASHBOARD › Raporlar (ya da Ana Sayfa’daki “Rapor al”): Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti.
+DASHBOARD › Raporlar: Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti.
 Tarih aralığı hazır seçeneklerle ya da başlangıç–bitiş tarihiyle seçilir; rapor sayfada önizlenir. PDF kütüphanesiz üretilir
 (`js/pdf-rapor.js`): A4, tablolar, grafikler, Türkçe karakterler için gömülü “DT Rapor” yazı tipi (Carlito’dan türetilmiş alt küme,
 SIL OFL; `tools/pdf-font.py`, lisans `fonts/OFL.txt`). Excel’de Özet sayfası ve uzun listeler (donörler, harcama satırları,
