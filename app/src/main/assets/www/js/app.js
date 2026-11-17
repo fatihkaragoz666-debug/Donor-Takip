@@ -1546,7 +1546,7 @@
           busy(false);
           if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); };
           if (target === 'whatsapp') toast(S(tabloAyar().tel) ? 'WhatsApp açılıyor: Gönder’e basın' : 'WhatsApp açılıyor: sohbeti seçip Gönder’e basın');
-          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel));
+          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel), S(tabloAyar().app));
           return;
         }
         busy(true, 'Tablo hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
@@ -1562,6 +1562,18 @@
   }
   window.onNativeAction = function (a) { if (a === 'tabloGonder') tabloGonder('whatsapp'); };
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
+  // Telefonda birden çok WhatsApp (WhatsApp + WhatsApp Business) varsa hangisiyle gönderileceği
+  function waApps() {
+    try { return NB && NB.whatsappApps ? JSON.parse(NB.whatsappApps()) : []; } catch (e) { return []; }
+  }
+  function waAppField(t) {
+    var apps = waApps();
+    if (apps.length < 2) return '';
+    return '<div class="field" style="margin:0 0 10px"><label>WhatsApp uygulaması</label><select class="inp" id="tbApp">' +
+      '<option value="">Her seferinde sor</option>' +
+      apps.map(function (a) { return '<option value="' + h(a.pkg) + '"' + (t.app === a.pkg ? ' selected' : '') + '>' + h(a.ad) + '</option>'; }).join('') +
+      '</select><div class="hint">Telefonda iki WhatsApp var; tablo seçtiğinizle gönderilir. Numara o WhatsApp’ta rehberde kayıtlı olmalı.</div></div>';
+  }
   function tabloCard() {
     var t = tabloAyar(), sb = state.settings.sablon;
     var mb = function (n) { return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
@@ -1572,8 +1584,9 @@
       '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Günlük hatırlatma<div class="s">Seçtiğiniz saatte bildirim gelir; dokununca tablo hazırlanıp WhatsApp açılır.</div></span></label>' +
       '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Günler</label><select class="inp" id="tbGun"><option value="haftaici"' + (t.gun !== 'hergun' ? ' selected' : '') + '>Hafta içi (tatiller hariç)</option><option value="hergun"' + (t.gun === 'hergun' ? ' selected' : '') + '>Her gün</option></select></div>' +
       '<div class="field" style="margin:0;width:132px"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div></div>' +
+      waAppField(t) +
       '<div class="field" style="margin:0 0 6px"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="05xx xxx xx xx"></div>' +
-      '<div class="hint" style="margin:0 2px 10px">Tablo bu numaranın sohbetinde açılır (kendi numaranız = kendinize mesaj); Gönder’e siz basarsınız. WhatsApp numarayla açmazsa birkaç saniye içinde sohbet listesi açılır, sohbeti seçersiniz.</div>' +
+      '<div class="hint" style="margin:0 2px 10px">Tablo bu numaranın sohbetinde açılır (kendi numaranız = kendinize mesaj); Gönder’e siz basarsınız. Numara telefonun rehberinde kayıtlı olmalı. WhatsApp numarayla açmazsa birkaç saniye içinde sohbet listesi açılır, sohbeti seçersiniz.</div>' +
       '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:8px">Kaydet</button>' +
       '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
   }
@@ -1679,7 +1692,8 @@
     tabloKaydet: function () {
       var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
       if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return; }
-      state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun };
+      var appSel = $('#tbApp');
+      state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun, app: appSel ? appSel.value : S(tabloAyar().app) };
       save(); syncReminder();
       if (on && !state.settings.sablon) toast('Hatırlatma kuruldu. Excel şablonunu da seçin.');
       else toast(on ? 'Hatırlatma kuruldu: ' + (gun === 'hergun' ? 'her gün ' : 'hafta içi ') + saat : 'Hatırlatma kapalı');
