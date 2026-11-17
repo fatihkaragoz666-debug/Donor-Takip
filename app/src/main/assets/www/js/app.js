@@ -13,6 +13,7 @@
     calY: null, calM: null, calSel: null, calP: '',
     progDate: null, alBase: null, alP: '', tkP: '', utYil: '', dashYil: null, dashAy: '', ekPast: false,
     weekStart: null, hwP: '', ajDate: null, rpF: 'all', rpH: '', rpY: '', rpLimit: 80,
+    rpTur: 'donor', rpHz: 'buay', rpBas: null, rpBit: null, rpDurum: 'all', rpHast: '', rpYon: '', rpOlcut: 'her', rpAyr: { donor: true, harcama: true, isyuku: false },
     scroll: {}
   };
 
@@ -49,7 +50,9 @@
     warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
     down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
     mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6.5 9-6.5"/></svg>',
-    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>'
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5"/><path d="M8.5 17v-3M12 17v-5M15.5 17v-2"/></svg>',
+    open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
   var toastTimer;
@@ -130,7 +133,7 @@
       ['/ayarlar/listeler', 'Listeler', 'Personel, hastane ve açılır listeler']] },
     dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
       ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü'],
-      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri']] },
+      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri'], ['/dash/raporlar', 'Raporlar', 'Tarih aralığına göre PDF ve Excel rapor']] },
     harcama: { ad: 'DONÖR HARCAMA', renk: '#A3262A', acik: '#F8E4E3', alt: 'Bağışçı harcamaları ve harcama dashboard', pages: [
       ['/harcama', 'Harcama Dashboard', 'Yıllara, kategoriye, ulaşıma ve ile göre harcama'], ['/harcama/kayitlar', 'Harcama Kayıtları', 'Harcama satırları: ekle, düzenle, Excel’den al'],
       ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti']] }
@@ -167,6 +170,7 @@
       else if (p[0] === 'arsiv' && p[1] === 'tasima') out = scrTasimaKayit();
       else if (p[0] === 'dash' && p[1] === 'isyuku') out = scrIsYuku();
       else if (p[0] === 'dash' && p[1] === 'tasima') out = scrTasimaIst();
+      else if (p[0] === 'dash' && p[1] === 'raporlar') out = scrRaporlar();
       else if (p[0] === 'harcama' && p[1] === 'kayitlar') out = scrHrKayit();
       else if (p[0] === 'harcama' && p[1] === 'donorler') out = scrHrDonor();
       else if (p[0] === 'harcama') out = scrHarcama();
@@ -264,6 +268,7 @@
       '<button class="tile' + (kontrol ? ' warn' : ' ok') + '" data-act="kontrolList"><div class="n">' + kontrol + '</div><div class="l">Kontrol notu</div><div class="s">Donör Kayıt’ta eksik ya da uyumsuz bilgi</div></button></div>' +
       '<div class="actions"><button class="btn newdonor" data-act="newDonor">' + I.plus + 'YENİ DONÖR EKLE</button><button class="btn wa" data-act="shareTomorrow">' + I.wa + 'Yarının programı</button></div>' +
       '<div class="btns"><button class="btn pdfbtn" data-act="pdfPick">' + I.up + 'PDF’ten donör ekle</button><button class="btn pdfbtn" data-act="mailDurum">' + I.mail + 'Mailden iptal / erteleme</button></div>' +
+      '<button class="btn block rpbtn" data-act="goto" data-h="/dash/raporlar">' + I.doc + 'Rapor al <span class="muted">· PDF / Excel</span></button>' +
       '<div class="groups">' + Object.keys(GROUPS).map(function (k) {
         var g = GROUPS[k];
         return '<button class="gbtn" style="background:' + g.renk + '" data-act="goto" data-h="/g/' + k + '"><span class="gt">' + h(g.ad) + '</span><span class="gs">' + h(g.alt) + '</span></button>';
@@ -1086,6 +1091,7 @@
       '<div class="summary">Rapor tarihi: ' + DT.fmt(today) + ' · ' + rows.length + ' donör · Toplama yapıldı: ' + yap + ' · Devam eden: ' + (rows.length - yap - dur) + ' · Süreç durdu: ' + dur + '</div>' +
       '<div class="btns" style="margin-bottom:10px"><button class="btn pri" data-act="exportRapor">' + I.down + 'Excel’e aktar</button><button class="btn outlook" data-act="mailRapor">' + I.mail + 'Outlook ile gönder</button></div>' +
       '<button class="btn wa block" data-act="tabloWa" style="margin-bottom:10px">' + I.wa + 'Güncel tabloyu (Excel’in aynısı) WhatsApp’ta gönder</button>' +
+      '<button class="btn block rpbtn" data-act="rpAc" data-v="donor" style="margin-bottom:10px">' + I.doc + 'Tarih aralığına göre rapor <span class="muted">· PDF / Excel</span></button>' +
       '<div class="card list">' + rows.slice().reverse().slice(0, ui.rpLimit || 80).map(function (x) {
         var d = x.d;
         return '<a class="item" data-act="donor" data-id="' + h(d.id) + '"><div class="t1"><span class="name">' + h(d.ad) + '</span><span class="pillx ' + durumCls(x.durum) + '">' + h(x.durum) + '</span></div>' +
@@ -1116,6 +1122,7 @@
     ['İptal / erteleme / red / vazgeçme / hasta ex', 'AÇIKLAMA’ya iptal, erteleme, red, vazgeç ya da hasta ex yazılan donör takvimden, programlardan, uyarılardan ve takip listelerinden çıkar; Dashboard’da “süreç durdu” sayılır. Kelime silinince donör planlara geri döner.'],
     ['KONTROL', 'Donör kaydındaki eksik ya da uyumsuz bilgiler (yöntem, hastane, nakil merkezi yok; personel listede yok; sağlık kontrolü aşıdan ya da toplamadan sonra; aşı toplamadan sonra; son izlem toplamadan önce) kaydın üstünde turuncu kutuda yazar.'],
     ['Donör Raporu', 'Yöneticiye göndermek için temiz kopya: DURUM sütunuyla birlikte. Süzüp “Excel’e aktar” ile .xlsx olarak kaydedebilirsiniz.'],
+    ['Raporlar', 'Ana Sayfa’daki “Rapor al” ya da DASHBOARD › Raporlar. Dört rapor var: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) ve Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
     ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
     ['Haftalık Kapanış', 'Her hafta bitince (pazartesi) sıradaki haftayı kapatın: o haftanın personeli seçilmiş görevleri, ek konsültasyonlar ve personeli seçili ajanda notları Görev Kayıtları’na yazılır, İş Yükü ve Taşıma İstatistiği kalıcı olur. Haftalar sırayla kapatılır; personeli seçilmemiş görevler arşive girmez.'],
@@ -1403,7 +1410,7 @@
     html += '<div class="seg sub">' + HR_TABS.map(function (t) { return '<button class="' + (tab === t[0] ? 'on' : '') + '" data-act="hrTab" data-v="' + t[0] + '">' + h(t[1]) + '</button>'; }).join('') + '</div>' +
       '<div class="toolbar"><select class="inp" data-ui="hrYil" style="flex:none;width:auto">' + R.yillar.map(function (y) { return '<option value="' + y + '"' + (y === Y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
       '<span class="small muted grow">Karşılaştırma: ' + Y + ' ve ' + P + (R.ayMax < 12 ? ' · aynı dönem Ocak–' + ay : '') + '</span>' +
-      '<button class="btn" data-act="hrExport" style="flex:none">' + I.down + 'Excel</button></div>';
+      '<button class="btn" data-act="hrExport" style="flex:none">' + I.down + 'Excel</button><button class="btn" data-act="rpAc" data-v="harcama" style="flex:none">' + I.doc + 'Rapor</button></div>';
     var K = HR.KATEGORI, ulTbl = function (U) {
       return tbl(['Ulaşım türü', 'Harcama', 'Bilet / fiş', 'Ortalama', 'Pay'], U.rows.map(function (u) { return [u.ad, tl(u.tutar), u.adet, tl(u.ort), pct(u.pay)]; }), ['Toplam', tl(U.tutar), U.adet, tl(U.ort), pct(1)]);
     };
@@ -1555,6 +1562,121 @@
     html += card('Karşı şehir (şehir dışı)', R.sehirler.length ? tbl(['Şehir', 'Taşıma'], R.sehirler.map(function (c) { return [c.ad, c.n]; })) : emptyBox('Şehir dışı taşıma yok'));
     if (P.y) html += card('Aylık dağılım · ' + P.y, monthTable(R.rows.filter(function (r) { return r.toplam; }), P.y));
     return { title: 'Taşıma İstatistiği', html: html + '</div>' };
+  }
+
+  /* ---------------- Raporlar: tarih aralığına göre PDF / Excel ---------------- */
+  function rpDonem() {
+    if (ui.rpHz === 'ozel') {
+      var a = ui.rpBas != null ? ui.rpBas : today, b = ui.rpBit != null ? ui.rpBit : a;
+      return a <= b ? { from: a, to: b } : { from: b, to: a };
+    }
+    return RP.hazir(ui.rpHz, today);
+  }
+  function rpAyrinti() { return ui.rpTur !== 'ozet' && !!ui.rpAyr[ui.rpTur]; }
+  function rpModel() {
+    var r = rpDonem();
+    return RP.build({ state: state, D: D, pool: pool, hrows: hrows, today: today },
+      { tur: ui.rpTur, from: r.from, to: r.to, ayrinti: rpAyrinti(), filtre: { durum: ui.rpDurum, hastane: ui.rpHast, yontem: ui.rpYon, olcut: ui.rpOlcut } });
+  }
+  // önizleme: rapor modelinin bölümleri kartlar hâlinde
+  function rpBlockHtml(b) {
+    if (!b || b.html === false) return '';
+    var F = RP.fmt;
+    if (b.type === 'row') return b.items.map(rpBlockHtml).join('');
+    if (b.type === 'note') return '<div class="note">' + h(b.text) + '</div>';
+    if (b.type === 'kpis') return '<div class="kpis rpkpis">' + b.items.map(function (it) {
+      return '<div class="kpi" style="border-top:3px solid ' + (it.c || NAVY) + '"><div class="n">' + h(F(it.v, it.f)) + '</div><div class="l">' + h(it.l) + '</div></div>'; }).join('') + '</div>';
+    if (b.type === 'bars') return (b.title ? '<div class="rpcap">' + h(b.title) + '</div>' : '') +
+      barChart(b.labels, b.series.map(function (s2) { return s2.values; }), b.series.map(function (s2) { return s2.color; }), b.series.map(function (s2) { return s2.name; }),
+        { fmt: b.f === 'tl' || b.f === 'tl0' ? kisaTL : null, full: true });
+    if (b.type === 'hbars') {
+      var rows = b.rows.filter(function (r) { return r[1] > 0; }), mx = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
+      return (b.title ? '<div class="rpcap">' + h(b.title) + '</div>' : '') + '<div class="rphb">' + rows.map(function (r) {
+        return '<div><span class="l">' + h(r[0]) + '</span><span class="b"><i style="width:' + Math.max(1, r[1] / mx * 100).toFixed(1) + '%;background:' + (r[2] || b.color || NAVY) + '"></i></span><b>' + h(F(r[1], b.f)) + '</b></div>'; }).join('') + '</div>';
+    }
+    if (b.type === 'table') {
+      var lim = b.uzun ? 12 : 60, shown = b.rows.slice(0, lim), num2 = function (c) { return c.f && c.f !== 'txt'; };
+      var cell = function (v, c) { return '<td' + (num2(c) ? '' : ' class="l"') + '>' + h(F(v, c.f)) + '</td>'; };
+      return (b.title ? '<div class="rpcap">' + h(b.title) + '</div>' : '') + '<div class="tscroll"><table class="t rpt"><tr>' + b.cols.map(function (c) { return '<th' + (num2(c) ? '' : ' class="l"') + '>' + h(c.t) + '</th>'; }).join('') + '</tr>' +
+        shown.map(function (r) { var v = r.v || r; return '<tr' + (r.muted ? ' class="mut"' : '') + '>' + b.cols.map(function (c, i) { return cell(v[i], c); }).join('') + '</tr>'; }).join('') +
+        (b.tot && b.rows.length <= lim ? '<tr class="tot">' + b.cols.map(function (c, i) { return cell(b.tot[i], c); }).join('') + '</tr>' : '') + '</table></div>' +
+        (!b.rows.length ? '<div class="small muted" style="padding:8px 2px">' + h(b.empty || 'Kayıt yok') + '</div>' : '') +
+        (b.rows.length > lim ? '<div class="small muted" style="padding:6px 2px">… ve ' + num(b.rows.length - lim) + ' satır daha · PDF ve Excel’de tamamı</div>' : '') +
+        (b.note ? '<div class="note">' + h(b.note) + '</div>' : '');
+    }
+    return '';
+  }
+  function rpPreview(m) {
+    var out = '', open = false;
+    m.blocks.forEach(function (b) {
+      if (!b || b.html === false) return;
+      if (b.type === 'h') {
+        if (open) out += '</div>';
+        out += '<div class="card pad"><h2>' + h(b.text) + (b.sub ? ' <span class="small muted" style="font-weight:500">· ' + h(b.sub) + '</span>' : '') + '</h2>';
+        open = true; return;
+      }
+      if (b.type === 'note' && !open) { out += '<div class="note" style="margin:4px 6px 10px">' + h(b.text) + '</div>'; return; }
+      out += rpBlockHtml(b);
+    });
+    if (open) out += '</div>';
+    return out;
+  }
+  function scrRaporlar() {
+    var r = rpDonem(), m = null, err = null;
+    try { m = rpModel(); } catch (e) { console.error(e); err = e; }
+    var opt = function (v, ad, sel) { return '<option value="' + h(v) + '"' + (String(v) === String(sel) ? ' selected' : '') + '>' + h(ad) + '</option>'; };
+    var html = '<div class="page flush">' + groupSeg('dashboard', '/dash/raporlar') +
+      '<div class="sec-title">Rapor</div><div class="card rpturler">' + RP.TURLER.map(function (t) {
+        return '<button class="rptur' + (ui.rpTur === t[0] ? ' on' : '') + '" data-act="rpTur" data-v="' + t[0] + '"><span class="dot"></span><span class="grow"><b>' + h(t[1]) + '</b><span>' + h(t[2]) + '</span></span></button>';
+      }).join('') + '</div>' +
+      '<div class="sec-title">Tarih aralığı</div><div class="card pad"><div class="chips">' + RP.HAZIR.map(function (z) {
+        return '<button class="chip' + (ui.rpHz === z[0] ? ' on' : '') + '" data-act="rpHz" data-v="' + z[0] + '">' + h(z[1]) + '</button>';
+      }).join('') + '</div>' +
+      (ui.rpHz === 'tumu' ? '<div class="small muted" style="margin-top:10px">Uygulamadaki bütün kayıtlar raporlanır.</div>' :
+        '<div class="grid2" style="margin-top:10px"><div class="field" style="margin:0"><label>Başlangıç</label><input class="inp" type="date" data-ui="rpBas" data-type="date" value="' + DT.iso(r.from) + '"></div>' +
+        '<div class="field" style="margin:0"><label>Bitiş</label><input class="inp" type="date" data-ui="rpBit" data-type="date" value="' + DT.iso(r.to) + '"></div></div>') +
+      '<div class="rpdonem"><b>' + h(RP.donemAd(r.from, r.to)) + '</b>' + (r.from != null ? ' · ' + (r.to - r.from + 1) + ' gün' : '') + '</div></div>';
+    if (ui.rpTur === 'donor') {
+      html += '<div class="sec-title">Süzgeç</div><div class="card pad"><div class="grid2">' +
+        '<div class="field"><label>Durum</label><select class="inp" data-ui="rpDurum">' + RP.DONOR_DURUM.map(function (z) { return opt(z[0], z[1], ui.rpDurum); }).join('') + '</select></div>' +
+        '<div class="field"><label>Tarih ölçütü</label><select class="inp" data-ui="rpOlcut">' + RP.OLCUT.map(function (z) { return opt(z[0], z[1], ui.rpOlcut); }).join('') + '</select></div>' +
+        '<div class="field" style="margin:0"><label>Hastane</label><select class="inp" data-ui="rpHast">' + opt('', 'Tümü', ui.rpHast) + state.lists.hastane.map(function (e) { return opt(e.ad, e.ad, ui.rpHast); }).join('') + '</select></div>' +
+        '<div class="field" style="margin:0"><label>Yöntem</label><select class="inp" data-ui="rpYon">' + opt('', 'Tümü', ui.rpYon) + (state.lists.yontem || []).map(function (y) { return opt(y, y, ui.rpYon); }).join('') + '</select></div></div></div>';
+    }
+    if (m && m.ayrinti) {
+      html += '<label class="opt rpayr"><input type="checkbox" data-act-change="rpAyr"' + (rpAyrinti() ? ' checked' : '') + '><span>' + h(m.ayrinti.ad) + ' PDF’te de olsun<div class="s">' +
+        num(m.ayrinti.n) + ' satır' + (m.ayrinti.n > 300 ? ' · uzun bir liste, PDF çok sayfa olur' : '') + '. Excel’de her zaman vardır.</div></span></label>';
+    }
+    html += '<div class="btns rpgo"><button class="btn pri" data-act="rpUret" data-v="pdf"' + (m ? '' : ' disabled') + '>' + I.doc + 'PDF oluştur</button>' +
+      '<button class="btn xls" data-act="rpUret" data-v="xlsx"' + (m ? '' : ' disabled') + '>' + I.down + 'Excel oluştur</button></div>';
+    if (err) html += '<div class="card pad"><b>Rapor hazırlanamadı.</b><div class="small muted">' + h(err.message) + '</div></div>';
+    if (m) {
+      html += '<div class="sec-title">Önizleme · ' + h(m.title) + ' · ' + h(m.period) + '</div>' +
+        (m.info.length > 1 ? '<div class="note" style="margin:-2px 6px 8px">' + m.info.slice(1).map(h).join('<br>') + '</div>' : '') + rpPreview(m);
+    }
+    return { title: 'Raporlar', html: html + '</div>' };
+  }
+  var rpSonuc = null;
+  function rpUret(bicim) {
+    busy(true, (bicim === 'pdf' ? 'PDF' : 'Excel') + ' hazırlanıyor…');
+    setTimeout(function () {
+      var m;
+      try { m = rpModel(); } catch (e) { busy(false); toast('Rapor hazırlanamadı: ' + e.message); return; }
+      (bicim === 'pdf' ? RP.toPdf(m) : Promise.resolve(RP.toXlsx(m))).then(function (bytes) {
+        busy(false);
+        rpSonuc = { m: m, bytes: bytes, bicim: bicim, name: m.dosya + (bicim === 'pdf' ? '.pdf' : '.xlsx'), mime: bicim === 'pdf' ? 'application/pdf' : XLSX_MIME };
+        rpSheet();
+      }).catch(function (e) { busy(false); console.error(e); toast('Rapor hazırlanamadı: ' + (e && e.message)); });
+    }, 40);
+  }
+  function rpSheet() {
+    var r = rpSonuc, kb = r.bytes.length < 1048576 ? Math.max(1, Math.round(r.bytes.length / 1024)) + ' KB' : (r.bytes.length / 1048576).toFixed(1).replace('.', ',') + ' MB';
+    var sayfa = r.bicim === 'pdf' && r.m.sayfa ? ' · ' + r.m.sayfa + ' sayfa' : '';
+    openSheet('<h3>' + h(r.m.title) + ' hazır</h3><div class="sub">' + h(r.m.period) + ' · ' + (r.bicim === 'pdf' ? 'PDF' : 'Excel') + sayfa + ' · ' + kb + '</div>' +
+      '<div class="small muted" style="margin:-4px 0 14px">' + h(r.m.ozet) + '</div>' +
+      '<div class="btns" style="margin-bottom:8px"><button class="btn pri" data-act="rpSend" data-v="open">' + I.open + 'Aç</button><button class="btn" data-act="rpSend" data-v="save">' + I.down + 'Telefona kaydet</button></div>' +
+      '<div class="btns" style="margin-bottom:8px"><button class="btn outlook" data-act="rpSend" data-v="email">' + I.mail + 'Outlook ile gönder</button><button class="btn wa" data-act="rpSend" data-v="whatsapp">' + I.wa + 'WhatsApp’ta gönder</button></div>' +
+      '<button class="btn block" data-act="rpSend" data-v="share">' + I.share + 'Başka uygulamayla paylaş</button>');
   }
 
   /* ---------------- Ayarlar ---------------- */
@@ -1779,18 +1901,21 @@
     }, 60);
   }
   // Büyük dosya: Android'e parça parça aktarılır (WhatsApp, e-posta ya da kaydet)
-  function sendBigFile(bytes, name, mime, target, text) {
+  // opt: { label: 'Tablo' | 'Rapor', subject: e-posta konusu, phone: WhatsApp numarası (verilmezse tablo ayarındaki) }
+  function sendBigFile(bytes, name, mime, target, text, opt) {
+    opt = opt || {};
+    var label = opt.label || 'Tablo';
     if (NB && NB.fileBegin) {
       var CH = 3 * 256 * 1024, i = 0;
       if (!NB.fileBegin(name)) { busy(false); toast('Dosya hazırlanamadı'); return; }
       var step = function () {
         if (i >= bytes.length) {
           busy(false);
-          if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); };
-          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel));
+          if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? label + ' kaydedildi' : label + ' kaydedilmedi'); };
+          NB.fileFinish(target, mime, opt.subject != null ? opt.subject : name.replace(/\.xlsx$/i, ''), text, opt.phone != null ? opt.phone : S(tabloAyar().tel));
           return;
         }
-        busy(true, 'Tablo hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
+        busy(true, label + ' hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
         if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { busy(false); toast('Dosya yazılamadı'); return; }
         i += CH; setTimeout(step, 0);
       };
@@ -1799,7 +1924,8 @@
     }
     busy(false);
     if (target === 'save') { saveFile(bytes, name, mime); return; }
-    emailFile(bytes, name, mime, name, text);
+    if (target === 'open') { var u = URL.createObjectURL(new Blob([bytes], { type: mime })); window.open(u, '_blank'); setTimeout(function () { URL.revokeObjectURL(u); }, 60000); return; }
+    emailFile(bytes, name, mime, opt.subject || name, text);
   }
   window.onNativeAction = function (a) { if (a === 'tabloGonder') tabloGonder('whatsapp'); };
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
@@ -1930,6 +2056,18 @@
       IDB.get('sablon').then(function (t) { if (t && t.buf) arsivYukle(t.buf, t.ad); else pickFile('arsiv'); }, function () { pickFile('arsiv'); });
     },
     tabloWa: function () { tabloGonder('whatsapp'); },
+    rpTur: function (el) { ui.rpTur = el.dataset.v; render(true); },
+    rpHz: function (el) { ui.rpHz = el.dataset.v; var r = RP.hazir(ui.rpHz, today); ui.rpBas = r.from; ui.rpBit = r.to; render(true); },
+    rpAc: function (el) { ui.rpTur = el.dataset.v || ui.rpTur; go('/dash/raporlar'); },
+    rpUret: function (el) { rpUret(el.dataset.v); },
+    rpSend: function (el) {
+      var r = rpSonuc, t = el.dataset.v; if (!r) return;
+      closeSheet();
+      var konu = r.m.title + ' · ' + r.m.period;
+      var metin = t === 'email' ? 'Merhaba,\n\n' + r.m.title + ' (' + r.m.period + ') ektedir.\n' + r.m.ozet + '\n\nİyi çalışmalar.' : t === 'whatsapp' || t === 'share' ? konu + '\n' + r.m.ozet : '';
+      busy(true, 'Rapor hazırlanıyor…');
+      setTimeout(function () { sendBigFile(r.bytes, r.name, r.mime, t, metin, { label: 'Rapor', subject: konu, phone: '' }); }, 30);
+    },
     tabloSave: function () { tabloGonder('save'); },
     tabloKaydet: function () {
       var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
@@ -1981,7 +2119,11 @@
     if (el.dataset && el.dataset.ui && el.dataset.ui !== 'search') {
       var v = el.type === 'checkbox' ? el.checked : el.value;
       if (el.dataset.type === 'date') { v = DT.fromIso(el.value); if (v == null) return; }
-      ui[el.dataset.ui] = v; render(true);
+      ui[el.dataset.ui] = v;
+      if (el.dataset.ui === 'rpBas' || el.dataset.ui === 'rpBit') { var r0 = rpDonem(); if (ui.rpHz !== 'ozel') { ui.rpBas = el.dataset.ui === 'rpBas' ? v : r0.from; ui.rpBit = el.dataset.ui === 'rpBit' ? v : r0.to; } ui.rpHz = 'ozel'; }
+      render(true);
+    } else if (el.dataset && el.dataset.actChange === 'rpAyr') {
+      ui.rpAyr[ui.rpTur] = el.checked; render(true);
     } else if (el.dataset && el.dataset.actChange === 'esik') {
       var n = parseInt(el.value, 10); if (n > 0) { state.settings.esik = n; commit(); }
     }

@@ -557,8 +557,10 @@
   DT.dashboard = function (state, D, pool, opts) {
     var L = state.lists, today = opts.today, Y = opts.year || '', GY = Y || DT.year(today);
     var esik = opts.esik != null ? opts.esik : 35;
-    var inY = function (s) { return !Y || DT.year(s) === Y; };
-    var R = { year: Y, gy: GY };
+    // tarih aralığı (Raporlar): from–to verilirse yıl yerine bu aralık kullanılır
+    var rng = opts.from != null && opts.to != null ? [opts.from, opts.to] : null;
+    var inY = rng ? function (s) { return s != null && s >= rng[0] && s <= rng[1]; } : function (s) { return !Y || DT.year(s) === Y; };
+    var R = { year: Y, gy: GY, rng: rng };
     D.forEach(function (x) {
       var d = x.d;
       x._skYap = d.sk != null && !x.skYapilmadi && d.sk <= today && inY(d.sk);
@@ -568,9 +570,9 @@
       x._topGerTum = d.top != null && !x.stopped && d.top <= today;
       x._topPlanTum = d.top != null && !x.stopped && d.top > today;
       var sy = d.top != null ? DT.year(d.top) : d.sk != null ? DT.year(d.sk) : '';
-      x._surecOK = (S(d.hk) + S(d.ad)).length > 0 && (!Y || sy === Y);
-      x._sure = (x._topGer && d.sk != null && d.top - d.sk >= 0) ? d.top - d.sk : null;
       x._surecTarih = d.top != null ? d.top : d.sk;
+      x._surecOK = (S(d.hk) + S(d.ad)).length > 0 && (rng ? inY(x._surecTarih) : (!Y || sy === Y));
+      x._sure = (x._topGer && d.sk != null && d.top - d.sk >= 0) ? d.top - d.sk : null;
     });
     var cnt = function (fn) { var n = 0; D.forEach(function (x) { if (fn(x)) n++; }); return n; };
     R.kayitli = cnt(function (x) { return x._surecOK; });

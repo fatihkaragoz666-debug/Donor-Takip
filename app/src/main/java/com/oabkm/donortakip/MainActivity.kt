@@ -446,7 +446,7 @@ class MainActivity : ComponentActivity() {
             false
         }
 
-        /** target: whatsapp | email | save | share */
+        /** target: whatsapp | email | save | share | open */
         @JavascriptInterface
         fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String) {
             try {
@@ -470,6 +470,7 @@ class MainActivity : ComponentActivity() {
                         }
                         "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
+                        "open" -> openFile(f, mimeType)
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
                     }
                 } catch (e: Exception) {
@@ -545,6 +546,22 @@ class MainActivity : ComponentActivity() {
             if (text.isNotEmpty()) putExtra(Intent.EXTRA_TEXT, text)
             clipData = ClipData.newRawUri(file.name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /** Raporu telefondaki PDF / Excel uygulamasında açar; açacak uygulama yoksa paylaşım seçicisi */
+    private fun openFile(file: File, mimeType: String) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        val view = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(view)
+        } catch (e: ActivityNotFoundException) {
+            toast("Dosyayı açacak uygulama bulunamadı")
+            startActivity(Intent.createChooser(fileIntent(file, mimeType, "", ""), "Paylaş"))
         }
     }
 

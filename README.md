@@ -49,6 +49,14 @@ satırlardır (tarih, tür, tutar; konaklamada refakatçi ve gece). Donor_Harcam
 “Excel’den al” ile donörlere (hasta kodu + donör no) bağlanarak yüklenir. Dashboard hesapları Excel’deki dashboard’la
 karşılaştırılarak doğrulandı; şehir içi = ikamet ili Ankara.
 
+## Raporlar (PDF ve Excel)
+
+DASHBOARD › Raporlar (ya da Ana Sayfa’daki “Rapor al”): Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti.
+Tarih aralığı hazır seçeneklerle ya da başlangıç–bitiş tarihiyle seçilir; rapor sayfada önizlenir. PDF kütüphanesiz üretilir
+(`js/pdf-rapor.js`): A4, tablolar, grafikler, Türkçe karakterler için gömülü “DT Rapor” yazı tipi (Carlito’dan türetilmiş alt küme,
+SIL OFL; `tools/pdf-font.py`, lisans `fonts/OFL.txt`). Excel’de Özet sayfası ve uzun listeler (donörler, harcama satırları,
+görev kayıtları) ayrı sayfalardadır. Hazır dosya açılır, telefona kaydedilir, Outlook ya da WhatsApp ile gönderilir.
+
 ## WhatsApp’ta güncel tablo
 
 Excel’den içe aktarılan dosya telefonda şablon olarak saklanır (ya da Ayarlar’dan bir kez seçilir). “Şimdi gönder” ya da hafta içi
@@ -62,6 +70,8 @@ listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller 
   - `js/logic.js` — Excel formüllerinin karşılığı (aşı tarihi, görev havuzu, uyarılar, takip
     listeleri, Çalışma Programı metni, Dashboard)
   - `js/xlsx-io.js` — Excel dosyası okuma/yazma
+  - `js/rapor.js` — Raporlar sayfasının raporları (model → önizleme, PDF, Excel)
+  - `js/pdf-rapor.js`, `js/pdf-font.js` — PDF yazıcı ve gömülü yazı tipi
   - `js/app.js` — ekranlar
   - `js/defaults.js` — varsayılan listeler (Excel'deki Listeler sayfasından)
 - `app/src/main/java/.../MainActivity.kt` — WebView kabuğu: dosya seçme/kaydetme, WhatsApp'ta

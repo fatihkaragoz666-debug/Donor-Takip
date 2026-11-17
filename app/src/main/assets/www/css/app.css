@@ -352,3 +352,31 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .hrcard .hrkat b, .hrcard .hrbilgi b { font-size: 14px; overflow-wrap: anywhere; }
 .hrcard .hrkat .sifir b { color: var(--ink-3); font-weight: 500; }
 .hrcard .hrbas { font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; margin: 4px 2px 2px; }
+
+/* ---- Raporlar ---- */
+.rpbtn { margin: 0 0 12px; justify-content: center; font-weight: 650; }
+.rpbtn .muted { font-weight: 500; margin-left: 4px; }
+.rpturler { padding: 4px 0; }
+.rptur { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 12px 14px; font: inherit; color: inherit; }
+.rptur:last-child { border-bottom: 0; }
+.rptur b { display: block; font-size: 15px; font-weight: 650; }
+.rptur span span { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
+.rptur .dot { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line-2); margin-top: 1px; box-sizing: border-box; }
+.rptur.on .dot { border: 6px solid var(--g); }
+.rptur.on b { color: var(--g); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rpdonem { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+.rpayr { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin: 12px 0 0; padding: 12px; }
+.rpgo { margin: 12px 0 4px; }
+.rpgo .btn { padding-top: 13px; padding-bottom: 13px; font-weight: 650; }
+.btn.xls { background: #1d6f42; border-color: #1d6f42; color: #fff; }
+.rpkpis .kpi .n { font-size: 18px; overflow-wrap: anywhere; }
+.rpcap { font-size: 13px; font-weight: 650; margin: 12px 0 6px; color: var(--ink); }
+.rpt td.l, .rpt th.l { text-align: left; }
+.rpt td.l { white-space: normal; min-width: 70px; }
+.rpt tr.mut td { color: var(--ink-3); }
+.rphb > div { display: grid; grid-template-columns: minmax(70px, 38%) 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+.rphb .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rphb .b { height: 10px; background: #eef1f4; border-radius: 3px; overflow: hidden; }
+.rphb .b i { display: block; height: 100%; border-radius: 3px; }
+.rphb b { font-size: 12px; color: var(--ink-2); }
