@@ -44,8 +44,18 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 
 ## Ana sayfa
 
-Dört bölüm: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV; günün görevleri, uyarılar, yeni donör), EŞLEŞME (hazırlanıyor),
+Dört bölüm: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV; günün görevleri, uyarılar, yeni donör), EŞLEŞME (eşleşme tablosu),
 MALİ İŞLER (donör harcaması, yemek kartı) ve DASHBOARD (istatistikler, iş yükü, taşıma, raporlar). Alt sekmeler de bu bölümlerdir.
+
+## Eşleşme
+
+EŞLEŞME bölümü “YENİ EŞLEŞME TABLOSU OABKM” Excel’inden yapıldı (`js/eslesme.js`). Excel dosyası seçildiğinde ANA TABLO sayfası
+okunur (Ayarlar’dan ya da Eşleşme › Excel’den yeniden al). Kayıt ve takip: Eşleşme Kayıtları (ara, süz, ekle, düzenle, sil),
+Bekleyen Listesi (numune bekleyen, sonucu girilmemiş), Veri Kontrolü (istatistiğe girmeyen kayıtlar). Dashboard: Yıllık Eşleşme
+(KBM/BKM), Bölge Devirleri, Hasta Türü ve Cinsiyet, Bekleyen Eşleşmeler, Numune Alım Süresi, Vazgeçme ve İnaktivasyon, Personel.
+Hesaplar Excel’in formülleriyle aynıdır (COUNTIFS büyük/küçük harf ayırmaz, MATCH ayırır) ve Excel’in kayıtlı değerleriyle
+karşılaştırılarak doğrulandı. Kayıtlar telefonda IndexedDB’de durur, yedeğe girer; “Excel’e aktar” ANA TABLO ve İstatistikler
+sayfalarıyla .xlsx üretir.
 
 ## Donör harcama
 
@@ -81,6 +91,7 @@ listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller 
   - `js/logic.js` — Excel formüllerinin karşılığı (aşı tarihi, görev havuzu, uyarılar, takip
     listeleri, Çalışma Programı metni, Dashboard)
   - `js/xlsx-io.js` — Excel dosyası okuma/yazma
+  - `js/eslesme.js` — Eşleşme tablosu: içe aktarma, istatistikler, veri kontrolü, Excel’e aktarma
   - `js/rapor.js` — Raporlar sayfasının raporları (model → önizleme, PDF, Excel)
   - `js/pdf-rapor.js`, `js/pdf-font.js` — PDF yazıcı ve gömülü yazı tipi
   - `js/app.js` — ekranlar

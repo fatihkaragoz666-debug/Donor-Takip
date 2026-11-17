@@ -534,7 +534,7 @@
     }
     return { v: S(v), s: tot ? 9 : muted ? 5 : 0 };
   }
-  RP.toXlsx = function (m) {
+  RP.toXlsx = function (m, z) {
     var X = root.XLSXIO, ozet = [], sheets = [], widths = [];
     var put = function (row) { ozet.push(row); row.forEach(function (c2, i) { var l = c2 && typeof c2 === 'object' ? (c2.s === 3 || c2.s === 11 ? 0 : String(c2.v == null ? '' : c2.v).length) : String(c2 == null ? '' : c2).length; if (c2 && c2.s === 7) l = l + 6; widths[i] = Math.max(widths[i] || 0, Math.min(l, 48)); }); };
     ozet.push([{ v: m.title, s: 3 }]); ozet.push([{ v: 'Dönem: ' + m.period, s: 16 }]);
@@ -572,8 +572,9 @@
     m.blocks.forEach(each);
     var cols = []; for (var i = 0; i < Math.max(widths.length, 2); i++) cols.push(Math.max(i === 0 ? 30 : 11, Math.round((widths[i] || 8) * 1.1) + 2));
     var all = [{ name: 'Özet', rows: ozet, cols: cols }].concat(sheets);
-    return X.buildXlsx(all);
+    return z ? X.buildXlsxZ(all) : X.buildXlsx(all);
   };
+  RP.toXlsxZ = function (m) { return RP.toXlsx(m, true); };
 
   root.RP = RP;
   if (typeof module !== 'undefined' && module.exports) module.exports = RP;

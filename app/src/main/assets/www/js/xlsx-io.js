@@ -490,7 +490,47 @@
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   }
   // sheets: [{name, cols:[width], rows:[[cell]], freezeRow, filterRow}] cell: string | number | {v, s, f, t}
-  X.buildXlsx = function (sheets) {
+  // Sıkıştırılmış xlsx (CompressionStream 'deflate-raw' varsa); Promise<Uint8Array>
+  X.buildXlsxZ = function (sheets) { return X.zipAsync(X.buildXlsx(sheets, true)); };
+  X.zipAsync = function (files) {
+    var enc = new TextEncoder();
+    var deflate = function (u8) {
+      if (typeof CompressionStream === 'undefined') return Promise.resolve(null);
+      try {
+        var cs = new CompressionStream('deflate-raw'), w = cs.writable.getWriter();
+        w.write(u8); w.close();
+        return new Response(cs.readable).arrayBuffer().then(function (ab) { return new Uint8Array(ab); }, function () { return null; });
+      } catch (e) { return Promise.resolve(null); }
+    };
+    var items = files.map(function (f) { return { name: enc.encode(f.name), data: typeof f.data === 'string' ? enc.encode(f.data) : f.data }; });
+    return Promise.all(items.map(function (it) { return deflate(it.data); })).then(function (zs) {
+      var parts = [], central = [], off = 0;
+      items.forEach(function (it, i) {
+        var data = it.data, name = it.name, crc = crc32(data), z = zs[i], comp = z && z.length < data.length, body = comp ? z : data, m = comp ? 8 : 0;
+        var h = new DataView(new ArrayBuffer(30));
+        h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, m, true);
+        h.setUint16(10, 0, true); h.setUint16(12, 0x21, true); h.setUint32(14, crc, true);
+        h.setUint32(18, body.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+        parts.push(new Uint8Array(h.buffer), name, body);
+        var c = new DataView(new ArrayBuffer(46));
+        c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+        c.setUint16(10, m, true); c.setUint16(12, 0, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true);
+        c.setUint32(20, body.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
+        c.setUint32(42, off, true);
+        central.push(new Uint8Array(c.buffer), name);
+        off += 30 + name.length + body.length;
+      });
+      var cdSize = central.reduce(function (a, q) { return a + q.length; }, 0);
+      var e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, 0x06054b50, true); e.setUint16(8, items.length, true); e.setUint16(10, items.length, true);
+      e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+      var all = parts.concat(central, [new Uint8Array(e.buffer)]);
+      var total = all.reduce(function (a, q) { return a + q.length; }, 0), out = new Uint8Array(total), p = 0;
+      all.forEach(function (a) { out.set(a, p); p += a.length; });
+      return out;
+    });
+  };
+  X.buildXlsx = function (sheets, filesOnly) {
     var files = [];
     files.push({ name: '[Content_Types].xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -582,7 +622,7 @@
       xml += '</worksheet>';
       files.push({ name: 'xl/worksheets/sheet' + (si + 1) + '.xml', data: xml });
     });
-    return X.zip(files);
+    return filesOnly ? files : X.zip(files);
   };
 
   // Donör Kayıt sayfası (Excel dosyasıyla aynı sütunlar + DURUM) — uygulama bu dosyayı yeniden içe aktarabilir.

@@ -109,6 +109,7 @@
     holMap = DT.holidayMap(state.lists);
     hrows = HR.derive(state, D);
     yrows = YK.derive(state, D);
+    esCache = {};
   }
   function commit(keepScroll) { save(); recompute(); render(keepScroll !== false); }
 
@@ -136,11 +137,20 @@
     dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
       ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü'],
       ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri'], ['/dash/raporlar', 'Raporlar', 'Tarih aralığına göre PDF ve Excel rapor']] },
-    eslesme: { ad: 'EŞLEŞME', renk: '#0E7C86', acik: '#DDF1F2', alt: 'Eşleşme takibi', pages: [] },
+    eslesme: { ad: 'EŞLEŞME', renk: '#0E7C86', acik: '#DDF1F2', alt: 'Kök hücre eşleşme takibi', pages: [] },
     harcama: { ad: 'MALİ İŞLER', renk: '#A3262A', acik: '#F8E4E3', alt: 'Donör harcaması, yemek kartı ve harcama dashboard', pages: [
       ['/harcama', 'Harcama Dashboard', 'Yıllara, kategoriye, ulaşıma ve ile göre harcama'], ['/harcama/kayitlar', 'Harcama Kayıtları', 'Harcama satırları: ekle, düzenle, Excel’den al'],
       ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti'], ['/harcama/yemek', 'Yemek Kartı', 'Yükleme detayı: sağlık kontrolü, aşı + toplama, toplama süreci']] }
   };
+  // EŞLEŞME sayfaları (Excel'deki ANA SAYFA: KAYIT VE TAKİP · DASHBOARD)
+  var ES_SAYFA = {
+    kayit: [['/es/kayitlar', 'Eşleşme Kayıtları', 'ANA TABLO: bütün eşleşmeler; ekle, düzenle, ara'], ['/es/bekleyen', 'Bekleyen Listesi', 'Numune bekleyen ve sonucu girilmemiş eşleşmeler'],
+      ['/es/kontrol', 'Veri Kontrolü', 'İstatistiğe girmeyen, düzeltilecek kayıtlar']],
+    dash: [['/es/dashboard', 'Dashboard', 'Eşleşme göstergeleri ve grafikler'], ['/es/yillik', 'Yıllık Eşleşme', 'KBM / BKM bazlı yıllık eşleşme'], ['/es/bolge', 'Bölge Devirleri', 'Gelen ve devrettiğimiz eşleşmeler'],
+      ['/es/tur', 'Hasta Türü ve Cinsiyet', 'Yurt içi / yurt dışı, cinsiyet'], ['/es/bekleyenler', 'Bekleyen Eşleşmeler', 'Aylık bekleyen eşleşme sayıları'], ['/es/numune', 'Numune Alım Süresi', 'Talepten numuneye ortalama gün'],
+      ['/es/vazgecme', 'Vazgeçme ve İnaktivasyon', 'Vazgeçme, sistem inaktivasyonu, nedenler'], ['/es/personel', 'Personel İstatistiği', 'Personel bazlı görüşme']]
+  };
+  GROUPS.eslesme.pages = ES_SAYFA.kayit.concat(ES_SAYFA.dash);
   // Ana Sayfa'daki dört bölüm; PLANLAMA, TAKİP ve DONÖR KAYIT VE ARŞİV, MİHMANDARLIK'ın içindedir
   var MIH = { ad: 'MİHMANDARLIK', renk: '#1F3A5F', acik: '#E4E9F0', alt: 'Planlama, takip, donör kayıt ve arşiv', gruplar: ['planlama', 'takip', 'arsiv'] };
   function topOf(gk) { return gk && MIH.gruplar.indexOf(gk) >= 0 ? 'mihmandarlik' : gk; }
@@ -154,6 +164,7 @@
     if (k === 'donorler' || k === 'donor' || k === 'arsiv' || path === '/ayarlar/listeler') return 'arsiv';
     if (k === 'dashboard' || k === 'dash') return 'dashboard';
     if (k === 'harcama') return 'harcama';
+    if (k === 'es') return 'eslesme';
     return null;
   }
   var TABS = [['home', '/', 'Ana Sayfa', I.home], ['mihmandarlik', '/mihmandarlik', 'Mihmandarlık', I.users], ['eslesme', '/g/eslesme', 'Eşleşme', I.link],
@@ -170,6 +181,8 @@
     try {
       if (p.length === 0) out = scrHome();
       else if (p[0] === 'mihmandarlik') out = scrMihmandarlik();
+      else if (p[0] === 'g' && p[1] === 'eslesme') out = scrEsHome();
+      else if (p[0] === 'es') out = scrEs(p[1], p[2]);
       else if (p[0] === 'g' && GROUPS[p[1]]) out = scrGroup(p[1]);
       else if (p[0] === 'arsiv' && p[1] === 'rapor') out = scrRapor();
       else if (p[0] === 'arsiv' && p[1] === 'kilavuz') out = scrKilavuz();
@@ -280,7 +293,8 @@
     if (!state.donors.length) html += noDataCard();
     html += '<div class="anabtns">' +
       btn('/mihmandarlik', MIH.renk, I.users, MIH.ad, 'Planlama, takip, donör kayıt ve arşiv', 'Bugün ' + bugun + ' · yarın ' + yarin + ' görev' + (uyari ? ' · ' + uyari + ' uyarı' : '')) +
-      btn('/g/eslesme', GROUPS.eslesme.renk, I.link, GROUPS.eslesme.ad, 'Eşleşme takibi', 'Hazırlanıyor') +
+      btn('/g/eslesme', GROUPS.eslesme.renk, I.link, GROUPS.eslesme.ad, 'Kök hücre eşleşmeleri, devirler, istatistikler', !esData ? 'Yükleniyor…' : !esData.kayitlar.length ? 'Eşleşme tablosunu yükleyin' :
+        (function () { var R = esStats(), j = R.Y.indexOf(Y), kn = esKontrolSay(); return Y + ': ' + num(j >= 0 ? R.yillikTop.v[j] : 0) + ' eşleşme' + (kn ? ' · ' + kn + ' kontrol uyarısı' : ''); })()) +
       btn('/g/harcama', GROUPS.harcama.renk, I.tl, GROUPS.harcama.ad, 'Donör harcaması ve yemek kartı', Y + ': ' + tl(hY) + ' harcama · ' + tl(yY) + ' yemek kartı') +
       btn('/g/dashboard', GROUPS.dashboard.renk, I.chart, GROUPS.dashboard.ad, 'İstatistikler, iş yükü, taşıma ve raporlar', Y + ': ' + topY + ' toplama gerçekleşti') + '</div>';
     html += '</div>';
@@ -1737,6 +1751,384 @@
     return { title: 'Taşıma İstatistiği', html: html + '</div>' };
   }
 
+  /* ================= EŞLEŞME (YENİ EŞLEŞME TABLOSU OABKM) ================= */
+  // Kayıtlar IndexedDB'de ("eslesme") tutulur; istatistikler ES modülünde Excel formülleriyle aynı hesaplanır
+  var esData = null, esCache = {}, esSaveTimer = null;
+  function esYukle() {
+    var bitti = function (d) { esData = d && d.kayitlar ? d : { kayitlar: [], bas: 2015 }; esCache = {}; var p = route(); if (!p.length || p[0] === 'es' || (p[0] === 'g' && p[1] === 'eslesme')) render(true); };
+    IDB.get('eslesme').then(bitti, function () { bitti(null); });
+  }
+  function esDegisti() {
+    esCache = {};
+    clearTimeout(esSaveTimer);
+    esSaveTimer = setTimeout(function () { IDB.put('eslesme', esData).catch(function () { toast('Eşleşme kayıtları saklanamadı'); }); }, 250);
+  }
+  function esStats() { if (!esCache.stats) esCache.stats = ES.stats(esData, today); return esCache.stats; }
+  function esKontrol() { if (!esCache.kontrol) esCache.kontrol = ES.kontrol(esData, today); return esCache.kontrol; }
+  function esKontrolSay() { return esKontrol().reduce(function (a, k) { return a + k.n; }, 0); }
+  function esBul(id) { return (esData.kayitlar || []).filter(function (r) { return r.id === id; })[0] || null; }
+  function esV(v) { return ES.bos(v) ? '' : S(v).trim(); }
+  function esDurumCls(r) {
+    var d = DT.fold(esV(r.durum));
+    if (!d) return ES.eqx(r.nDurum, 'Alındı') ? 'p-red' : 'p-pri';
+    if (d === 'nakil') return 'p-top';
+    if (/rezerve/.test(d)) return 'p-asi';
+    if (/serbest/.test(d)) return 'p-sk';
+    return 'p-grey';
+  }
+  function esDurumAd(r) { return esV(r.durum) || (ES.eqx(r.nDurum, 'Alındı') ? 'Sonuç girilmemiş' : esV(r.nDurum) || 'Durum yok'); }
+  function esBos(baslik) {
+    return '<div class="card pad"><h2>' + h(baslik || 'Eşleşme tablosunu yükleyin') + '</h2><div class="small muted" style="margin-bottom:12px">YENİ EŞLEŞME TABLOSU OABKM Excel dosyanızı seçin; ANA TABLO’daki bütün eşleşmeler uygulamaya alınır, istatistikler Excel’deki gibi hesaplanır. Veriler yalnızca bu telefonda saklanır.</div>' +
+      '<div class="btns"><button class="btn pri" data-act="esPick">' + I.up + 'Excel dosyası seç</button><button class="btn" data-act="esYeni">' + I.plus + 'Elle ekle</button></div></div>';
+  }
+  function esYukleniyor(t) { return { title: t || 'Eşleşme', back: true, html: '<div class="page">' + emptyBox('Eşleşme kayıtları yükleniyor…') + '</div>' }; }
+
+  /* ---- Eşleşme ana sayfası (Excel'deki ANA SAYFA) ---- */
+  function scrEsHome() {
+    var g = GROUPS.eslesme;
+    var html = '<div class="page"><div class="ghead" style="background:' + g.renk + '"><div class="gt">EŞLEŞME</div><div class="gs">Kök hücre bağışçı eşleşmeleri, devirler ve süreç istatistikleri</div></div>';
+    if (!esData) return { title: 'Eşleşme', html: html + emptyBox('Eşleşme kayıtları yükleniyor…') + '</div>' };
+    var cards = function (pages, renk) {
+      return '<div class="gcards">' + pages.map(function (pg) {
+        return '<button class="gcard" style="background:' + renk + '" data-act="goto" data-h="' + pg[0] + '"><span class="ct">' + h(pg[1]) + '</span><span class="cs" style="color:#DDF1F2">' + h(pg[2]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    if (!esData.kayitlar.length) html += esBos();
+    else {
+      var R = esStats(), Y = DT.year(today), j = R.Y.indexOf(Y), kn = esKontrolSay(), nt = R.numuneTop;
+      var tile = function (n, l, s2, href, cls) { return '<button class="tile' + (cls ? ' ' + cls : '') + '" data-act="goto" data-h="' + href + '"><div class="n">' + h(n) + '</div><div class="l">' + h(l) + '</div><div class="s">' + h(s2) + '</div></button>'; };
+      html += '<div class="tiles">' +
+        tile(num(j >= 0 ? R.yillikTop.v[j] : 0), 'Bu yıl eşleşme (' + Y + ')', j > 0 ? 'Geçen yıl: ' + num(R.yillikTop.v[j - 1]) : 'Yıllık Eşleşme', '/es/yillik') +
+        tile(num(R.bekleyenTop.top), 'Bekleyen eşleşme', 'Numune bekleniyor', '/es/bekleyen', R.bekleyenTop.top ? 'warn' : 'ok') +
+        tile(j >= 0 && nt.v[j] != null ? RP.fmt(nt.v[j], 'dec1') + ' gün' : '–', 'Bu yıl ort. numune alım süresi', nt.top != null ? 'Genel ortalama: ' + RP.fmt(nt.top, 'dec1') + ' gün' : '', '/es/numune') +
+        tile(num(kn), 'Veri kontrol uyarısı', kn ? 'Düzeltilmesi gereken kayıt' : 'Sorun yok', '/es/kontrol', kn ? 'warn' : 'ok') + '</div>' +
+        '<button class="btn newdonor block" data-act="esYeni" style="margin-bottom:6px">' + I.plus + 'YENİ EŞLEŞME EKLE</button>';
+    }
+    html += '<div class="sec-title">Kayıt ve takip</div>' + cards(ES_SAYFA.kayit, g.renk) + '<div class="sec-title">Dashboard</div>' + cards(ES_SAYFA.dash, '#13606A');
+    if (esData.kayitlar.length) {
+      html += '<div class="sec-title">Tablo</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">' + num(esData.kayitlar.length) + ' eşleşme kaydı' + (esData.kaynak ? ' · Excel: ' + h(esData.kaynak) : '') + '</div>' +
+        '<div class="row" style="gap:8px;margin-bottom:10px"><span class="small grow">İstatistik başlangıç yılı</span><select class="inp" style="width:110px" data-act-change="esBas">' +
+        (function () { var o = ''; for (var y = 2010; y <= DT.year(today); y++) o += '<option' + (y === +esData.bas ? ' selected' : '') + '>' + y + '</option>'; return o; })() + '</select></div>' +
+        '<div class="btns"><button class="btn" data-act="esPick">' + I.up + 'Excel’den yeniden al</button><button class="btn" data-act="esExcel">' + I.down + 'Excel’e aktar</button></div></div>';
+    }
+    html += '<div class="hint" style="margin:8px 4px">Sayfaların üstündeki düğmelerle Eşleşme sayfaları arasında geçebilirsiniz. Kutucuklara dokununca ilgili sayfa açılır.</div></div>';
+    return { title: 'Eşleşme', html: html };
+  }
+
+  /* ---- Eşleşme Kayıtları (ANA TABLO) ---- */
+  var ES_FILTRE = [['', 'Tümü'], ['sonuc', 'Sonucu girilmemiş'], ['bekleyen', 'Numune bekleyen'], ['gelen', 'Devirle gelen'], ['giden', 'Devrettiğimiz']];
+  function esListe() {
+    var q = DT.fold((ui.esAra || '').trim()), f = ui.esF || '', y = ui.esYil ? +ui.esYil : null, k = ui.esKbm || '';
+    var sonuc = f === 'sonuc' ? ES.bekleyenListe(esData, 'sonuc') : null, bek = f === 'bekleyen' ? ES.bekleyenListe(esData, 'numune') : null, set = sonuc || bek;
+    var ids = {}; if (set) set.forEach(function (r) { ids[r.id] = 1; });
+    var terms = q ? q.split(/\s+/) : [];
+    var arr = esData.kayitlar.filter(function (r) {
+      if (set && !ids[r.id]) return false;
+      if (f === 'gelen' && !ES.eqx(r.devir, 'Devreden GVM')) return false;
+      if (f === 'giden' && !ES.eqx(r.devir, 'Devir Yapılan GVM')) return false;
+      if (y && !(r.talep != null && DT.year(r.talep) === y)) return false;
+      if (k && !ES.eqx(r.kbm, k)) return false;
+      if (terms.length) { var hay = DT.fold([r.unit, r.ad, r.kbm, r.not, r.durum, r.devreden, r.devirYapilan, r.pers].join(' ')); if (!terms.every(function (t) { return hay.indexOf(t) >= 0; })) return false; }
+      return true;
+    });
+    return arr.map(function (r, i) { return [r, i]; }).sort(function (a, b) { var ta = a[0].talep, tb = b[0].talep; return (ta == null) - (tb == null) || (tb || 0) - (ta || 0) || b[1] - a[1]; }).map(function (z) { return z[0]; });
+  }
+  function esItem(r, ek) {
+    var t2 = [esV(r.unit), esV(r.kbm), r.talep != null ? 'Talep ' + DT.fmt(r.talep) : r.talepTx ? 'Talep “' + r.talepTx + '”' : ''].filter(Boolean).join(' · ');
+    var chips = [];
+    if (esV(r.nDurum)) chips.push('<span class="pillx ' + (ES.eqx(r.nDurum, 'Alındı') ? 'p-top' : ES.eqx(r.nDurum, 'Beklemede') ? 'p-asi' : 'p-grey') + '">Numune: ' + h(esV(r.nDurum)) + (r.numune != null ? ' ' + DT.fmtShort(r.numune) : '') + '</span>');
+    if (ES.eqx(r.devir, 'Devreden GVM')) chips.push('<span class="pillx p-sk">Gelen: ' + h(esV(r.devreden).replace(' GVM', '') || '?') + '</span>');
+    if (ES.eqx(r.devir, 'Devir Yapılan GVM')) chips.push('<span class="pillx p-or">Devredildi: ' + h(esV(r.devirYapilan).replace(' GVM', '') || '?') + '</span>');
+    if (esV(r.tur)) chips.push('<span class="pillx p-grey">' + h(esV(r.tur)) + (esV(r.yas) ? ' · ' + h(esV(r.yas)) : '') + '</span>');
+    if (esV(r.pers)) chips.push('<span class="pillx p-grey">' + h(esV(r.pers)) + '</span>');
+    return '<a class="item" data-act="goto" data-h="/es/kayit/' + h(r.id) + '"><div class="t1"><span class="name">' + h(esV(r.ad) || esV(r.unit) || '(adsız)') + '</span><span class="pillx ' + esDurumCls(r) + '">' + h(esDurumAd(r)) + '</span></div>' +
+      '<div class="t2 ellipsis">' + h(t2) + '</div>' + (ek ? '<div class="t2">' + ek + '</div>' : '') + (chips.length ? '<div class="t3">' + chips.join('') + '</div>' : '') +
+      (esV(r.not) ? '<div class="t2 muted ellipsis">' + h(r.not) + '</div>' : '') + '</a>';
+  }
+  function esListeHtml() {
+    var arr = esListe(), lim = ui.esLim || 60;
+    if (!arr.length) return '<div class="card">' + emptyBox('Eşleşen kayıt yok', 'Aramayı ya da süzgeçleri değiştirin.') + '</div>';
+    return '<div class="summary">' + num(arr.length) + ' kayıt · yeni talep üstte</div><div class="card list">' + arr.slice(0, lim).map(function (r) { return esItem(r); }).join('') + '</div>' +
+      (arr.length > lim ? '<button class="btn block" data-act="esMore">Daha fazla göster (' + num(arr.length - lim) + ')</button>' : '');
+  }
+  function scrEsKayitlar() {
+    var html = '<div class="page flush">' + groupSeg('eslesme', '/es/kayitlar');
+    if (!esData.kayitlar.length) return { title: 'Eşleşme Kayıtları', html: html + '<div class="page">' + esBos() + '</div></div>' };
+    var ys = {}; esData.kayitlar.forEach(function (r) { if (r.talep != null) ys[DT.year(r.talep)] = 1; });
+    html += '<div class="seg sub">' + ES_FILTRE.map(function (f) { return '<button class="' + ((ui.esF || '') === f[0] ? 'on' : '') + '" data-act="esF" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Unit no, ad soyad, not…" value="' + h(ui.esAra || '') + '" data-ui="esAra"></div></div>' +
+      '<div class="toolbar"><select class="inp" data-ui="esYil"><option value="">Tüm yıllar</option>' + Object.keys(ys).sort().reverse().map(function (y) { return '<option' + (String(ui.esYil) === y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<select class="inp" data-ui="esKbm"><option value="">Tüm KBM’ler</option>' + ES.KBM.map(function (k) { return '<option' + (ui.esKbm === k ? ' selected' : '') + '>' + h(k) + '</option>'; }).join('') + '</select></div>' +
+      '<div id="eslist">' + esListeHtml() + '</div></div><button class="fab" data-act="esYeni" aria-label="Yeni eşleşme">' + I.plus + '</button>';
+    return { title: 'Eşleşme Kayıtları', html: html };
+  }
+
+  /* ---- Eşleşme formu ---- */
+  function scrEsForm(id) {
+    var yeni = id === 'yeni', r = yeni ? ES.yeni() : esBul(id);
+    if (!r) return { title: 'Eşleşme', back: true, html: '<div class="page">' + emptyBox('Kayıt bulunamadı', 'Silinmiş olabilir.') + '</div>' };
+    var sel = function (name, label, list, val, hint, groups) {
+      var v = esV(val), found = false, o = '<option value="">— seçin —</option>';
+      var opt = function (x) { var on = !found && v && ES.eqx(x, v); if (on) found = true; return '<option' + (on ? ' selected' : '') + '>' + h(x) + '</option>'; };
+      if (groups) groups.forEach(function (g2) { o += '<optgroup label="' + h(g2[0]) + '">' + g2[1].map(opt).join('') + '</optgroup>'; });
+      else o += list.map(opt).join('');
+      if (v && !found) o += '<option selected>' + h(v) + '</option>';
+      return '<div class="field"><label>' + label + '</label><select class="inp" name="' + name + '">' + o + '</select>' + (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div>';
+    };
+    var txt = function (name, label, val, extra) { return '<div class="field"><label>' + label + '</label><input class="inp" name="' + name + '" value="' + h(esV(val)) + '"' + (extra || '') + '></div>'; };
+    var tarih = function (name, label) {
+      var tx = r[name + 'Tx'];
+      return '<div class="field"><label>' + label + '</label><input class="inp" type="date" name="' + name + '" value="' + (r[name] != null ? DT.iso(r[name]) : '') + '">' +
+        (tx ? '<div class="hint" style="color:var(--red)">Excel’de tarih değil, metin olarak yazılmış: “' + h(tx) + '”. Doğru tarihi seçin.</div>' : '') + '</div>';
+    };
+    var html = '<div class="page"><form id="esform" autocomplete="off"><div class="card pad">' +
+      '<div class="formsec">Bağışçı</div>' +
+      txt('unit', 'Bağışçı Unit No', r.unit, ' autocapitalize="characters" placeholder="T00…"') + txt('ad', 'Bağışçının adı soyadı', r.ad) +
+      '<div class="grid2">' + sel('cins', 'Cinsiyet', ES.CINSIYET, r.cins) + sel('kbm', 'OABKM Bağlıları', ES.KBM, r.kbm) + '</div>' +
+      sel('gvm', 'Bağışta bulunulan GVM', ES.GVM, r.gvm) +
+      '<div class="formsec">Devir</div>' +
+      sel('devir', 'Devir durumu', ES.DEVIR, r.devir, 'Devreden GVM: başka bölgeden bize gelen · Devir Yapılan GVM: bizim başka bölgeye devrettiğimiz (istatistiklere girmez).') +
+      '<div class="grid2">' + sel('devreden', 'Devreden KHBM', ES.BOLGE, r.devreden) + sel('devirYapilan', 'Devir yapılan KHBM', ES.BOLGE, r.devirYapilan) + '</div>' +
+      tarih('devirT', 'Devir tarihi') +
+      '<div class="formsec">Eşleşme</div>' +
+      '<div class="grid2">' + tarih('talep', 'Talep tarihi') + '<div class="field"><label>Eşleşme oranı</label><input class="inp" name="oran" list="esOran" value="' + h(esV(r.oran)) + '" placeholder="10\\10"><datalist id="esOran">' + ES.ORAN.map(function (o) { return '<option value="' + h(o) + '">'; }).join('') + '</datalist></div></div>' +
+      '<div class="grid2">' + sel('alim', 'Kök hücre alım yeri', ES.ALIM, r.alim) + sel('yas', 'Hasta yaş', ES.YAS, r.yas) + '</div>' +
+      sel('tur', 'Hasta türü', ES.TUR, r.tur) +
+      '<div class="formsec">Konfirmasyon numunesi</div>' +
+      '<div class="grid2">' + sel('nDurum', 'Numune durumu', ES.NUMUNE, r.nDurum) + tarih('numune', 'Numune alındı / alınmadı tarihi') + '</div>' +
+      '<div class="formsec">Sonuç</div>' +
+      sel('durum', 'Durum', ES.DURUM, r.durum) +
+      sel('neden', 'Vazgeçme / inaktivasyon nedeni', null, r.neden, '', [['Vazgeçme nedeni', ES.NEDEN_VAZGECME], ['İnaktivasyon nedeni', ES.NEDEN_INAKTIVASYON]]) +
+      sel('pers', 'İlgilenen personel', state.lists.personel, r.pers, 'Personel İstatistiği’nde görüşme olarak sayılır.') +
+      '<div class="field"><label>Notlar</label><textarea class="inp" name="not" rows="3">' + h(S(r.not)) + '</textarea></div>' +
+      '</div><div class="btns" style="margin-top:4px">' + (yeni ? '<button type="button" class="btn" data-act="back">Vazgeç</button>' : '<button type="button" class="btn danger" id="esSil">Sil</button>') +
+      '<button class="btn pri">Kaydet</button></div></form></div>';
+    return {
+      title: yeni ? 'Yeni eşleşme' : (esV(r.ad) || 'Eşleşme'), back: true, html: html, after: function () {
+        var f = $('#esform');
+        f.addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          var o = Object.assign({}, r);
+          ['unit', 'ad', 'cins', 'gvm', 'kbm', 'devir', 'devreden', 'devirYapilan', 'alim', 'oran', 'yas', 'tur', 'nDurum', 'durum', 'neden', 'pers'].forEach(function (k) { o[k] = f[k].value.trim(); });
+          o.unit = o.unit.toLocaleUpperCase('tr-TR'); o.not = f.not.value.trim();
+          ['talep', 'devirT', 'numune'].forEach(function (k) {
+            var v = DT.fromIso(f[k].value);
+            if (v != null) { o[k] = v; delete o[k + 'Tx']; } else { o[k] = null; if (!r[k + 'Tx'] || r[k] != null) delete o[k + 'Tx']; }
+          });
+          if (!o.unit && !o.ad) { toast('Unit no ya da ad soyad girin'); return; }
+          if (o.talep == null && !o.talepTx) { toast('Talep tarihini girin'); return; }
+          if (yeni) { o.no = esData.kayitlar.reduce(function (m, z) { return Math.max(m, z.no || 0); }, 0) + 1; esData.kayitlar.push(o); }
+          else { var i = esData.kayitlar.indexOf(r); if (i >= 0) esData.kayitlar[i] = o; }
+          esDegisti(); toast(yeni ? 'Eşleşme eklendi' : 'Kaydedildi'); history.back();
+        });
+        var del = $('#esSil');
+        if (del) del.onclick = function () {
+          confirmSheet('Eşleşme kaydını sil', (esV(r.ad) || esV(r.unit)) + (r.talep != null ? ' · talep ' + DT.fmt(r.talep) : '') + ' kaydı silinecek.', 'Sil', true, function () {
+            esData.kayitlar = esData.kayitlar.filter(function (z) { return z !== r; }); esDegisti(); toast('Kayıt silindi'); history.back();
+          });
+        };
+      }
+    };
+  }
+
+  /* ---- Bekleyen Listesi ---- */
+  function scrEsBekleyen() {
+    var html = '<div class="page flush">' + groupSeg('eslesme', '/es/bekleyen');
+    if (!esData.kayitlar.length) return { title: 'Bekleyen Listesi', html: html + '<div class="page">' + esBos() + '</div></div>' };
+    var tur = ui.esBek || 'numune', nb = ES.bekleyenListe(esData, 'numune'), sn = ES.bekleyenListe(esData, 'sonuc'), list = tur === 'sonuc' ? sn : nb, lim = ui.esBLim || 100;
+    html += '<div class="seg sub"><button class="' + (tur === 'numune' ? 'on' : '') + '" data-act="esBek" data-v="numune">Numune bekleyen<span class="c">' + nb.length + '</span></button>' +
+      '<button class="' + (tur === 'sonuc' ? 'on' : '') + '" data-act="esBek" data-v="sonuc">Sonucu girilmemiş<span class="c">' + sn.length + '</span></button></div>' +
+      '<div class="summary">' + (tur === 'sonuc' ? 'Numune “Alındı” ama Durum seçilmemiş eşleşmeler.' : 'Konfirmasyon numunesi durumu “Beklemede” olan eşleşmeler.') + ' Devrettiklerimiz hariç. Gün: talepten bugüne. Düzeltmek için kayda dokunun.</div>';
+    if (!list.length) html += '<div class="card">' + emptyBox('Şu anda bu listede kayıt yok') + '</div>';
+    else html += '<div class="card list">' + list.slice(0, lim).map(function (r) {
+      var gun = r.talep != null ? today - r.talep : null;
+      return esItem(r, gun != null ? '<b>' + gun + ' gün</b>' + (esV(r.alim) ? ' · ' + h(esV(r.alim)) : '') + (esV(r.oran) ? ' · oran ' + h(esV(r.oran)) : '') : '');
+    }).join('') + '</div>' + (list.length > lim ? '<button class="btn block" data-act="esBMore">Daha fazla göster (' + (list.length - lim) + ')</button>' : '');
+    return { title: 'Bekleyen Listesi', html: html + '</div>' };
+  }
+
+  /* ---- Veri Kontrolü ---- */
+  function scrEsKontrol() {
+    var html = '<div class="page flush">' + groupSeg('eslesme', '/es/kontrol');
+    if (!esData.kayitlar.length) return { title: 'Veri Kontrolü', html: html + '<div class="page">' + esBos() + '</div></div>' };
+    var K = esKontrol(), top = esKontrolSay();
+    html += '<div class="summary">İstatistiklere girmeyen ya da düzeltilmesi gereken kayıtlar; hepsinin 0 olması beklenir. Toplam <b>' + top + '</b> uyarı. Kayda dokunup düzeltin.</div>';
+    ui.esKAc = ui.esKAc || {};
+    K.forEach(function (k) {
+      var ac = ui.esKAc[k.k], lim = ac ? 500 : 5;
+      html += '<div class="card pad eskon"><div class="row" style="align-items:flex-start;gap:10px"><span class="grow"><b>' + h(k.ad) + '</b><div class="small muted" style="margin-top:3px">' + h(k.ne) + '</div></span>' +
+        '<span class="pillx ' + (k.n ? 'p-red' : 'p-top') + '" style="font-size:14px">' + k.n + '</span></div>' +
+        (k.n ? '<div class="list" style="margin:8px -14px -14px">' + k.list.slice(0, lim).map(function (r) {
+          var ek = k.k === 'metin' ? 'Metin: ' + h([r.talepTx ? 'talep “' + r.talepTx + '”' : '', r.numuneTx ? 'numune “' + r.numuneTx + '”' : ''].filter(Boolean).join(' · ')) :
+            k.k === 'once' ? 'Talep ' + DT.fmt(r.talep) + ' · numune ' + DT.fmt(r.numune) : k.k === 'ileri' ? 'Talep ' + DT.fmt(r.talep) + (r.numune != null ? ' · numune ' + DT.fmt(r.numune) : '') :
+            k.k === 'kbm' ? 'KBM: “' + h(S(r.kbm) || 'boş') + '”' : k.k === 'cins' ? 'Cinsiyet: “' + h(S(r.cins) || 'boş') + '”' : 'Hasta türü: “' + h(S(r.tur) || 'boş') + '”';
+          return esItem(r, ek);
+        }).join('') + (k.n > lim ? '<button class="btn ghost block" data-act="esKAc" data-v="' + k.k + '">Tümünü göster (' + k.n + ')</button>' : '') + '</div>' : '') + '</div>';
+    });
+    return { title: 'Veri Kontrolü', html: html + '</div>' };
+  }
+
+  /* ---- istatistik tabloları ---- */
+  function esTablo(R, rows, tot, opt) {
+    opt = opt || {};
+    var f = function (v) { return v == null ? '–' : opt.dec ? RP.fmt(v, 'dec1') : num(v); };
+    var tr = function (r, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + h(r.ad) + '</td>' + r.v.map(function (v) { return '<td' + (!v && !opt.dec ? ' class="z"' : '') + '>' + f(v) + '</td>'; }).join('') + '<td><b>' + f(r.top) + '</b></td></tr>'; };
+    return '<div class="tscroll"><table class="t tsticky"><tr><th>' + h(opt.bas || '') + '</th>' + R.Y.map(function (y) { return '<th>' + y + '</th>'; }).join('') + '<th>' + h(opt.top || 'TOPLAM') + '</th></tr>' +
+      rows.map(function (r) { return tr(r, r.ek ? 'ek' : ''); }).join('') + (tot ? tr(tot, 'tot') : '') + '</table></div>';
+  }
+  function esKart(baslik, inner, not) { return '<div class="card pad"><h2>' + h(baslik) + '</h2>' + inner + (not ? '<div class="note">' + h(not) + '</div>' : '') + '</div>'; }
+  function esSon(R, n) { var k = Math.max(0, R.Y.length - (n || 12)); return k; }
+  function esGrafik(R, seriler, renkler, adlar, opt) {
+    var k = esSon(R, 12);
+    return barChart(R.Y.slice(k).map(String), seriler.map(function (s2) { return s2.slice(k).map(function (v) { return v || 0; }); }), renkler, adlar, Object.assign({ full: true }, opt || {}));
+  }
+  function esSayfa(yol, baslik, govde) {
+    var html = '<div class="page flush">' + groupSeg('eslesme', yol);
+    if (!esData.kayitlar.length) return { title: baslik, html: html + '<div class="page">' + esBos() + '</div></div>' };
+    return { title: baslik, html: html + govde() + '</div>' };
+  }
+  var ES_NOT = 'Yıl = Talep Tarihi yılı. Devirle gelen eşleşmeler dahil, diğer bölgelere devrettiğimiz eşleşmeler hariç.';
+  function scrEsYillik() {
+    return esSayfa('/es/yillik', 'Yıllık Eşleşme', function () {
+      var R = esStats();
+      return esKart('OABKM yıllık eşleşme', esGrafik(R, [R.yillikTop.v], ['#0E7C86'], ['OABKM'])) +
+        esKart('KBM / BKM bazlı yıllık eşleşme sayıları', esTablo(R, R.yillik, R.yillikTop, { bas: 'KBM / BKM' }), ES_NOT);
+    });
+  }
+  function scrEsBolge() {
+    return esSayfa('/es/bolge', 'Bölge Devirleri', function () {
+      var R = esStats();
+      var ek = function (r) { return Object.assign({ ek: 1 }, r); };
+      return esKart('Gelen ve devrettiğimiz · yıllara göre', esGrafik(R, [R.gelenTop.v, R.gidenTop.v], ['#2F6FB0', '#C2410C'], ['Gelen devir', 'Devrettiğimiz'])) +
+        esKart('Bölgelerden bize gelen eşleşme devirleri', esTablo(R, R.gelen.filter(function (r) { return r.top; }).concat([ek(R.gelenSecilmemis)]), R.gelenTop, { bas: 'Bölge (GVM)' }),
+          'Devir Durumu = Devreden GVM (bölge = Devreden KHBM). Hiç devri olmayan bölgeler gösterilmez.') +
+        esKart('Bizim diğer bölgelere devrettiğimiz eşleşmeler', esTablo(R, R.giden.filter(function (r) { return r.top; }).concat([ek(R.gidenSecilmemis)]), R.gidenTop, { bas: 'Bölge (GVM)' }),
+          'Devir Durumu = Devir Yapılan GVM (bölge = Devir Yapılan KHBM). Yıl = Talep Tarihi yılı.');
+    });
+  }
+  function scrEsTur() {
+    return esSayfa('/es/tur', 'Hasta Türü ve Cinsiyet', function () {
+      var R = esStats();
+      return esKart('Yurt içi / yurt dışı · yıllara göre', esGrafik(R, [R.tur[0].v, R.tur[1].v, R.tur[2].v], ['#0E7C86', '#5B3A8C', '#D99A2B'], ['Yurt içi (TC Vatandaşı)', 'Yurt dışı', 'Sağlık turizmi'])) +
+        esKart('Yurt içi / yurt dışı eşleşme sayıları (Hasta Türü)', esTablo(R, R.tur.map(function (r, i) { return Object.assign({}, r, { ad: i === 0 ? 'Yurt İçi (TC Vatandaşı)' : r.ad }); }), R.turTop, { bas: 'Hasta türü' }), ES_NOT) +
+        esKart('Eşleşen bağışçı cinsiyet dağılımı', '<div class="escins">' + R.cinsiyet.map(function (c, i) {
+          return '<div><b>' + h(c.ad) + '</b><span class="b"><i style="width:' + ((c.oran || 0) * 100).toFixed(1) + '%;background:' + ['#2F6FB0', '#C2410C'][i] + '"></i></span><span>' + num(c.n) + ' · ' + pct(c.oran) + '</span></div>';
+        }).join('') + '</div>' + tbl(['Cinsiyet', 'Sayı', 'Oran'], R.cinsiyet.map(function (c) { return [c.ad, c.n, pct(c.oran)]; }), ['Toplam', R.cinsiyetTop, pct(R.cinsiyetTop ? 1 : null)]),
+          'Başlangıç yılından bugüne toplam; her eşleşme ayrı sayılır.');
+    });
+  }
+  function scrEsBekleyenIst() {
+    return esSayfa('/es/bekleyenler', 'Bekleyen Eşleşmeler', function () {
+      var R = esStats();
+      return '<div class="summary">Toplam bekleyen: <b>' + num(R.bekleyenTop.top) + '</b> · Konfirmasyon numunesi durumu “Beklemede” olan eşleşmeler; ay = talep ayı. Listesi Bekleyen Listesi’nde.</div>' +
+        esKart('Aylık bekleyen eşleşme sayıları', esTablo(R, R.bekleyen, R.bekleyenTop, { bas: 'Ay' }), 'Devrettiğimiz eşleşmeler hariç. Durum güncellendikçe tablo kendiliğinden değişir.') +
+        '<button class="btn block" data-act="goto" data-h="/es/bekleyen" style="margin:0 0 12px">Bekleyen kayıtların listesi</button>';
+    });
+  }
+  function scrEsNumune() {
+    return esSayfa('/es/numune', 'Numune Alım Süresi', function () {
+      var R = esStats();
+      return esKart('Ortalama numune alım süresi (gün) · OABKM', esGrafik(R, [R.numuneTop.v.map(function (v) { return v == null ? 0 : Math.round(v * 10) / 10; })], ['#0E7C86'], ['Ortalama gün'], { fmt: function (v) { return RP.fmt(v, 'dec1'); } })) +
+        esKart('KBM / BKM bazlı yıllık ortalama (gün)', esTablo(R, R.numune, R.numuneTop, { bas: 'KBM / BKM', top: 'GENEL ORT.', dec: true }),
+          'Talep tarihi ile konfirmasyon numunesi alındı tarihi arasındaki gün; yalnız “Alındı” kayıtlar. Tarihi metin olan ya da numune tarihi talepten önce girilmiş kayıtlar hesaba girmez (Veri Kontrolü).');
+    });
+  }
+  function scrEsVazgecme() {
+    return esSayfa('/es/vazgecme', 'Vazgeçme ve İnaktivasyon', function () {
+      var R = esStats();
+      return esKart('Vazgeçme ve sistem inaktivasyonu · yıllara göre', esGrafik(R, [R.vazgecmeTop.v, R.inaktivasyonTop.v], ['#C2410C', '#8a8f98'], ['Bağışçı vazgeçme', 'Sistem inaktivasyonu'])) +
+        esKart('Bağışçı vazgeçme sayıları (Durum = Bağışçı Vazgeçti)', esTablo(R, R.vazgecme, R.vazgecmeTop, { bas: 'KBM / BKM' })) +
+        esKart('Sistem inaktivasyon sayıları (Durum = Sistem İnaktivasyonu)', esTablo(R, R.inaktivasyon, R.inaktivasyonTop, { bas: 'KBM / BKM' }), ES_NOT) +
+        (R.nedenler.length ? esKart('Vazgeçme / inaktivasyon nedenleri', tbl(['Neden', 'Eşleşme'], R.nedenler.map(function (n) { return [n.ad, n.n]; })), 'Başlangıç yılından bugüne; nedeni seçilmiş eşleşmeler.') : '');
+    });
+  }
+  function scrEsPersonel() {
+    return esSayfa('/es/personel', 'Personel İstatistiği', function () {
+      var Y = ui.esPerYil ? +ui.esPerYil : DT.year(today), P = ES.personel(esData, today, state.lists.personel, Y), R = { Y: P.Y };
+      var f = function (v) { return v == null ? '–' : num(v); };
+      var html = '<div class="summary">Görüşme = İlgilenen Personel’e adı yazılan eşleşme kaydı; yıl ve ay talep tarihine göre. Personeli eşleşme kaydını düzenleyerek seçin.</div>' +
+        esKart('Personel bazlı yıllık görüşme sayısı', esTablo(R, P.yillik.concat([Object.assign({ ek: 1 }, P.girilmemis)]), P.toplam, { bas: 'Personel' }));
+      html += '<div class="toolbar"><span class="small grow">Seçilen yıl</span><select class="inp" style="width:110px;flex:none" data-ui="esPerYil">' + P.Y.slice().reverse().map(function (y) { return '<option' + (y === Y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></div>';
+      html += esKart(Y + ' · personel bazlı görüşme sonuçları', tbl(['Personel', 'Görüşme', 'Numune alındı', 'Numune alınmadı', 'Bağışçı vazgeçti', 'Sistem inaktiv.', 'Vazgeçme oranı', 'Ort. süre (gün)'],
+        P.sonuc.map(function (o) { return [o.ad, o.gorusme, o.alindi, o.alinmadi, o.vazgecti, o.inaktivasyon, o.oran == null ? '–' : pct(o.oran), o.sure == null ? '–' : RP.fmt(o.sure, 'dec1')]; }),
+        ['Toplam', P.sonucTop.gorusme, P.sonucTop.alindi, P.sonucTop.alinmadi, P.sonucTop.vazgecti, P.sonucTop.inaktivasyon, P.sonucTop.oran == null ? '–' : pct(P.sonucTop.oran), P.sonucTop.sure == null ? '–' : RP.fmt(P.sonucTop.sure, 'dec1')]));
+      var ay = DT.AYLAR.map(function (a) { return a.slice(0, 3); });
+      html += esKart(Y + ' · aylık görüşme sayısı', barChart(ay, [P.aylikHepsi], ['#0E7C86'], ['Görüşme']) +
+        tbl(['Personel'].concat(ay, ['Toplam']), P.aylik.map(function (r) { return [r.ad].concat(r.v, [r.top]); }), ['Toplam'].concat(P.aylikHepsi, [P.aylikHepsi.reduce(function (a, b) { return a + b; }, 0)])));
+      return html;
+    });
+  }
+  /* ---- Eşleşme Dashboard ---- */
+  function scrEsDash() {
+    return esSayfa('/es/dashboard', 'Eşleşme Dashboard', function () {
+      var R = esStats(), Y = DT.year(today), j = R.Y.indexOf(Y), p = j - 1, P = ES.personel(esData, today, state.lists.personel, Y);
+      var v = function (row) { return j >= 0 ? row.v[j] : 0; }, onc = function (row) { return p >= 0 ? 'Geçen yıl: ' + num(row.v[p]) : ''; };
+      var kpi = function (n, l, s2) { return '<div class="kpi"><div class="n">' + h(n) + '</div><div class="l">' + h(l) + '</div>' + (s2 ? '<div class="l" style="margin-top:4px">' + h(s2) + '</div>' : '') + '</div>'; };
+      var html = '<div class="kpis rpkpis">' + kpi(num(R.yillikTop.top), 'Toplam eşleşme', R.Y[0] + ' – ' + Y) + kpi(num(v(R.yillikTop)), 'Bu yıl eşleşme', onc(R.yillikTop)) +
+        kpi(num(v(R.gelenTop)), 'Bu yıl gelen devir', onc(R.gelenTop)) + kpi(num(v(R.gidenTop)), 'Bu yıl devrettiğimiz', onc(R.gidenTop)) +
+        kpi(j >= 0 && R.numuneTop.v[j] != null ? RP.fmt(R.numuneTop.v[j], 'dec1') + ' gün' : '–', 'Bu yıl ort. numune süresi', R.numuneTop.top != null ? 'Genel ort.: ' + RP.fmt(R.numuneTop.top, 'dec1') + ' gün' : '') +
+        kpi(num(R.bekleyenTop.top), 'Bekleyen eşleşme', 'Numune bekleniyor') + '</div>';
+      html += esKart('Yıllık eşleşme sayısı (OABKM)', esGrafik(R, [R.yillikTop.v], ['#0E7C86'], ['OABKM']));
+      if (j >= 0) {
+        var kb = R.yillik.map(function (r) { return r.ad.replace(' KBM', '').replace('Ankara Batı', 'Ank. Batı'); });
+        html += esKart('KBM bazlı eşleşme · ' + (p >= 0 ? R.Y[p] + ' ve ' : '') + Y, barChart(kb, (p >= 0 ? [R.yillik.map(function (r) { return r.v[p]; })] : []).concat([R.yillik.map(function (r) { return r.v[j]; })]),
+          p >= 0 ? ['#9fb3c8', '#0E7C86'] : ['#0E7C86'], p >= 0 ? [String(R.Y[p]), String(Y)] : [String(Y)], { full: true }));
+      }
+      html += esKart('Yurt içi / yurt dışı eşleşme', esGrafik(R, [R.tur[0].v, R.tur[1].v], ['#0E7C86', '#5B3A8C'], ['Yurt içi', 'Yurt dışı']));
+      html += esKart('Bağışçı vazgeçme ve sistem inaktivasyonu', esGrafik(R, [R.vazgecmeTop.v, R.inaktivasyonTop.v], ['#C2410C', '#8a8f98'], ['Vazgeçme', 'Sistem inaktivasyonu']));
+      html += esKart('Ortalama numune alım süresi (gün)', esGrafik(R, [R.numuneTop.v.map(function (x) { return x == null ? 0 : Math.round(x * 10) / 10; })], ['#2F6FB0'], ['Ortalama gün'], { fmt: function (x) { return RP.fmt(x, 'dec1'); } }));
+      html += esKart('Bölge devirleri: gelen / devrettiğimiz', esGrafik(R, [R.gelenTop.v, R.gidenTop.v], ['#2F6FB0', '#C2410C'], ['Gelen', 'Devrettiğimiz']));
+      var bol = R.gelen.map(function (r, i) { return { ad: r.ad.replace(' GVM', ''), g: r.top, d: R.giden[i].top }; }).filter(function (b) { return b.g || b.d; }).sort(function (a, b) { return (b.g + b.d) - (a.g + a.d); });
+      var mx = Math.max.apply(null, bol.map(function (b) { return Math.max(b.g, b.d); }).concat([1]));
+      html += esKart('Bölge bazında devirler (toplam)', '<div class="esbol">' + bol.map(function (b) {
+        return '<div><span class="l">' + h(b.ad) + '</span><span class="bb"><i style="width:' + (b.g / mx * 100).toFixed(1) + '%;background:#2F6FB0"></i><i style="width:' + (b.d / mx * 100).toFixed(1) + '%;background:#C2410C"></i></span><span class="v">' + b.g + ' / ' + b.d + '</span></div>';
+      }).join('') + '</div><div class="small muted" style="margin-top:6px"><span class="dot" style="background:#2F6FB0"></span> gelen  ·  <span class="dot" style="background:#C2410C"></span> devrettiğimiz</div>');
+      html += esKart('Eşleşen bağışçı cinsiyet dağılımı', '<div class="escins">' + R.cinsiyet.map(function (c, i) {
+        return '<div><b>' + h(c.ad) + '</b><span class="b"><i style="width:' + ((c.oran || 0) * 100).toFixed(1) + '%;background:' + ['#2F6FB0', '#C2410C'][i] + '"></i></span><span>' + num(c.n) + ' · ' + pct(c.oran) + '</span></div>'; }).join('') + '</div>');
+      var pr = P.sonuc.filter(function (o) { return o.gorusme; }).sort(function (a, b) { return b.gorusme - a.gorusme; }).slice(0, 10);
+      html += esKart('Personel bazında görüşme (bu yıl, ilk 10)', pr.length ? tbl(['Personel', 'Görüşme', 'Numune alındı', 'Vazgeçti'], pr.map(function (o) { return [o.ad, o.gorusme, o.alindi, o.vazgecti]; })) :
+        '<div class="small muted">Bu yıl İlgilenen Personel’i seçilmiş eşleşme yok. Eşleşme kaydını düzenleyip personeli seçin.</div>');
+      html += esKart('Aylık görüşme sayısı (bu yıl, tüm personel)', barChart(DT.AYLAR.map(function (a) { return a.slice(0, 3); }), [P.aylikHepsi], ['#0E7C86'], ['Görüşme']));
+      return html;
+    });
+  }
+  function scrEs(sayfa, arg) {
+    if (!esData) return esYukleniyor();
+    switch (sayfa) {
+      case 'kayitlar': return scrEsKayitlar();
+      case 'kayit': return scrEsForm(arg);
+      case 'bekleyen': return scrEsBekleyen();
+      case 'kontrol': return scrEsKontrol();
+      case 'dashboard': return scrEsDash();
+      case 'yillik': return scrEsYillik();
+      case 'bolge': return scrEsBolge();
+      case 'tur': return scrEsTur();
+      case 'bekleyenler': return scrEsBekleyenIst();
+      case 'numune': return scrEsNumune();
+      case 'vazgecme': return scrEsVazgecme();
+      case 'personel': return scrEsPersonel();
+      default: return scrEsHome();
+    }
+  }
+  function esImport(buf, name) {
+    busy(true, 'Eşleşme tablosu okunuyor…');
+    setTimeout(function () {
+      ES.importWorkbook(buf).then(function (res) {
+        busy(false);
+        var K = res.kayitlar, ys = K.filter(function (r) { return r.talep != null; }).map(function (r) { return DT.year(r.talep); });
+        if (!K.length) { toast('Dosyada eşleşme kaydı bulunamadı'); return; }
+        var eski = esData && esData.kayitlar.length;
+        confirmSheet('Eşleşme tablosunu al', name + '\n\n' + num(K.length) + ' eşleşme kaydı · talep ' + Math.min.apply(null, ys) + ' – ' + Math.max.apply(null, ys) + ' · istatistik başlangıcı ' + res.bas +
+          (res.rapor.metin ? '\n' + res.rapor.metin + ' tarih metin olarak yazılmış; Veri Kontrolü’nde görünür.' : '') +
+          (eski ? '\n\nUygulamadaki ' + num(eski) + ' eşleşme kaydı bunlarla değiştirilecek (uygulamada yaptığınız değişiklikler dahil).' : ''), 'Al', !!eski, function () {
+          esData = { kayitlar: K, bas: res.bas, kaynak: name, tarih: Date.now() }; esDegisti();
+          toast(num(K.length) + ' eşleşme kaydı alındı');
+          if (route()[1] === 'eslesme') render(true); else go('/g/eslesme');
+        });
+      }).catch(function (e) { busy(false); console.error(e); toast('Okunamadı: ' + e.message); });
+    }, 30);
+  }
+
   /* ---------------- Raporlar: tarih aralığına göre PDF / Excel ---------------- */
   function rpDonem() {
     if (ui.rpHz === 'ozel') {
@@ -1835,7 +2227,7 @@
     setTimeout(function () {
       var m;
       try { m = rpModel(); } catch (e) { busy(false); toast('Rapor hazırlanamadı: ' + e.message); return; }
-      (bicim === 'pdf' ? RP.toPdf(m) : Promise.resolve(RP.toXlsx(m))).then(function (bytes) {
+      (bicim === 'pdf' ? RP.toPdf(m) : RP.toXlsxZ(m)).then(function (bytes) {
         busy(false);
         rpSonuc = { m: m, bytes: bytes, bicim: bicim, name: m.dosya + (bicim === 'pdf' ? '.pdf' : '.xlsx'), mime: bicim === 'pdf' ? 'application/pdf' : XLSX_MIME };
         rpSheet();
@@ -1863,6 +2255,7 @@
       '<button class="btn block" data-act="arsivAl" style="margin-bottom:8px">' + I.up + 'Excel’den yalnızca geçmiş kayıtları al</button>' +
       '<button class="btn block" data-act="hrImportPick" style="margin-bottom:8px">' + I.up + 'Excel’den donör harcamalarını al</button>' +
       '<button class="btn block" data-act="ykPick" style="margin-bottom:8px">' + I.up + 'Yemek kartı yükleme detayını al</button>' +
+      '<button class="btn block" data-act="esPick" style="margin-bottom:8px">' + I.up + 'Eşleşme tablosunu Excel’den al</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
       (prev ? '<button class="btn ghost block" data-act="restorePrev">İçe aktarmadan önceki veriye dön</button>' : '') +
       '</div>' + tabloCard() + '<div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
@@ -1959,15 +2352,20 @@
       if (isJson) {
         busy(false);
         try {
-          var s = migrate(JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buf))));
+          var s = JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buf))), esd = s.eslesme && s.eslesme.kayitlar ? s.eslesme : null;
+          delete s.eslesme; s = migrate(s);
           if (!Array.isArray(s.donors)) throw new Error('Yedek dosyası tanınmadı');
-          confirmSheet('Yedekten yükle', s.donors.length + ' donör ve ' + Object.keys(s.overrides).length + ' personel ataması yüklenecek. Telefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek.', 'Yükle', false, function () { replaceState(s, 'Yedek yüklendi'); });
+          confirmSheet('Yedekten yükle', s.donors.length + ' donör ve ' + Object.keys(s.overrides).length + ' personel ataması' + (esd ? ', ' + esd.kayitlar.length + ' eşleşme kaydı' : '') + ' yüklenecek. Telefondaki mevcut veriler (' + state.donors.length + ' donör) bunlarla değiştirilecek.', 'Yükle', false, function () {
+            if (esd) { esData = esd; esDegisti(); }
+            replaceState(s, 'Yedek yüklendi');
+          });
         } catch (e) { toast('Yedek okunamadı: ' + e.message); }
         return;
       }
       if (fileMode === 'arsiv') { busy(false); arsivYukle(buf, file.name); return; }
       if (fileMode === 'harcama') { busy(false); hrImport(buf, file.name); return; }
       if (fileMode === 'yemek') { busy(false); ykImport(buf, file.name); return; }
+      if (fileMode === 'eslesme') { busy(false); esImport(buf, file.name); return; }
       if (fileMode === 'sablon') {
         XLSXTablo.check(buf).then(function () { return saveTemplate(buf, file.name); })
           .then(function () { busy(false); render(true); toast('Excel şablonu kaydedildi'); })
@@ -1977,7 +2375,11 @@
       setTimeout(function () {
         YK.detect(buf).then(function (yk) {
           if (yk) { busy(false); ykImport(buf, file.name); return null; }
-          return XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS);
+          return XLSXIO.openWorkbook(buf).then(function (wb) {
+            // Eşleşme tablosu (ANA TABLO) mı?
+            if (wb.sheetNames.indexOf('ANA TABLO') >= 0 && wb.sheetNames.indexOf('Donör Kayıt') < 0) { busy(false); esImport(buf, file.name); return null; }
+            return XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS);
+          });
         }).then(function (res) {
           if (!res) return;
           busy(false);
@@ -2228,6 +2630,19 @@
     hrTab: function (el) { ui.hrTab = el.dataset.v; render(); },
     hrImportPick: function () { pickFile('harcama'); },
     ykPick: function () { pickFile('yemek'); },
+    esPick: function () { pickFile('eslesme'); },
+    esYeni: function () { go('/es/kayit/yeni'); },
+    esF: function (el) { ui.esF = el.dataset.v; ui.esLim = 60; render(true); },
+    esMore: function () { ui.esLim = (ui.esLim || 60) + 200; var l = $('#eslist'); if (l) l.innerHTML = esListeHtml(); },
+    esBek: function (el) { ui.esBek = el.dataset.v; ui.esBLim = 100; render(true); },
+    esBMore: function () { ui.esBLim = (ui.esBLim || 100) + 300; render(true); },
+    esKAc: function (el) { ui.esKAc = ui.esKAc || {}; ui.esKAc[el.dataset.v] = 1; render(true); },
+    esExcel: function () {
+      busy(true, 'Excel hazırlanıyor…');
+      setTimeout(function () {
+        ES.exportXlsx(esData, today, state.lists.personel).then(function (b) { busy(false); saveFile(b, 'Eslesme_Tablosu_' + stamp() + '.xlsx', XLSX_MIME); }, function (e) { busy(false); toast('Hata: ' + e.message); });
+      }, 30);
+    },
     ykTab: function (el) { ui.ykTab = el.dataset.v; render(); },
     ykEdit: function (el) { ykForm(el.dataset.id); },
     ykExcel: function () {
@@ -2236,9 +2651,8 @@
       setTimeout(function () {
         try {
           var m = RP.build({ state: state, D: D, pool: pool, hrows: hrows, yrows: yrows, today: today }, { tur: 'yemek', from: P0.from, to: P0.to, ayrinti: true });
-          saveFile(RP.toXlsx(m), m.dosya + '.xlsx', XLSX_MIME);
-        } catch (e) { toast('Hata: ' + e.message); }
-        busy(false);
+          RP.toXlsxZ(m).then(function (b) { busy(false); saveFile(b, m.dosya + '.xlsx', XLSX_MIME); }, function (e) { busy(false); toast('Hata: ' + e.message); });
+        } catch (e) { busy(false); toast('Hata: ' + e.message); }
       }, 30);
     },
     hrExport: function () {
@@ -2279,7 +2693,7 @@
       busy(true, 'Excel hazırlanıyor…');
       setTimeout(function () { try { saveFile(XLSXIO.exportDonors(state, D, today), 'Donor_Kayit_' + stamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch (e) { toast('Hata: ' + e.message); } busy(false); }, 30);
     },
-    backup: function () { saveFile(new TextEncoder().encode(JSON.stringify(state)), 'DonorTakip_yedek_' + stamp() + '.json', 'application/json'); },
+    backup: function () { saveFile(new TextEncoder().encode(JSON.stringify(esData && esData.kayitlar.length ? Object.assign({}, state, { eslesme: esData }) : state)), 'DonorTakip_yedek_' + stamp() + '.json', 'application/json'); },
     restorePrev: function () {
       var p; try { p = JSON.parse(localStorage.getItem(PREV)); } catch (e) { p = null; }
       if (!p) { toast('Önceki veri yok'); return; }
@@ -2303,6 +2717,11 @@
   var searchTimer;
   document.addEventListener('input', function (e) {
     var el = e.target;
+    if (el.dataset && el.dataset.ui === 'esAra') {
+      ui.esAra = el.value; ui.esLim = 60;
+      clearTimeout(searchTimer); searchTimer = setTimeout(function () { var l = $('#eslist'); if (l) l.innerHTML = esListeHtml(); }, 150);
+      return;
+    }
     if (el.dataset && el.dataset.ui === 'search') {
       ui.search = el.value; ui.dlimit = 60;
       clearTimeout(searchTimer); searchTimer = setTimeout(function () { var l = $('#dlist'); if (l) l.innerHTML = donorListHtml(); }, 120);
@@ -2310,12 +2729,14 @@
   });
   document.addEventListener('change', function (e) {
     var el = e.target;
-    if (el.dataset && el.dataset.ui && el.dataset.ui !== 'search') {
+    if (el.dataset && el.dataset.ui && el.dataset.ui !== 'search' && el.dataset.ui !== 'esAra') {
       var v = el.type === 'checkbox' ? el.checked : el.value;
       if (el.dataset.type === 'date') { v = DT.fromIso(el.value); if (v == null) return; }
       ui[el.dataset.ui] = v;
       if (el.dataset.ui === 'rpBas' || el.dataset.ui === 'rpBit') { var r0 = rpDonem(); if (ui.rpHz !== 'ozel') { ui.rpBas = el.dataset.ui === 'rpBas' ? v : r0.from; ui.rpBit = el.dataset.ui === 'rpBit' ? v : r0.to; } ui.rpHz = 'ozel'; }
       render(true);
+    } else if (el.dataset && el.dataset.actChange === 'esBas') {
+      esData.bas = +el.value; esDegisti(); render(true);
     } else if (el.dataset && el.dataset.actChange === 'rpAyr') {
       ui.rpAyr[ui.rpTur] = el.checked; render(true);
     } else if (el.dataset && el.dataset.actChange === 'esik') {
@@ -2352,5 +2773,6 @@
   window.DTApp = { state: function () { return state; }, recompute: recompute, render: render, ui: ui };
 
   load(); recompute(); render();
+  esYukle();
   setTimeout(syncReminder, 500);
 })();

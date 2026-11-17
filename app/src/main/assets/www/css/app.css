@@ -404,3 +404,18 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .anabtn .gt { display: block; font-weight: 800; font-size: 17px; letter-spacing: .5px; }
 .anabtn .gs { display: block; font-size: 12.5px; opacity: .88; margin-top: 2px; line-height: 1.3; }
 .anabtn .gc { display: inline-block; font-size: 12px; font-weight: 650; margin-top: 6px; background: rgba(255,255,255,.18); border-radius: 9px; padding: 2px 8px; }
+
+/* ---- Eşleşme ---- */
+.tsticky th:first-child, .tsticky td:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); min-width: 118px; max-width: 170px; }
+.tsticky tr.tot td:first-child { background: #fafbfc; }
+.tsticky td.z { color: var(--ink-3); }
+.tsticky tr.ek td { color: var(--ink-3); font-style: italic; }
+.escins > div { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; font-size: 13.5px; }
+.escins .b, .esbol .bb { height: 12px; background: #eef1f4; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; }
+.escins .b i { display: block; height: 100%; border-radius: 4px; }
+.esbol > div { display: grid; grid-template-columns: minmax(80px, 34%) 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+.esbol .bb { height: 14px; gap: 2px; background: none; }
+.esbol .bb i { display: block; height: 6px; border-radius: 3px; min-width: 1px; }
+.esbol .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.esbol .v { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.eskon { margin-bottom: 10px; }
