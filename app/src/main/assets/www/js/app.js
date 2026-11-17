@@ -33,6 +33,7 @@
     users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.7 2.5 3 5.2"/></svg>',
     cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg>',
     track: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/></svg>',
+    tl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5v16c4.4 0 8-3.1 8-7.5"/><path d="m5 11 9-3.5M5 15l9-3.5"/></svg>',
     chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="11" width="3" height="7" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="16" y="13" width="3" height="5" rx="1"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.2.6.8 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
@@ -83,6 +84,7 @@
     var base = DT.newState(window.DT_DEFAULT_LISTS);
     s.donors = s.donors || []; s.overrides = s.overrides || {}; s.ekGorevler = s.ekGorevler || []; s.ekKons = s.ekKons || []; s.ajanda = s.ajanda || [];
     s.planNotlar = s.planNotlar || []; s.gorevKayit = s.gorevKayit || []; s.tasimaKayit = s.tasimaKayit || []; s.kapanis = s.kapanis || { kesim: null };
+    s.harcama = s.harcama || []; s.ilEslesme = s.ilEslesme || {};
     s.settings = Object.assign({}, base.settings, s.settings || {});
     s.lists = Object.assign({}, base.lists, s.lists || {});
     s.lists.prog = Object.assign({}, base.lists.prog, s.lists.prog || {});
@@ -94,12 +96,14 @@
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch (e) { toast('Kayıt yapılamadı: depolama dolu olabilir.'); }
   }
+  var hrows = [];
   function recompute() {
     today = DT.today();
     D = DT.derive(state, today);
     pool = DT.buildPool(state, D);
     byId = {}; D.forEach(function (x) { byId[x.d.id] = x; });
     holMap = DT.holidayMap(state.lists);
+    hrows = HR.derive(state, D);
   }
   function commit(keepScroll) { save(); recompute(); render(keepScroll !== false); }
 
@@ -126,7 +130,10 @@
       ['/ayarlar/listeler', 'Listeler', 'Personel, hastane ve açılır listeler']] },
     dashboard: { ad: 'DASHBOARD', renk: '#5B3A8C', acik: '#ECE5F5', alt: 'İstatistikler ve grafikler', pages: [
       ['/dashboard', 'Dashboard', 'Donör ve görev istatistikleri, grafikler'], ['/dash/isyuku', 'İş Yükü', 'Personel iş yükü'],
-      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri']] }
+      ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri']] },
+    harcama: { ad: 'DONÖR HARCAMA', renk: '#A3262A', acik: '#F8E4E3', alt: 'Bağışçı harcamaları ve harcama dashboard', pages: [
+      ['/harcama', 'Harcama Dashboard', 'Yıllara, kategoriye, ulaşıma ve ile göre harcama'], ['/harcama/kayitlar', 'Harcama Kayıtları', 'Harcama satırları: ekle, düzenle, Excel’den al'],
+      ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti']] }
   };
   function groupOf(path) {
     if (path === '/' || path === '') return null;
@@ -136,10 +143,11 @@
     if (k === 'takip') return 'takip';
     if (k === 'donorler' || k === 'donor' || k === 'arsiv' || path === '/ayarlar/listeler') return 'arsiv';
     if (k === 'dashboard' || k === 'dash') return 'dashboard';
+    if (k === 'harcama') return 'harcama';
     return null;
   }
   var TABS = [['home', '/', 'Ana Sayfa', I.home], ['planlama', '/g/planlama', 'Planlama', I.cal], ['takip', '/g/takip', 'Takip', I.track],
-    ['arsiv', '/g/arsiv', 'Donör Kayıt', I.users], ['dashboard', '/g/dashboard', 'Dashboard', I.chart]];
+    ['arsiv', '/g/arsiv', 'Donör Kayıt', I.users], ['dashboard', '/g/dashboard', 'Dashboard', I.chart], ['harcama', '/g/harcama', 'Harcama', I.tl]];
   function groupSeg(key, cur) {
     return '<div class="seg">' + GROUPS[key].pages.filter(function (pg) { return !pg[3]; }).map(function (pg) {
       return '<button class="' + (pg[0] === cur ? 'on' : '') + '" data-act="goto" data-h="' + pg[0] + '" data-replace="1">' + h(pg[1]) + '</button>';
@@ -159,6 +167,9 @@
       else if (p[0] === 'arsiv' && p[1] === 'tasima') out = scrTasimaKayit();
       else if (p[0] === 'dash' && p[1] === 'isyuku') out = scrIsYuku();
       else if (p[0] === 'dash' && p[1] === 'tasima') out = scrTasimaIst();
+      else if (p[0] === 'harcama' && p[1] === 'kayitlar') out = scrHrKayit();
+      else if (p[0] === 'harcama' && p[1] === 'donorler') out = scrHrDonor();
+      else if (p[0] === 'harcama') out = scrHarcama();
       else if (p[0] === 'donorler') out = scrDonors();
       else if (p[0] === 'donor' && p[1] === 'yeni') out = scrDonorForm(null);
       else if (p[0] === 'donor' && p[2] === 'duzenle') out = scrDonorForm(p[1]);
@@ -373,6 +384,7 @@
     var rows = [['Hasta kodu', d.hk], ['Donör numarası', d.dno], ['Ad soyad', d.ad], ['Telefon', d.tel], ['İkameti', d.ikamet + (x.ankara === 1 ? ' (Ankara içi)' : x.ankara === 0 ? ' (Ankara dışı)' : '')],
       ['Yöntemi', d.yontem], ['Hastane', d.hastane], ['Açıklama', d.aciklama], ['Nakil merkezi', S(d.bolge) + (x.sehir ? ' · ' + x.sehir : '')],
       ['İlgilenen personel', d.personel], ['Taşıyan personel', d.tasiyan], ['Ulaşım', d.ulasim], ['Konaklama', d.konaklama], ['IDM', d.idm ? '✓' : '']];
+    html += hrDonorSection(x);
     html += '<div class="sec-title">Bilgiler</div><div class="card dl">' + rows.map(function (r) { return '<div>' + h(r[0]) + '</div><div>' + (r[1] ? h(r[1]) : '<span class="muted">—</span>') + '</div>'; }).join('') + '</div>' +
       '<button class="btn danger block" data-act="delDonor" data-id="' + h(id) + '" style="margin-top:8px">Kaydı sil</button></div>';
     return { title: d.ad || 'Donör', back: true, html: html, tab: 'donorler' };
@@ -850,20 +862,29 @@
       rows.map(function (r) { return '<tr>' + r.map(function (v, i) { return '<td>' + (i === 0 ? h(v) : h(num(v))) + '</td>'; }).join('') + '</tr>'; }).join('') +
       (totRow ? '<tr class="tot">' + totRow.map(function (v, i) { return '<td>' + (i === 0 ? h(v) : h(num(v))) + '</td>'; }).join('') + '</tr>' : '') + '</table></div>';
   }
-  function barChart(labels, series, colors, names) {
-    var W = 340, H = 150, pad = 22, n = labels.length, max = 1;
+  // opt: { fmt: eksen yazısı, full: etiketler kısaltılmasın }
+  function barChart(labels, series, colors, names, opt) {
+    opt = opt || {};
+    var W = 340, H = 150, pad = opt.fmt ? 34 : 22, n = labels.length, max = 1, fmt = opt.fmt || Math.round;
     series.forEach(function (s) { s.forEach(function (v) { if (v > max) max = v; }); });
     var gw = (W - pad) / n, bw = Math.max(3, (gw - 6) / series.length);
-    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 30) + '" role="img">';
-    [0, .5, 1].forEach(function (f) { var y = H - f * (H - 12); svg += '<line x1="' + pad + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#e3e7eb"/><text x="' + (pad - 4) + '" y="' + (y + 3) + '" font-size="9" text-anchor="end" fill="#7b8794">' + Math.round(max * f) + '</text>'; });
+    // açıklamalar (legend) satıra sığdığı kadar yan yana
+    var leg = [], lx = pad, ly = 0;
+    names.forEach(function (nm) { var w = 24 + S(nm).length * 5.6; if (lx + w > W && lx > pad) { lx = pad; ly++; } leg.push([lx, ly]); lx += w; });
+    var legRows = ly + 1;
+    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 18 + legRows * 14) + '" role="img">';
+    [0, .5, 1].forEach(function (f) { var y = H - f * (H - 12); svg += '<line x1="' + pad + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#e3e7eb"/><text x="' + (pad - 4) + '" y="' + (y + 3) + '" font-size="9" text-anchor="end" fill="#7b8794">' + h(fmt(max * f)) + '</text>'; });
     labels.forEach(function (l, i) {
       series.forEach(function (s, k) {
         var v = s[i] || 0, bh = v / max * (H - 12), x = pad + i * gw + 3 + k * bw;
         svg += '<rect x="' + x.toFixed(1) + '" y="' + (H - bh).toFixed(1) + '" width="' + (bw - 1).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="1.5" fill="' + colors[k] + '"><title>' + h(l + ' · ' + names[k] + ': ' + v) + '</title></rect>';
       });
-      svg += '<text x="' + (pad + i * gw + gw / 2).toFixed(1) + '" y="' + (H + 12) + '" font-size="9" text-anchor="middle" fill="#4a5764">' + h(l.slice(0, 3)) + '</text>';
+      svg += '<text x="' + (pad + i * gw + gw / 2).toFixed(1) + '" y="' + (H + 12) + '" font-size="9" text-anchor="middle" fill="#4a5764">' + h(opt.full ? l : l.slice(0, 3)) + '</text>';
     });
-    svg += names.map(function (nm, k) { return '<rect x="' + (pad + k * 110) + '" y="' + (H + 20) + '" width="9" height="9" rx="2" fill="' + colors[k] + '"/><text x="' + (pad + 13 + k * 110) + '" y="' + (H + 28) + '" font-size="10" fill="#4a5764">' + h(nm) + '</text>'; }).join('');
+    svg += names.map(function (nm, k) {
+      var x = leg[k][0], y = H + 20 + leg[k][1] * 14;
+      return '<rect x="' + x + '" y="' + y + '" width="9" height="9" rx="2" fill="' + colors[k] + '"/><text x="' + (x + 13) + '" y="' + (y + 8) + '" font-size="10" fill="#4a5764">' + h(nm) + '</text>';
+    }).join('');
     return svg + '</svg>';
   }
   function scrDash() {
@@ -1080,6 +1101,7 @@
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
     ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; siz onaylayınca açıklamaya yalnızca anahtar kelimeyi (İPTAL, RED, ERTELENDİ, VAZGEÇTİ, HASTA EX) ekler; mail metni kopyalanmaz. İsterseniz ek not yazabilirsiniz. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
+    ['Donör harcama', 'DONÖR HARCAMA grubunda üç sayfa var. Harcama Kayıtları: harcama satırları; “Harcama ekle” ile donör, tarih, tutar ve harcama türü (uçak bileti, otobüs bileti, konaklama, yemek, akaryakıt…) girilir; kategori, ulaşım türü ve muhasebe kalemi türden kendiliğinden gelir. Konaklamada refakatçi ve gece sayısı da yazılır. Donör sayfasında da o donörün harcamaları ve “Harcama ekle” vardır. “Excel’den al” Donor_Harcama_Dashboard tablosundaki Harcama Detay satırlarını donörlere (hasta kodu ve donör no ile) bağlayarak yükler. Harcama Dashboard, Excel’deki dashboard’un bölümlerini gösterir: özet, yıllara ve kategoriye göre, ulaşım türü, refakatçi, durum, en yüksek 10 donör, şehir içi (ikamet ili Ankara) / şehir dışı, iller, aylık ve yıl karşılaştırma (seçilen yıl ile önceki yılın aynı dönemi). Donör Harcama, donör başına toplamları listeler. Üstteki indirme düğmesi Donör Harcama ve Harcama Detay sayfalı bir Excel verir.'],
     ['WhatsApp’ta güncel tablo', 'Ayarlar › WhatsApp’ta güncel tablo’dan “Günlük hatırlatma”yı açın; hafta içi (tatiller hariç) ya da her gün ve saati seçin. O saatte gelen bildirime dokununca Excel tablonuzun aynısı (bütün sayfalar, formüller, Kızılay resmi) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp açılır; Gönder’e siz basarsınız. Excel’den içe aktardığınız dosya şablon olarak saklanır; yoksa bir kez “Excel şablonunu seç” ile seçin. Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları, listeler ve kapanış tarihi güncellenir; Excel açılınca formüller yeniden hesaplanır. “Şimdi gönder” ile istediğiniz an, Donör Raporu sayfasından da gönderebilirsiniz.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA); Ankara’daki merkezler (BAŞLIK ANKARA) başlık yerine NAKİL MERKEZİ adıyla yazar (ör. BİLKENT ERİŞKİN-GAZİ ÜNİVERSİTESİ). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
@@ -1277,6 +1299,220 @@
       });
     }).catch(function (e) { busy(false); toast('Okunamadı: ' + e.message); });
   }
+  /* ================= DONÖR HARCAMA ================= */
+  function tl(v, dec) {
+    if (v == null || isNaN(v)) return '–';
+    return (+v).toLocaleString('tr-TR', { minimumFractionDigits: dec ? 2 : 0, maximumFractionDigits: dec ? 2 : 0 }) + ' ₺';
+  }
+  function kisaTL(v) { return v >= 1e6 ? (v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' Mn' : v >= 1e3 ? Math.round(v / 1e3) + ' B' : String(Math.round(v)); }
+  var HRCH = { fmt: kisaTL, full: true };
+  function degisim(a, b) { return b ? ((a / b - 1) >= 0 ? '+' : '') + pct(a / b - 1) : '–'; }
+  function hrDonorSection(x) {
+    var mine = hrows.filter(function (o) { return o.x === x; }).sort(function (a, b) { return (b.r.tarih || 0) - (a.r.tarih || 0); });
+    var hh = x.h, html = '<div class="sec-title">Harcamalar</div><div class="card pad">';
+    if (mine.length) {
+      html += '<div class="row" style="align-items:baseline"><b style="font-size:20px">' + tl(hh.toplam, true) + '</b><span class="small muted grow" style="margin-left:8px">' + mine.length + ' harcama' +
+        (hh.refakatci ? ' · refakatçi ' + hh.refakatci.toLocaleLowerCase('tr-TR') : '') + (hh.gece ? ' · ' + hh.gece + ' gece' : '') + '</span></div>' +
+        '<div class="small" style="margin:4px 0 8px">' + HR.KATEGORI.filter(function (k) { return hh.kat[k]; }).map(function (k) { return h(k) + ': <b>' + tl(hh.kat[k]) + '</b>'; }).join(' · ') + '</div>' +
+        mine.map(function (o) {
+          var r = o.r;
+          return '<button class="hrrow" data-act="hrEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(r.detay) + '</b><span class="small muted"><br>' + h(DT.fmt(r.tarih)) +
+            (r.refakatci ? ' · refakatçi ' + h(r.refakatci.toLocaleLowerCase('tr-TR')) : '') + (r.gece ? ' · ' + r.gece + ' gece' : '') + (r.not ? ' · ' + h(r.not) : '') + '</span></span><b class="amt">' + tl(r.tutar, true) + '</b></button>';
+        }).join('');
+    } else html += '<div class="small muted">Bu donör için harcama girilmemiş.</div>';
+    return html + '<button class="btn block" data-act="hrNew" data-donor="' + h(x.d.id) + '" style="margin-top:10px">' + I.plus + 'Harcama ekle</button></div>';
+  }
+  function hrForm(o) {
+    o = o || {};
+    var r = o.id ? (state.harcama || []).filter(function (z) { return z.id === o.id; })[0] : null;
+    var cur = r || { tarih: today, detay: 'Uçak bileti', donorId: o.donor || null, refakatci: '', gece: null, not: '', tutar: '' };
+    var donors = D.filter(function (x) { return S(x.d.hk) || S(x.d.ad); }).sort(function (a, b) { return (b.d.top || b.d.sk || 0) - (a.d.top || a.d.sk || 0); });
+    var opts = '<option value="">— donör seçin —</option>' + (r && !r.donorId ? '<option value="" selected>' + h(r.ad || 'Eşleşmeyen') + ' (eşleşmedi)</option>' : '') +
+      donors.map(function (x) { return '<option value="' + h(x.d.id) + '"' + (x.d.id === cur.donorId ? ' selected' : '') + '>' + h([x.d.ad, x.d.hk].filter(Boolean).join(' · ')) + (x.d.top != null ? ' · ' + DT.fmt(x.d.top) : '') + '</option>'; }).join('');
+    var konak = function (det) { var t = HR.tur(det); return t && t[1] === 'Konaklama'; };
+    openSheet('<h3>' + (r ? 'Harcamayı düzenle' : 'Harcama ekle') + '</h3><form id="hrform">' +
+      '<div class="field"><label>Donör</label><select class="inp" name="donor">' + opts + '</select></div>' +
+      '<div class="row" style="gap:8px"><div class="field grow"><label>Tarih</label><input class="inp" type="date" name="tarih" value="' + h(cur.tarih != null ? DT.iso(cur.tarih) : '') + '"></div>' +
+      '<div class="field grow"><label>Tutar (₺)</label><input class="inp" type="number" inputmode="decimal" step="0.01" min="0" name="tutar" value="' + h(cur.tutar === '' ? '' : cur.tutar) + '" placeholder="0,00"></div></div>' +
+      '<div class="field"><label>Harcama türü</label><select class="inp" name="detay">' + HR.TURLER.map(function (t) {
+        return '<option value="' + h(t[0]) + '"' + (t[0] === cur.detay ? ' selected' : '') + '>' + h(t[0]) + (t[1] !== t[0] ? ' · ' + h(t[1]) : '') + '</option>'; }).join('') + '</select>' +
+      '<div class="hint" id="hrKalem"></div></div>' +
+      '<div id="hrKonak"' + (konak(cur.detay) ? '' : ' hidden') + '><div class="row" style="gap:8px"><div class="field grow"><label>Refakatçi</label><select class="inp" name="refakatci">' +
+        [['', 'Bilinmiyor'], ['VAR', 'Var'], ['YOK', 'Yok']].map(function (v) { return '<option value="' + v[0] + '"' + (S(cur.refakatci) === v[0] ? ' selected' : '') + '>' + v[1] + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field grow"><label>Gece</label><input class="inp" type="number" min="0" step="1" name="gece" value="' + h(cur.gece || '') + '"></div></div></div>' +
+      '<div class="field"><label>Not</label><input class="inp" name="not" value="' + h(cur.not || '') + '" placeholder="isteğe bağlı"></div>' +
+      '<div class="btns">' + (r ? '<button type="button" class="btn danger" id="hrDel">Sil</button>' : '<button type="button" class="btn" data-act="closeSheet">Vazgeç</button>') +
+      '<button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#hrform');
+    var upd = function () { var t = HR.tur(f.detay.value); $('#hrKalem').textContent = t ? t[3] + (t[2] ? ' · ' + t[2] : '') : ''; $('#hrKonak').hidden = !konak(f.detay.value); };
+    f.detay.addEventListener('change', upd); upd();
+    if (r) $('#hrDel').onclick = function () {
+      confirmSheet('Harcamayı sil', r.detay + ' · ' + DT.fmt(r.tarih) + ' · ' + tl(r.tutar, true), 'Sil', true, function () {
+        state.harcama = state.harcama.filter(function (z) { return z.id !== r.id; }); commit(); toast('Harcama silindi');
+      });
+    };
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var tutar = parseFloat(String(f.tutar.value).replace(',', '.')), tarih = DT.fromIso(f.tarih.value);
+      if (!f.donor.value && !(r && !r.donorId)) { toast('Donör seçin'); return; }
+      if (tarih == null) { toast('Tarih seçin'); return; }
+      if (!(tutar > 0)) { toast('Tutar girin'); return; }
+      var x = byId[f.donor.value];
+      var nw = HR.yeni({ id: r ? r.id : null, tarih: tarih, detay: f.detay.value, tutar: tutar, donorId: f.donor.value || null, ad: x ? x.d.ad : (r ? r.ad : ''),
+        refakatci: f.refakatci.value, gece: f.gece.value, not: f.not.value.trim(), sira: r ? r.sira : null });
+      if (r) state.harcama = state.harcama.map(function (z) { return z.id === r.id ? nw : z; }); else state.harcama.push(nw);
+      closeSheet(); commit(); toast(r ? 'Harcama kaydedildi' : 'Harcama eklendi · ' + tl(tutar, true));
+    });
+  }
+  function hrImport(buf, name) {
+    busy(true, 'Harcamalar okunuyor…');
+    HR.importWorkbook(buf, state).then(function (res) {
+      busy(false);
+      var rp = res.rapor, toplam = res.harcama.reduce(function (a, r) { return a + r.tutar; }, 0);
+      confirmSheet('Excel’den harcamaları al', name + '\n\n' + rp.satir + ' harcama satırı · ' + tl(toplam, true) + '\n' + rp.eslesen + ' satır donöre bağlandı' +
+        (rp.eslesmeyen ? ' · ' + rp.eslesmeyen + ' satır Excel’de de eşleşmemiş' : '') + (rp.donorBulunamadi ? '\n' + rp.donorBulunamadi + ' Excel donörü uygulamada bulunamadı.' : '') +
+        (state.harcama.length ? '\n\nUygulamadaki ' + state.harcama.length + ' harcama silinip yerine bunlar yüklenecek.' : ''), 'Al', !!state.harcama.length, function () {
+        state.harcama = res.harcama; state.ilEslesme = Object.assign({}, state.ilEslesme || {}, res.ilEslesme);
+        commit(); toast(rp.satir + ' harcama alındı');
+      });
+    }).catch(function (e) { busy(false); toast('Okunamadı: ' + e.message); });
+  }
+  function hrToolbar(cur) {
+    return groupSeg('harcama', cur);
+  }
+  var HR_TABS = [['ozet', 'Özet'], ['ulasim', 'Kategori · Ulaşım'], ['donor', 'Donörler'], ['sehir', 'Şehir'], ['aylik', 'Aylık'], ['yillar', 'Yıl karşılaştırma']];
+  function scrHarcama() {
+    var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
+    var kpi = function (n, l, s2) { return '<div class="kpi"><div class="n">' + h(n) + '</div><div class="l">' + h(l) + '</div>' + (s2 ? '<div class="l" style="margin-top:4px">' + h(s2) + '</div>' : '') + '</div>'; };
+    var html = '<div class="page flush">' + hrToolbar('/harcama');
+    if (!hrows.length) {
+      return { title: 'Harcama Dashboard', html: html + '<div class="page">' + emptyBox('Harcama kaydı yok', 'Harcama Kayıtları’ndan harcama ekleyin ya da Excel’den (Donor_Harcama_Dashboard) alın.') +
+        '<button class="btn pri block" data-act="hrImportPick" style="margin-top:10px">' + I.up + 'Excel’den harcamaları al</button></div></div>' };
+    }
+    var R = HR.dashboard(state, D, hrows, { yil: ui.hrYil, today: today }), Y = R.Y, P = R.P, ay = DT.AYLAR[R.ayMax - 1];
+    var tab = ui.hrTab || 'ozet';
+    html += '<div class="seg sub">' + HR_TABS.map(function (t) { return '<button class="' + (tab === t[0] ? 'on' : '') + '" data-act="hrTab" data-v="' + t[0] + '">' + h(t[1]) + '</button>'; }).join('') + '</div>' +
+      '<div class="toolbar"><select class="inp" data-ui="hrYil" style="flex:none;width:auto">' + R.yillar.map(function (y) { return '<option value="' + y + '"' + (y === Y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<span class="small muted grow">Karşılaştırma: ' + Y + ' ve ' + P + (R.ayMax < 12 ? ' · aynı dönem Ocak–' + ay : '') + '</span>' +
+      '<button class="btn" data-act="hrExport" style="flex:none">' + I.down + 'Excel</button></div>';
+    var K = HR.KATEGORI, ulTbl = function (U) {
+      return tbl(['Ulaşım türü', 'Harcama', 'Bilet / fiş', 'Ortalama', 'Pay'], U.rows.map(function (u) { return [u.ad, tl(u.tutar), u.adet, tl(u.ort), pct(u.pay)]; }), ['Toplam', tl(U.tutar), U.adet, tl(U.ort), pct(1)]);
+    };
+    if (tab === 'ozet') {
+      html += '<div class="kpis">' + kpi(num(R.toplamDonor), 'Toplam donör', R.sehirIci + ' şehir içi · ' + R.sehirDisi + ' şehir dışı') +
+        kpi(num(R.toplamaYapilan), 'Toplama yapılan', pct(R.toplamaYapilan / (R.toplamDonor || 1)) + ' başarı · ' + R.planli + ' planlı') +
+        kpi(num(R.duran), 'Süreci duran', pct(R.duran / (R.toplamDonor || 1)) + ' oran') +
+        kpi(tl(R.toplam), 'Toplam harcama', R.yilTablo.map(function (y) { return y.yil + ': ' + tl(y.toplam); }).join(' · ')) +
+        kpi(tl(R.donorBasi), 'Donör başı ort.', R.harcamaliDonor + ' donöre harcama yapıldı') +
+        kpi(num(R.refakatciliDonor), 'Refakatçili donör', 'Ort. ' + tl(R.refakatciOrt) + ' harcama') + '</div>';
+      html += card('Yıllara göre harcama', barChart(R.yilTablo.map(function (y) { return String(y.yil); }), K.map(function (k) { return R.yilTablo.map(function (y) { return y.kat[k]; }); }),
+        ['#2F6FB0', '#A3262A', '#D99A2B', '#5B3A8C', '#8a8f98'], K, HRCH) +
+        tbl(['Yıl'].concat(K, ['Toplam', 'Satır', 'Harcamalı donör', 'Donör başı']), R.yilTablo.map(function (y) {
+          return [String(y.yil)].concat(K.map(function (k) { return tl(y.kat[k]); }), [tl(y.toplam), y.satir, y.donor, tl(y.ort)]); }),
+          ['Toplam'].concat(K.map(function (k) { return tl(R.katToplam[k]); }), [tl(R.toplam), hrows.length, R.harcamaliDonor, tl(R.donorBasi)])) +
+        tbl(['Kategori payı'].concat(K), [['Pay'].concat(K.map(function (k) { return pct(R.katToplam[k] / (R.toplam || 1)); }))]),
+        R.yillar.indexOf(P) >= 0 ? Y + ' (Oca–' + ay + ') harcaması, ' + P + '’in aynı dönemine göre ' + degisim(R.gY.toplam, R.gPa.toplam) + ' değişti.' : '');
+      if (R.eslesmeyen.length) html += card('Eşleşmeyen harcama', '<div class="small">' + R.eslesmeyen.length + ' harcama satırı (' + tl(R.eslesmeyenTutar, true) + ') bir donöre bağlı değil; toplamlara dahil, donör analizlerine dahil değil.</div>' +
+        '<button class="btn block" data-act="goto" data-h="/harcama/kayitlar" style="margin-top:8px" onclick="window.__hrEs=1">Eşleşmeyenleri göster</button>');
+      html += card('Süreç durumu', tbl(['Durum', 'Donör', 'Pay', 'Harcama'], R.durum.map(function (d) { return [d.ad, d.n, pct(d.pay), tl(d.tutar)]; }),
+        ['Toplam', R.toplamDonor, pct(1), tl(R.durum.reduce(function (a, d) { return a + d.tutar; }, 0))]));
+      html += card('Yöntem ve hastane', tbl(['Yöntem / hastane', 'Donör', 'Toplama', 'Başarı', 'Harcama'], R.yontem.concat(R.hastane).map(function (r) { return [r.ad, r.n, r.top, pct(r.basari), tl(r.tutar)]; })));
+    } else if (tab === 'ulasim') {
+      html += card('Ulaşım türü ve harcama dağılımı', ulTbl(R.ulasim), 'Şahsi araç = akaryakıt + otopark giderleri.');
+      html += card(Y + ' harcama türleri', tbl(['Tür', 'Kategori', P + ' tutar', P + ' adet', Y + ' tutar', Y + ' adet', P + ' Oca–' + ay, 'Değişim'], R.turler.map(function (t) {
+        return [t.ad, t.kat, tl(t.p.tutar), t.p.adet, tl(t.y.tutar), t.y.adet, tl(t.pa.tutar), degisim(t.y.tutar, t.pa.tutar)]; })), 'Değişim: ' + Y + ' / ' + P + ' aynı dönem (Ocak–' + ay + ') − 1.');
+      var C = R.ceyrek;
+      html += card('Çeyreklik harcama', barChart(C.map(function (q) { return q.ad.replace('. Çeyrek', '. Ç'); }), [C.map(function (q) { return q.p.toplam; }), C.map(function (q) { return q.y.toplam; })], ['#9fb3c8', '#A3262A'], [String(P), String(Y)], HRCH) +
+        tbl(['Çeyrek', P + ' ulaşım*', P + ' konaklama', P + ' yemek', P + ' toplam', Y + ' toplam'], C.map(function (q) { return [q.ad, tl(q.p.ulasim), tl(q.p.konaklama), tl(q.p.yemek), tl(q.p.toplam), tl(q.y.toplam)]; })), '* Ulaşım, akaryakıt / otopark dahil.');
+    } else if (tab === 'donor') {
+      html += card('Refakatçi analizi (harcaması olan donörler)', tbl(['Refakatçi', 'Donör', 'Toplam', 'Donör başı', 'Ort. ulaşım', 'Ort. konaklama', 'Ort. yemek', 'Ort. gece'], R.refakatci.map(function (f) {
+        return [f.ad, f.n, tl(f.toplam), tl(f.ort), tl(f.ulasim), tl(f.konaklama), tl(f.yemek), (Math.round(f.gece * 100) / 100).toLocaleString('tr-TR')]; })),
+        R.refakatci[1].ort ? 'Refakatçili donörün ortalama harcaması refakatçisize göre ' + (R.refakatci[0].ort / R.refakatci[1].ort).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' kat.' : '');
+      html += card('En yüksek harcamalı 10 donör', R.top10.map(function (x, i) {
+        return '<button class="hrrow" data-act="donor" data-id="' + h(x.d.id) + '"><span class="rank">' + (i + 1) + '</span><span class="grow"><b>' + h(x.d.ad) + '</b><span class="small muted"><br>' + h(x.d.ikamet || '') +
+          (x.h.ulasim ? ' · ' + h(x.h.ulasim) : '') + (x.h.refakatci === 'Var' ? ' · refakatçili' : '') + '</span></span><b class="amt">' + tl(x.h.toplam) + '</b></button>'; }).join(''));
+      html += '<button class="btn block" data-act="goto" data-h="/harcama/donorler" style="margin:0 12px 12px">Bütün donörlerin harcaması</button>';
+    } else if (tab === 'sehir') {
+      html += card('Şehir içi (Ankara) ve şehir dışı', tbl(['Konum', 'Donör', 'Toplama', 'Başarı', 'Harcamalı', 'Toplam', 'Donör başı', 'Refakatçili', 'Pay'], R.konum.map(function (k) {
+        return [k.ad, k.n, k.top, pct(k.basari), k.harcamali, tl(k.tutar), tl(k.ort), k.refakatcili, pct(k.pay)]; })) +
+        tbl(['Konum', 'Ort. ulaşım', 'Ort. konaklama', 'Ort. yemek', 'Ort. akaryakıt', 'Ort. gece'], R.konum.map(function (k) {
+          return [k.ad, tl(k.ortUlasim), tl(k.ortKonaklama), tl(k.ortYemek), tl(k.ortAkaryakit), (Math.round(k.ortGece * 100) / 100).toLocaleString('tr-TR')]; })),
+        'Şehir içi = ikamet ili Ankara. ' + (R.konum[0].ort ? 'Şehir dışı bağışçının ortalama harcaması şehir içine göre ' + (R.konum[1].ort / R.konum[0].ort).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' kat.' : ''));
+      html += '<div class="kpis">' + kpi(tl(R.disUlasim), 'Şehir dışı ulaşım*') + kpi(tl(R.disKonaklama), 'Şehir dışı konaklama') + kpi(num(R.disHarcamali), 'Harcamalı şehir dışı donör') + '</div>';
+      html += card('Şehir dışı · yıllara göre', tbl(['Yıl', 'Harcamalı donör', 'Ulaşım', 'Akaryakıt / otopark'], R.disYil.map(function (y) { return [String(y.yil), y.donor, tl(y.ulasim), tl(y.akaryakit)]; })) + ulTbl(R.disUlasimTur),
+        '* Ulaşım toplamına şahsi araç (akaryakıt / otopark) giderleri dahildir.');
+      html += card('Şehir dışı iller · donör ve başarı', tbl(['İl', 'Donör', 'Toplama', 'Başarı', 'Harcama', 'Donör başı'], R.iller.map(function (r) { return [r.il, r.n, r.top, pct(r.basari), tl(r.tutar), tl(r.ort)]; })));
+      html += card('İllere göre ulaşım + konaklama', tbl(['İl', 'Harcamalı donör', 'Ulaşım*', 'Konaklama', 'Toplam'], R.illerMaliyet.map(function (r) { return [r.il, r.harcamali, tl(r.ulasim), tl(r.konaklama), tl(r.ulasim + r.konaklama)]; })));
+      var KY = R.konumYil, satir = [['Donör kaydı (SK yılı)', 'kayit', 0], ['Toplama yapılan', 'top', 0], ['Toplam harcama', 'toplam', 1], ['Harcama satırı', 'satir', 0], ['Harcamalı donör', 'donor', 0],
+        ['Donör başı', 'ort', 1], ['Ulaşım*', 'ulasim', 1], ['Konaklama', 'konaklama', 1], ['Yemek', 'yemek', 1], ['Donör başı ulaşım', 'dbUlasim', 1], ['Donör başı konaklama', 'dbKonaklama', 1], ['Donör başı yemek', 'dbYemek', 1], ['Yıl içindeki payı', 'pay', 2]];
+      KY.forEach(function (k) {
+        html += card(k.ad + ' · yıllara göre', tbl(['Gösterge', String(P), String(Y), P + ' Oca–' + ay, 'Değişim'], satir.map(function (s2) {
+          var f = s2[2] === 1 ? tl : s2[2] === 2 ? pct : num;
+          return [s2[0], f(k.p[s2[1]]), f(k.y[s2[1]]), f(k.pa[s2[1]]), s2[2] === 2 ? (((k.y[s2[1]] - k.pa[s2[1]]) * 100) >= 0 ? '+' : '') + ((k.y[s2[1]] - k.pa[s2[1]]) * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' puan' : degisim(k.y[s2[1]], k.pa[s2[1]])]; })));
+      });
+    } else if (tab === 'aylik') {
+      html += card('Aylık harcama · ' + P + ' ve ' + Y, barChart(DT.AYLAR.map(function (a) { return a.slice(0, 3); }), [R.aylik.map(function (m) { return m.p; }), R.aylik.map(function (m) { return m.y; })], ['#9fb3c8', '#A3262A'], [String(P), String(Y)], HRCH) +
+        tbl(['Ay', String(P), String(Y), 'Değişim'], R.aylik.map(function (m, i) { return [m.ad, tl(m.p), i < R.ayMax ? tl(m.y) : '–', i < R.ayMax ? degisim(m.y, m.p) : '']; }),
+          ['Toplam', tl(R.aylik.reduce(function (a, m) { return a + m.p; }, 0)), tl(R.aylik.reduce(function (a, m) { return a + m.y; }, 0)), '']), Y + ' verisi ' + ay + ' sonuna kadar.');
+    } else if (tab === 'yillar') {
+      var g = [['Toplam harcama', 'toplam', 1], ['Harcama satırı', 'satir', 0], ['Harcamalı donör', 'donor', 0], ['Donör başı ortalama', 'ort', 1], ['En yüksek donör harcaması', 'enYuksek', 1],
+        ['Ulaşım (akaryakıt dahil)', 'ulasim', 1], ['Konaklama', 'konaklama', 1], ['Yemek', 'yemek', 1], ['Donör başı ulaşım', 'dbUlasim', 1], ['Donör başı konaklama', 'dbKonaklama', 1], ['Donör başı yemek', 'dbYemek', 1],
+        ['Ulaşımın payı', 'payUlasim', 2], ['Konaklamanın payı', 'payKonaklama', 2], ['Şehir dışı bağışçı payı', 'payDis', 2], ['Ortalama uçak bileti', 'ucak', 1], ['Ortalama otobüs bileti', 'otobus', 1],
+        ['Ortalama konaklama fişi', 'konaklamaFis', 1], ['Ortalama yemek fişi', 'yemekFis', 1]];
+      html += card('Göstergeler · ' + P + ' ve ' + Y, tbl(['Gösterge', String(P), String(Y), P + ' Oca–' + ay, 'Değişim'], g.map(function (s2) {
+        var f = s2[2] === 1 ? tl : s2[2] === 2 ? pct : num, a = R.gY[s2[1]], b = R.gPa[s2[1]];
+        return [s2[0], f(R.gP[s2[1]]), f(a), f(b), s2[2] === 2 ? (((a - b) * 100) >= 0 ? '+' : '') + ((a - b) * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' puan' : degisim(a, b)]; })),
+        Y + ' ile ' + P + '’in aynı dönemi (Ocak–' + ay + ') karşılaştırılır; pay satırlarında yüzde puan farkı.');
+    }
+    return { title: 'Harcama Dashboard', html: html + '</div>' };
+  }
+  function scrHrKayit() {
+    var es = window.__hrEs; window.__hrEs = 0;
+    if (es) ui.hrKat = 'eslesmeyen';
+    var years = {}; hrows.forEach(function (o) { if (o.yil) years[o.yil] = 1; });
+    var q = DT.fold(ui.hrAra || ''), kat = ui.hrKat || '', yil = ui.hrKYil || '';
+    var list = hrows.filter(function (o) {
+      if (yil && String(o.yil) !== String(yil)) return false;
+      if (kat === 'eslesmeyen') { if (o.x) return false; } else if (kat && o.r.kategori !== kat) return false;
+      if (q) { var t = DT.fold([o.x ? o.x.d.ad : o.r.ad, o.x ? o.x.d.hk : '', o.r.detay, o.r.not].join(' ')); if (t.indexOf(q) < 0) return false; }
+      return true;
+    }).sort(function (a, b) { return (b.r.tarih || 0) - (a.r.tarih || 0); });
+    var top = list.reduce(function (a, o) { return a + o.tutar; }, 0), MAX = 300;
+    var html = '<div class="page flush">' + hrToolbar('/harcama/kayitlar') +
+      '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Donör, hasta kodu, tür, not…" value="' + h(ui.hrAra || '') + '" data-ui="hrAra"></div></div>' +
+      '<div class="toolbar"><select class="inp" data-ui="hrKYil"><option value="">Tüm yıllar</option>' + Object.keys(years).sort().map(function (y) { return '<option' + (String(y) === String(yil) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<select class="inp" data-ui="hrKat"><option value="">Tüm kategoriler</option>' + HR.KATEGORI.map(function (k) { return '<option' + (k === kat ? ' selected' : '') + '>' + h(k) + '</option>'; }).join('') +
+      '<option value="eslesmeyen"' + (kat === 'eslesmeyen' ? ' selected' : '') + '>Eşleşmeyen</option></select></div>' +
+      '<div class="summary">' + list.length + ' harcama · <b>' + tl(top, true) + '</b></div>' +
+      '<div class="btns" style="margin:0 12px 10px"><button class="btn pri" data-act="hrNew">' + I.plus + 'Harcama ekle</button><button class="btn" data-act="hrImportPick">' + I.up + 'Excel’den al</button></div>' +
+      '<div class="card">' + (list.length ? list.slice(0, MAX).map(function (o) {
+        var r = o.r;
+        return '<button class="hrrow" data-act="hrEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(o.x ? o.x.d.ad : (r.ad || '—')) + '</b>' + (o.x ? '' : ' <span class="small" style="color:var(--orange)">eşleşmedi</span>') +
+          '<span class="small muted"><br>' + h(DT.fmt(r.tarih)) + ' · ' + h(r.detay) + (r.refakatci ? ' · refakatçi ' + h(r.refakatci.toLocaleLowerCase('tr-TR')) : '') + (r.not ? ' · ' + h(r.not) : '') + '</span></span><b class="amt">' + tl(r.tutar, true) + '</b></button>';
+      }).join('') + (list.length > MAX ? '<div class="note" style="padding:10px">İlk ' + MAX + ' satır gösteriliyor; aramayı daraltın.</div>' : '') : emptyBox('Harcama yok', '')) + '</div></div>';
+    return { title: 'Harcama Kayıtları', html: html, actions: '<button class="icon" data-act="hrExport" aria-label="Excel’e aktar">' + I.down + '</button>' };
+  }
+  function scrHrDonor() {
+    var q = DT.fold(ui.hrDAra || ''), sirala = ui.hrDSira || 'toplam';
+    var list = D.filter(function (x) { return (S(x.d.hk) || S(x.d.ad)) && (ui.hrDHepsi || x.h.toplam > 0); }).filter(function (x) {
+      return !q || DT.fold([x.d.ad, x.d.hk, x.d.ikamet, x.h.il].join(' ')).indexOf(q) >= 0;
+    }).sort(sirala === 'ad' ? function (a, b) { return S(a.d.ad).localeCompare(S(b.d.ad), 'tr'); } : sirala === 'tarih' ? function (a, b) { return (b.d.top || b.d.sk || 0) - (a.d.top || a.d.sk || 0); } :
+      function (a, b) { return b.h.toplam - a.h.toplam; });
+    var html = '<div class="page flush">' + hrToolbar('/harcama/donorler') +
+      '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Ad, hasta kodu, il…" value="' + h(ui.hrDAra || '') + '" data-ui="hrDAra"></div>' +
+      '<select class="inp" data-ui="hrDSira" style="flex:none;width:auto"><option value="toplam"' + (sirala === 'toplam' ? ' selected' : '') + '>Harcamaya göre</option><option value="tarih"' + (sirala === 'tarih' ? ' selected' : '') + '>Tarihe göre</option><option value="ad"' + (sirala === 'ad' ? ' selected' : '') + '>Ada göre</option></select></div>' +
+      '<label class="opt" style="margin:0 14px 8px"><input type="checkbox" data-ui="hrDHepsi"' + (ui.hrDHepsi ? ' checked' : '') + '><span>Harcaması olmayan donörleri de göster</span></label>' +
+      '<div class="summary">' + list.length + ' donör · <b>' + tl(list.reduce(function (a, x) { return a + x.h.toplam; }, 0)) + '</b></div><div class="card">' +
+      list.slice(0, 300).map(function (x) {
+        var hh = x.h;
+        return '<button class="hrrow" data-act="donor" data-id="' + h(x.d.id) + '"><span class="grow"><b>' + h(x.d.ad || x.d.hk) + '</b><span class="small muted"> · ' + h(hh.il || '—') + ' · ' + h(hh.konum) + '</span>' +
+          '<span class="small muted"><br>' + h(hh.grup) + (hh.ulasim ? ' · ' + h(hh.ulasim) : '') + (hh.refakatci ? ' · refakatçi ' + h(hh.refakatci.toLocaleLowerCase('tr-TR')) : '') + (hh.gece ? ' · ' + hh.gece + ' gece' : '') + '</span>' +
+          (hh.toplam ? '<span class="small"><br>' + HR.KATEGORI.filter(function (k) { return hh.kat[k]; }).map(function (k) { return h(k) + ' ' + tl(hh.kat[k]); }).join(' · ') + '</span>' : '') +
+          '</span><b class="amt">' + (hh.toplam ? tl(hh.toplam) : '–') + '</b></button>';
+      }).join('') + '</div></div>';
+    return { title: 'Donör Harcama', html: html, actions: '<button class="icon" data-act="hrExport" aria-label="Excel’e aktar">' + I.down + '</button>' };
+  }
+
   function scrIsYuku() {
     var P = periodOf('iy'), R = DT.isYuku(state, D, pool, P.from, P.to), kesim = DT.kesimOf(state);
     var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
@@ -1321,6 +1557,7 @@
       '<button class="btn pri block" data-act="import" style="margin-bottom:8px">' + I.up + 'Excel’den içe aktar (.xlsx)</button>' +
       '<button class="btn block" data-act="exportXlsx" style="margin-bottom:8px">' + I.down + 'Excel’e aktar (Donör Kayıt)</button>' +
       '<button class="btn block" data-act="arsivAl" style="margin-bottom:8px">' + I.up + 'Excel’den yalnızca geçmiş kayıtları al</button>' +
+      '<button class="btn block" data-act="hrImportPick" style="margin-bottom:8px">' + I.up + 'Excel’den donör harcamalarını al</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
       (prev ? '<button class="btn ghost block" data-act="restorePrev">İçe aktarmadan önceki veriye dön</button>' : '') +
       '</div>' + tabloCard() + '<div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
@@ -1424,6 +1661,7 @@
         return;
       }
       if (fileMode === 'arsiv') { busy(false); arsivYukle(buf, file.name); return; }
+      if (fileMode === 'harcama') { busy(false); hrImport(buf, file.name); return; }
       if (fileMode === 'sablon') {
         XLSXTablo.check(buf).then(function () { return saveTemplate(buf, file.name); })
           .then(function () { busy(false); render(true); toast('Excel şablonu kaydedildi'); })
@@ -1578,6 +1816,12 @@
     s.settings = s.settings || {};
     if (state.settings && state.settings.tablo && !s.settings.tablo) s.settings.tablo = state.settings.tablo;
     if (state.settings && state.settings.sablon && !s.settings.sablon) s.settings.sablon = state.settings.sablon;
+    // Excel'den içe aktarmada harcamalar korunur; donör kimlikleri yeni kayıtlara yeniden bağlanır
+    if ((!s.harcama || !s.harcama.length) && state.harcama && state.harcama.length) {
+      s.harcama = HR.relink(state.harcama, state.donors, s.donors || []);
+      s.ilEslesme = Object.assign({}, state.ilEslesme || {}, s.ilEslesme || {});
+    }
+    s = migrate(s);
     state = s; save(); recompute(); ui.calY = null; ui.calSel = null; ui.progDate = null;
     go('/', true); render(); toast(msg);
   }
@@ -1664,6 +1908,13 @@
     },
     import: function () { pickFile('xlsx'); },
     pdfPick: function () { pickFile('pdf'); },
+    hrNew: function (el) { hrForm({ donor: el && el.dataset ? el.dataset.donor : null }); },
+    hrEdit: function (el) { hrForm({ id: el.dataset.id }); },
+    hrTab: function (el) { ui.hrTab = el.dataset.v; render(); },
+    hrImportPick: function () { pickFile('harcama'); },
+    hrExport: function () {
+      try { saveFile(HR.exportXlsx(state, D, hrows), 'Donor_Harcama_' + stamp() + '.xlsx', XLSX_MIME); } catch (e) { toast('Hata: ' + e.message); }
+    },
     tabloSablon: function () { pickFile('sablon'); },
     arsivAl: function () {
       // Kayıtlı Excel şablonu varsa onu kullan, yoksa dosya seçtir

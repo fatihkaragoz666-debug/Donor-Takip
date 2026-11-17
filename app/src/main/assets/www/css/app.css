@@ -329,3 +329,12 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .pdfcard h2 { display: flex; align-items: center; gap: 8px; color: var(--g); }
 .pdfcard h2 svg { width: 20px; height: 20px; }
 .btn.outlook { background: #0F6CBD; color: #fff; }
+
+/* Donör harcama satırları */
+.hrrow { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 14px; color: inherit; font: inherit; }
+.hrrow:last-child { border-bottom: 0; }
+.hrrow:active { background: var(--grey-bg); }
+.hrrow .grow { min-width: 0; }
+.hrrow .amt { white-space: nowrap; }
+.hrrow .rank { flex: none; width: 24px; height: 24px; border-radius: 12px; background: var(--g-soft); color: var(--g); display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.card.pad .hrrow { padding-left: 2px; padding-right: 2px; }
