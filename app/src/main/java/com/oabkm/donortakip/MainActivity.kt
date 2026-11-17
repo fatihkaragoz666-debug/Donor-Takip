@@ -12,7 +12,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.view.ViewGroup
@@ -53,11 +52,6 @@ class MainActivity : ComponentActivity() {
     private var pendingSaveBytes: ByteArray? = null
     private var pendingSaveFile: File? = null
     private var bigFile: File? = null
-    // Numarayla açma denemesi: WhatsApp yok sayarsa sohbet listesiyle yeniden açılır
-    private var waFallback: Intent? = null
-    private var waStart = 0L
-    private var waPaused = false
-    private var isActive = false
     private var bigStream: FileOutputStream? = null
     private var sharedUri: Uri? = null
     private var sharedName = "dosya"
@@ -428,16 +422,6 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun hasOutlook(): Boolean = installedPackage(OUTLOOK) != null
 
-        /** Telefonda kurulu WhatsApp'lar: [{"pkg":…,"ad":…}] */
-        @JavascriptInterface
-        fun whatsappApps(): String {
-            val arr = org.json.JSONArray()
-            WHATSAPPS.forEach { (pkg, ad) ->
-                if (installedPackage(pkg) != null) arr.put(JSONObject().put("pkg", pkg).put("ad", ad))
-            }
-            return arr.toString()
-        }
-
         /** Büyük dosya (güncel tablo) parça parça yazılır: fileBegin → fileAppend… → fileFinish */
         @JavascriptInterface
         fun fileBegin(fileName: String): Boolean = try {
@@ -464,7 +448,7 @@ class MainActivity : ComponentActivity() {
 
         /** target: whatsapp | email | save | share */
         @JavascriptInterface
-        fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String, app: String) {
+        fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String) {
             try {
                 bigStream?.close()
             } catch (e: Exception) {
@@ -484,14 +468,12 @@ class MainActivity : ComponentActivity() {
                             }
                             createFileLauncher.launch(intent)
                         }
-                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone, app)
+                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
                     }
                 } catch (e: Exception) {
-                    webView.evaluateJavascript(
-                        "window.onShareError && window.onShareError(${JSONObject.quote(e.toString())})", null
-                    )
+                    toast("Dosya paylaşılamadı")
                 }
             }
         }
@@ -566,94 +548,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Dosyayı WhatsApp'ta açar.
-     * - Telefonda birden çok WhatsApp varsa ayarlarda seçilen açılır; seçilmemişse paylaşma ekranı açılır (hangi WhatsApp, hangi sohbet).
-     * - Numara verilmişse doğrudan o sohbeti açmayı dener ("jid"). WhatsApp bunu yok sayarsa
-     *   (hemen geri döner ya da 6 sn içinde öne gelmezse) sohbet listesi / paylaşma ekranı açılır.
-     */
-    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String, app: String) {
-        val installed = WHATSAPPS.map { it.first }.filter { installedPackage(it) != null }
-        val plain = fileIntent(file, mimeType, "", text)
-        val chooser = Intent.createChooser(Intent(plain), "WhatsApp ile gönder")
-        if (installed.isEmpty()) {
-            toast("WhatsApp bulunamadı; paylaşma ekranı açılıyor")
-            startActivity(chooser)
-            return
-        }
-        val pkg = when {
-            app.isNotEmpty() && app in installed -> app
-            installed.size == 1 -> installed[0]
-            else -> null
-        }
+    /** Dosyayı WhatsApp'ta açar; numara verilmişse doğrudan o sohbete gitmeyi dener */
+    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String) {
+        val pkg = installedPackage("com.whatsapp", "com.whatsapp.w4b")
+        val send = fileIntent(file, mimeType, "", text)
         if (pkg == null) {
-            toast("Hangi WhatsApp ile gönderileceğini seçin")
-            startActivity(chooser)
+            startActivity(Intent.createChooser(send, "Paylaş"))
             return
         }
-        plain.setPackage(pkg)
-        // Numara tutmazsa: tek WhatsApp varsa onun sohbet listesi, birden çoksa paylaşma ekranı
-        val fallback = if (installed.size > 1) chooser else Intent(plain)
-        val jid = whatsappJid(phone)
-        if (jid == null) {
-            launchWhatsApp(plain)
-            return
-        }
-        val direct = Intent(plain).putExtra("jid", jid)
-        waFallback = fallback
-        waStart = SystemClock.elapsedRealtime()
-        waPaused = false
-        try {
-            startActivity(direct)
-        } catch (e: Exception) {
-            waFallback = null
-            launchWhatsApp(fallback)
-            return
-        }
-        // WhatsApp hiç öne gelmediyse 6 sn sonra yedek yolu aç (yavaş telefonlarda WhatsApp geç açılabilir)
-        webView.postDelayed({
-            val fb = waFallback
-            if (fb != null && !waPaused && isActive) {
-                waFallback = null
-                toast("Numarayla açılamadı; sohbeti seçin")
-                launchWhatsApp(fb)
-            }
-        }, 6000)
-    }
-
-    private fun launchWhatsApp(send: Intent) {
+        send.setPackage(pkg)
+        var digits = phone.filter { it.isDigit() }
+        if (digits.startsWith("00")) digits = digits.substring(2)
+        if (digits.length == 11 && digits.startsWith("0")) digits = "9$digits"
+        if (digits.length == 10 && digits.startsWith("5")) digits = "90$digits"
+        if (digits.length >= 11) send.putExtra("jid", "$digits@s.whatsapp.net")
         try {
             startActivity(send)
         } catch (e: ActivityNotFoundException) {
-            startActivity(Intent.createChooser(Intent(send).setPackage(null), "Paylaş"))
-        }
-    }
-
-    /** 0 5xx…, 5xx…, +90 5xx…, 0090… → 905xxxxxxxxx@s.whatsapp.net */
-    private fun whatsappJid(phone: String): String? {
-        var d = phone.filter { it.isDigit() }
-        if (d.startsWith("00")) d = d.substring(2)
-        if (d.length == 11 && d.startsWith("0")) d = "9$d"
-        if (d.length == 10 && d.startsWith("5")) d = "90$d"
-        return if (d.length >= 11) "$d@s.whatsapp.net" else null
-    }
-
-    override fun onPause() {
-        super.onPause()
-        isActive = false
-        if (waFallback != null) waPaused = true
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isActive = true
-        val fb = waFallback ?: return
-        if (!waPaused) return
-        waFallback = null
-        // WhatsApp 2,5 sn içinde geri döndüyse numarayı yok saymıştır
-        if (SystemClock.elapsedRealtime() - waStart < 2500) {
-            toast("Numarayla açılamadı; sohbeti seçin")
-            launchWhatsApp(fb)
+            startActivity(Intent.createChooser(send.setPackage(null), "Paylaş"))
         }
     }
 
@@ -672,7 +584,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val OUTLOOK = "com.microsoft.office.outlook"
-        private val WHATSAPPS = listOf("com.whatsapp" to "WhatsApp", "com.whatsapp.w4b" to "WhatsApp Business")
         /** WebViewAssetLoader'ın varsayılan alan adı: sayfa güvenli (https) kökenden yüklenir. */
         private const val APP_HOST = "appassets.androidplatform.net"
     }

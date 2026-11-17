@@ -1080,7 +1080,7 @@
     ['Yeni donör eklemek', 'Ana Sayfa’daki YENİ DONÖR EKLE ya da Donör Kayıt’taki + düğmesine dokunun. Toplama tarihini yazınca aşı başlama tarihi 4 gün öncesi olur; ONKOLOJİ’de AÇIKLAMA’ya 20 kg ya da altı bir kilo yazılırsa (ör. “18 kg”) 3 gün öncesi olur. Farklı tarih gerekirse “Elle tarih” seçin. KEMİK İLİĞİ’nde aşı yoktur. Son izlem toplamadan 20 gün sonradır.'],
     ['PDF’ten donör ekle', 'Ana Sayfa’daki ya da Donör Kayıt’taki “PDF’ten donör ekle” ile TÜRKÖK Hücresel Ürün Toplama / Taşıma Hizmeti Organizasyon Talebi PDF’ini seçin. Hasta kodu, donör numarası, ad soyad, telefon, ilçe/il, sağlık kontrolü ve toplama tarihleri, yöntem, hastane (toplama merkezinden) ve nakil merkezi okunur. Hasta kodu zaten kayıtlıysa mevcut kayıt güncellenir; değişen alanlar gösterilir. Kaydetmeden önce kontrol edin.'],
     ['Mailden iptal / red / erteleme', 'Outlook’ta mailin metnini seçin; açılan menüde Donör Takip’e (ya da Paylaş › Donör Takip’e) dokunun. Menüde yoksa metni kopyalayıp Donör Kayıt’taki “Mailden iptal / erteleme” ile yapıştırın. Uygulama hasta kodu, donör numarası ya da ad soyaddan donörü, mailden de durumu (iptal, red, ertelendi, vazgeçti, hasta ex) bulur; siz onaylayınca açıklamaya yalnızca anahtar kelimeyi (İPTAL, RED, ERTELENDİ, VAZGEÇTİ, HASTA EX) ekler; mail metni kopyalanmaz. İsterseniz ek not yazabilirsiniz. Donör sayfasındaki “İptal / red / erteleme ekle” ile elle de eklenebilir. Ertelenen donörün yeni talebi gelince açıklamadaki notu silin.'],
-    ['WhatsApp’ta güncel tablo', 'Ayarlar › WhatsApp’ta güncel tablo’dan “Günlük hatırlatma”yı açın; hafta içi (tatiller hariç) ya da her gün ve saati seçin. O saatte gelen bildirime dokununca Excel tablonuzun aynısı (bütün sayfalar, formüller, Kızılay resmi) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp açılır; sohbeti seçip Gönder’e siz basarsınız. Excel’den içe aktardığınız dosya şablon olarak saklanır; yoksa bir kez “Excel şablonunu seç” ile seçin. Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları, listeler ve kapanış tarihi güncellenir; Excel açılınca formüller yeniden hesaplanır. “Şimdi gönder” ile istediğiniz an, Donör Raporu sayfasından da gönderebilirsiniz.'],
+    ['WhatsApp’ta güncel tablo', 'Ayarlar › WhatsApp’ta güncel tablo’dan “Günlük hatırlatma”yı açın; hafta içi (tatiller hariç) ya da her gün ve saati seçin. O saatte gelen bildirime dokununca Excel tablonuzun aynısı (bütün sayfalar, formüller, Kızılay resmi) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp açılır; Gönder’e siz basarsınız. Excel’den içe aktardığınız dosya şablon olarak saklanır; yoksa bir kez “Excel şablonunu seç” ile seçin. Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları, listeler ve kapanış tarihi güncellenir; Excel açılınca formüller yeniden hesaplanır. “Şimdi gönder” ile istediğiniz an, Donör Raporu sayfasından da gönderebilirsiniz.'],
     ['Outlook', 'Outlook’ta gelen PDF (Organizasyon Talebi) ya da Excel ekine dokunup Paylaş › Donör Takip seçin: PDF’ten yeni donör formu açılır, Excel dosyası içe aktarılır. Çalışma Programı’ndaki “Outlook ile e-posta gönder” programı, Donör Raporu’ndaki “Outlook ile gönder” raporu Excel eki olarak yeni bir e-postaya koyar. Outlook kurulu değilse telefonun e-posta seçicisi açılır.'],
     ['Otomatik görevler', 'Sağlık kontrolü tarihinde SAĞLIK KONTROLÜ; aşı başlama tarihinde ve sonraki 3 günde AŞI (1.–4. gün; sabah-akşam hastanelerinde sabah ve akşam ayrı); toplama tarihinde TOPLAMA ve ürünün gideceği yer HASTANE-BAŞLIK biçiminde (ör. ONKOLOJİ-AVRUPA); Ankara’daki merkezler (BAŞLIK ANKARA) başlık yerine NAKİL MERKEZİ adıyla yazar (ör. BİLKENT ERİŞKİN-GAZİ ÜNİVERSİTESİ). KEMİK İLİĞİ ve BİLKENT PEDİATRİ olan donörde toplamadan bir gün önce HASTANE YATIŞ oluşur.'],
     ['Personel atama', 'Her görevin yanındaki personel düğmesine dokunup kişi seçin. Seçim Takvim, Haftalık Program, Çalışma Programı, takip listeleri ve Dashboard’a yansır. “Varsayılan” seçilirse Donör Kayıt’taki İLGİLENEN PERSONEL (ürün taşımada TAŞIYAN PERSONEL) kullanılır.'],
@@ -1527,30 +1527,24 @@
           confirmSheet('Excel tablonuzu bir kez seçin', 'Güncel tablo, sizin Excel dosyanızın aynısı olarak hazırlanır. Telefondaki Donör Takip Excel’ini seçin; uygulamadaki veriler değişmez.', 'Excel’i seç', false, function () { pickFile('sablon'); });
           return;
         }
-        console.error(e); bilgiSheet('Tablo hazırlanamadı', S(e && (e.message || e)));
+        console.error(e); toast('Tablo hazırlanamadı: ' + (e && e.message));
       });
     }, 60);
   }
-  function bilgiSheet(baslik, metin) {
-    openSheet('<h3>' + h(baslik) + '</h3><div class="sub" style="white-space:pre-wrap">' + h(metin) + '</div>' +
-      '<div class="btns"><button type="button" class="btn pri" data-act="closeSheet">Tamam</button></div>');
-  }
-  window.onShareError = function (m) { bilgiSheet('WhatsApp açılamadı', S(m) + '\n\n“Telefona kaydet” ile dosyayı kaydedip WhatsApp’tan elle gönderebilirsiniz.'); };
   // Büyük dosya: Android'e parça parça aktarılır (WhatsApp, e-posta ya da kaydet)
   function sendBigFile(bytes, name, mime, target, text) {
     if (NB && NB.fileBegin) {
       var CH = 3 * 256 * 1024, i = 0;
-      if (!NB.fileBegin(name)) { busy(false); bilgiSheet('Dosya hazırlanamadı', 'Telefonda geçici dosya oluşturulamadı. Depolama dolu olabilir.'); return; }
+      if (!NB.fileBegin(name)) { busy(false); toast('Dosya hazırlanamadı'); return; }
       var step = function () {
         if (i >= bytes.length) {
           busy(false);
           if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); };
-          if (target === 'whatsapp') toast(S(tabloAyar().tel) ? 'WhatsApp açılıyor: Gönder’e basın' : 'WhatsApp açılıyor: sohbeti seçip Gönder’e basın');
-          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel), S(tabloAyar().app));
+          NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel));
           return;
         }
         busy(true, 'Tablo hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
-        if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { busy(false); bilgiSheet('Dosya yazılamadı', 'Tablo telefona yazılırken hata oldu. Depolama dolu olabilir.'); return; }
+        if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { busy(false); toast('Dosya yazılamadı'); return; }
         i += CH; setTimeout(step, 0);
       };
       step();
@@ -1562,18 +1556,6 @@
   }
   window.onNativeAction = function (a) { if (a === 'tabloGonder') tabloGonder('whatsapp'); };
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
-  // Telefonda birden çok WhatsApp (WhatsApp + WhatsApp Business) varsa hangisiyle gönderileceği
-  function waApps() {
-    try { return NB && NB.whatsappApps ? JSON.parse(NB.whatsappApps()) : []; } catch (e) { return []; }
-  }
-  function waAppField(t) {
-    var apps = waApps();
-    if (apps.length < 2) return '';
-    return '<div class="field" style="margin:0 0 10px"><label>WhatsApp uygulaması</label><select class="inp" id="tbApp">' +
-      '<option value="">Her seferinde sor</option>' +
-      apps.map(function (a) { return '<option value="' + h(a.pkg) + '"' + (t.app === a.pkg ? ' selected' : '') + '>' + h(a.ad) + '</option>'; }).join('') +
-      '</select><div class="hint">Telefonda iki WhatsApp var; tablo seçtiğinizle gönderilir. Numara o WhatsApp’ta rehberde kayıtlı olmalı.</div></div>';
-  }
   function tabloCard() {
     var t = tabloAyar(), sb = state.settings.sablon;
     var mb = function (n) { return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
@@ -1584,9 +1566,9 @@
       '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Günlük hatırlatma<div class="s">Seçtiğiniz saatte bildirim gelir; dokununca tablo hazırlanıp WhatsApp açılır.</div></span></label>' +
       '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Günler</label><select class="inp" id="tbGun"><option value="haftaici"' + (t.gun !== 'hergun' ? ' selected' : '') + '>Hafta içi (tatiller hariç)</option><option value="hergun"' + (t.gun === 'hergun' ? ' selected' : '') + '>Her gün</option></select></div>' +
       '<div class="field" style="margin:0;width:132px"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div></div>' +
-      waAppField(t) +
-      '<div class="field" style="margin:0 0 6px"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="05xx xxx xx xx"></div>' +
-      '<div class="hint" style="margin:0 2px 10px">Tablo bu numaranın sohbetinde açılır (kendi numaranız = kendinize mesaj); Gönder’e siz basarsınız. Numara telefonun rehberinde kayıtlı olmalı. WhatsApp numarayla açmazsa birkaç saniye içinde sohbet listesi açılır, sohbeti seçersiniz.</div>' +
+      '<div class="row" style="gap:8px;margin:0 0 10px">' +
+      '<div class="field grow" style="margin:0"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="isteğe bağlı · 05xx…"></div></div>' +
+      '<div class="hint" style="margin:-4px 2px 10px">Numara yazarsanız WhatsApp doğrudan o sohbette açılabilir (kendi numaranız = kendinize mesaj). Açılmazsa sohbeti siz seçersiniz.</div>' +
       '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:8px">Kaydet</button>' +
       '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
   }
@@ -1692,8 +1674,7 @@
     tabloKaydet: function () {
       var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
       if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return; }
-      var appSel = $('#tbApp');
-      state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun, app: appSel ? appSel.value : S(tabloAyar().app) };
+      state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun };
       save(); syncReminder();
       if (on && !state.settings.sablon) toast('Hatırlatma kuruldu. Excel şablonunu da seçin.');
       else toast(on ? 'Hatırlatma kuruldu: ' + (gun === 'hergun' ? 'her gün ' : 'hafta içi ') + saat : 'Hatırlatma kapalı');
