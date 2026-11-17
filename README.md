@@ -49,6 +49,12 @@ satırlardır (tarih, tür, tutar; konaklamada refakatçi ve gece). Donor_Harcam
 “Excel’den al” ile donörlere (hasta kodu + donör no) bağlanarak yüklenir. Dashboard hesapları Excel’deki dashboard’la
 karşılaştırılarak doğrulandı; şehir içi = ikamet ili Ankara.
 
+## Yemek kartı
+
+DONÖR HARCAMA › Yemek Kartı: MetropolCard “Yükleme Detay Raporu” Excel’i taranır (`js/yemekkart.js`). Yüklemeler ad soyaddan
+(bulunamazsa telefondan) donöre bağlanır, tarihine göre Sağlık kontrolü · Aşı + toplama · Toplama süreci · Diğer olarak ayrılır;
+aşama ve donör elle değiştirilebilir. Tekrar yüklemede aynı satır iki kez girmez. TCKN ve kart numarası saklanmaz (son 4 hane hariç).
+
 ## Raporlar (PDF ve Excel)
 
 DASHBOARD › Raporlar (ya da Ana Sayfa’daki “Rapor al”): Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti.

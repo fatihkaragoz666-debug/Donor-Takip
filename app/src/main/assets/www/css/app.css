@@ -380,3 +380,13 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .rphb .b { height: 10px; background: #eef1f4; border-radius: 3px; overflow: hidden; }
 .rphb .b i { display: block; height: 100%; border-radius: 3px; }
 .rphb b { font-size: 12px; color: var(--ink-2); }
+
+/* ---- Yemek kartı ---- */
+.pillx.yk { color: #fff; margin-left: 6px; }
+.amt.neg { color: var(--red, #c0392b); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.ykasama > div { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ykasama > div:last-child { border-bottom: 0; }
+.ykasama .t { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+.ykasama .b { height: 10px; background: #eef1f4; border-radius: 4px; overflow: hidden; margin: 6px 0 4px; }
+.ykasama .b i { display: block; height: 100%; border-radius: 4px; }

@@ -13,7 +13,7 @@
     calY: null, calM: null, calSel: null, calP: '',
     progDate: null, alBase: null, alP: '', tkP: '', utYil: '', dashYil: null, dashAy: '', ekPast: false,
     weekStart: null, hwP: '', ajDate: null, rpF: 'all', rpH: '', rpY: '', rpLimit: 80,
-    rpTur: 'donor', rpHz: 'buay', rpBas: null, rpBit: null, rpDurum: 'all', rpHast: '', rpYon: '', rpOlcut: 'her', rpAyr: { donor: true, harcama: true, isyuku: false },
+    rpTur: 'donor', rpHz: 'buay', rpBas: null, rpBit: null, rpDurum: 'all', rpHast: '', rpYon: '', rpOlcut: 'her', rpAyr: { donor: true, harcama: true, isyuku: false, yemek: true },
     scroll: {}
   };
 
@@ -87,7 +87,7 @@
     var base = DT.newState(window.DT_DEFAULT_LISTS);
     s.donors = s.donors || []; s.overrides = s.overrides || {}; s.ekGorevler = s.ekGorevler || []; s.ekKons = s.ekKons || []; s.ajanda = s.ajanda || [];
     s.planNotlar = s.planNotlar || []; s.gorevKayit = s.gorevKayit || []; s.tasimaKayit = s.tasimaKayit || []; s.kapanis = s.kapanis || { kesim: null };
-    s.harcama = s.harcama || []; s.ilEslesme = s.ilEslesme || {};
+    s.harcama = s.harcama || []; s.ilEslesme = s.ilEslesme || {}; s.yemekKart = s.yemekKart || [];
     s.settings = Object.assign({}, base.settings, s.settings || {});
     s.lists = Object.assign({}, base.lists, s.lists || {});
     s.lists.prog = Object.assign({}, base.lists.prog, s.lists.prog || {});
@@ -99,7 +99,7 @@
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch (e) { toast('Kayıt yapılamadı: depolama dolu olabilir.'); }
   }
-  var hrows = [];
+  var hrows = [], yrows = [];
   function recompute() {
     today = DT.today();
     D = DT.derive(state, today);
@@ -107,6 +107,7 @@
     byId = {}; D.forEach(function (x) { byId[x.d.id] = x; });
     holMap = DT.holidayMap(state.lists);
     hrows = HR.derive(state, D);
+    yrows = YK.derive(state, D);
   }
   function commit(keepScroll) { save(); recompute(); render(keepScroll !== false); }
 
@@ -136,7 +137,7 @@
       ['/dash/tasima', 'Taşıma İstatistiği', 'Ürün taşıma istatistikleri'], ['/dash/raporlar', 'Raporlar', 'Tarih aralığına göre PDF ve Excel rapor']] },
     harcama: { ad: 'DONÖR HARCAMA', renk: '#A3262A', acik: '#F8E4E3', alt: 'Bağışçı harcamaları ve harcama dashboard', pages: [
       ['/harcama', 'Harcama Dashboard', 'Yıllara, kategoriye, ulaşıma ve ile göre harcama'], ['/harcama/kayitlar', 'Harcama Kayıtları', 'Harcama satırları: ekle, düzenle, Excel’den al'],
-      ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti']] }
+      ['/harcama/donorler', 'Donör Harcama', 'Donör başına harcama özeti'], ['/harcama/yemek', 'Yemek Kartı', 'Yükleme detayı: sağlık kontrolü, aşı + toplama, toplama süreci']] }
   };
   function groupOf(path) {
     if (path === '/' || path === '') return null;
@@ -173,6 +174,7 @@
       else if (p[0] === 'dash' && p[1] === 'raporlar') out = scrRaporlar();
       else if (p[0] === 'harcama' && p[1] === 'kayitlar') out = scrHrKayit();
       else if (p[0] === 'harcama' && p[1] === 'donorler') out = scrHrDonor();
+      else if (p[0] === 'harcama' && p[1] === 'yemek') out = scrYemek();
       else if (p[0] === 'harcama') out = scrHarcama();
       else if (p[0] === 'donorler') out = scrDonors();
       else if (p[0] === 'donor' && p[1] === 'yeni') out = scrDonorForm(null);
@@ -195,6 +197,8 @@
     $('#btnBack').hidden = !(out.back || (p.length && p[0] !== 'g'));
     $('#topActions').innerHTML = out.actions || '';
     view.innerHTML = out.html;
+    // sayfa düğmeleri satırında seçili düğme görünür olsun
+    view.querySelectorAll('.seg').forEach(function (sg) { var b = sg.querySelector('button.on'); if (b && b.offsetLeft + b.offsetWidth > sg.clientWidth) sg.scrollLeft = b.offsetLeft - 12; });
     var tab = gk || 'home';
     $('#tabs').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
     view.scrollTop = top != null ? top : (ui.scroll[location.hash] || 0);
@@ -1122,7 +1126,8 @@
     ['İptal / erteleme / red / vazgeçme / hasta ex', 'AÇIKLAMA’ya iptal, erteleme, red, vazgeç ya da hasta ex yazılan donör takvimden, programlardan, uyarılardan ve takip listelerinden çıkar; Dashboard’da “süreç durdu” sayılır. Kelime silinince donör planlara geri döner.'],
     ['KONTROL', 'Donör kaydındaki eksik ya da uyumsuz bilgiler (yöntem, hastane, nakil merkezi yok; personel listede yok; sağlık kontrolü aşıdan ya da toplamadan sonra; aşı toplamadan sonra; son izlem toplamadan önce) kaydın üstünde turuncu kutuda yazar.'],
     ['Donör Raporu', 'Yöneticiye göndermek için temiz kopya: DURUM sütunuyla birlikte. Süzüp “Excel’e aktar” ile .xlsx olarak kaydedebilirsiniz.'],
-    ['Raporlar', 'Ana Sayfa’daki “Rapor al” ya da DASHBOARD › Raporlar. Dört rapor var: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) ve Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
+    ['Yemek kartı', 'DONÖR HARCAMA › Yemek Kartı’nda “Excel’den al” ile MetropolCard’ın Yükleme Detay Raporu Excel’ini seçin (Outlook’tan Paylaş › Donör Takip ile de olur). Her yükleme ad soyaddan (bulunamazsa telefondan) donöre bağlanır ve tarihine göre ayrılır: sağlık kontrolü tarihinden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerindeyse “Toplama süreci”; uymayanlar “Diğer”. Sayfada toplam yükleme, aşamalara göre tutarlar ve her aşamanın altında donörler görünür. Yanlış aşamayı ya da donörü Yüklemeler’de yüklemeye dokunarak değiştirin. Aynı rapor ya da çakışan dönem tekrar yüklenirse aynı yükleme iki kez girmez. TC kimlik no ve kart numarası saklanmaz (kartın son 4 hanesi hariç). Donör sayfasında da o donörün yemek kartı yüklemeleri görünür; Raporlar’da Yemek kartı raporu vardır.'],
+    ['Raporlar', 'Ana Sayfa’daki “Rapor al” ya da DASHBOARD › Raporlar. Raporlar: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için) ve Yemek kartı raporu (yüklemeler aşamalara ve donörlere göre). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
     ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
     ['Haftalık Kapanış', 'Her hafta bitince (pazartesi) sıradaki haftayı kapatın: o haftanın personeli seçilmiş görevleri, ek konsültasyonlar ve personeli seçili ajanda notları Görev Kayıtları’na yazılır, İş Yükü ve Taşıma İstatistiği kalıcı olur. Haftalar sırayla kapatılır; personeli seçilmemiş görevler arşive girmez.'],
@@ -1336,7 +1341,13 @@
           (r.refakatci ? ' · refakatçi ' + h(r.refakatci.toLocaleLowerCase('tr-TR')) : '') + (r.gece ? ' · ' + r.gece + ' gece' : '') + (r.not ? ' · ' + h(r.not) : '') + '</span></span><b class="amt">' + tl(r.tutar, true) + '</b></button>';
       }).join('');
     }
-    return html + '<button class="btn block" data-act="hrNew" data-donor="' + h(x.d.id) + '" style="margin-top:10px">' + I.plus + 'Harcama ekle</button></div>';
+    html += '<button class="btn block" data-act="hrNew" data-donor="' + h(x.d.id) + '" style="margin-top:10px">' + I.plus + 'Harcama ekle</button>';
+    var yk = yrows.filter(function (o) { return o.x === x; }).sort(function (a, b) { return b.r.tarih - a.r.tarih || S(b.r.saat).localeCompare(S(a.r.saat)); });
+    if (yk.length) {
+      html += '<div class="hrbas">Yemek kartı · ' + tl(x.yk.toplam, true) + ' · ' + yk.length + ' yükleme</div><div class="hrkat">' + YK.ASAMA.filter(function (a) { return x.yk.asama[a]; }).map(function (a) {
+        return '<div><span>' + h(a) + '</span><b>' + tl(x.yk.asama[a], true) + '</b></div>'; }).join('') + '</div>' + yk.map(ykSatir).join('');
+    }
+    return html + '</div>';
   }
   function hrForm(o) {
     o = o || {};
@@ -1529,6 +1540,139 @@
     return { title: 'Donör Harcama', html: html, actions: '<button class="icon" data-act="hrExport" aria-label="Excel’e aktar">' + I.down + '</button>' };
   }
 
+  /* ---------------- Yemek kartı (MetropolCard yükleme detayı) ---------------- */
+  function ykSatir(o) {
+    var r = o.r;
+    return '<button class="hrrow" data-act="ykEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(DT.fmt(r.tarih)) + (r.saat ? ' ' + h(r.saat) : '') + '</b>' +
+      '<span class="pillx yk" style="background:' + YK.RENK[o.asama] + '">' + h(o.asama) + '</span>' +
+      '<span class="small muted"><br>' + h(o.sebep) + (r.tutar < 0 ? ' · iade' : '') + '</span></span><b class="amt' + (r.tutar < 0 ? ' neg' : '') + '">' + tl(r.tutar, true) + '</b></button>';
+  }
+  function ykDonem() {
+    var k = ui.ykAy || '';
+    if (!k) return { from: null, to: null, ad: 'Tüm yüklemeler' };
+    var a = k.split('-'), y = +a[0], m = +a[1];
+    return { from: DT.serial(y, m, 1), to: DT.serial(y, m + 1, 1) - 1, ad: DT.AYLAR[m - 1] + ' ' + y };
+  }
+  function scrYemek() {
+    var html = '<div class="page flush">' + hrToolbar('/harcama/yemek');
+    var top0 = (state.yemekKart || []).length;
+    if (!top0) {
+      return { title: 'Yemek Kartı', html: html + '<div class="page">' + emptyBox('Yemek kartı yüklemesi yok', 'MetropolCard’dan aldığınız Yükleme Detay Raporu Excel’ini seçin. Uygulama her yüklemeyi donöre bağlar ve tarihine göre sağlık kontrolü, aşı + toplama, toplama süreci olarak ayırır.') +
+        '<button class="btn pri block" data-act="ykPick" style="margin-top:10px">' + I.up + 'Yükleme detayı Excel’ini seç</button></div></div>' };
+    }
+    var aylar = {}; yrows.forEach(function (o) { var p0 = DT.parts(o.r.tarih); aylar[p0.y + '-' + ('0' + p0.m).slice(-2)] = 1; });
+    var ayList = Object.keys(aylar).sort().reverse(), P0 = ykDonem();
+    var rows = yrows.filter(function (o) { return P0.from == null || (o.r.tarih >= P0.from && o.r.tarih <= P0.to); });
+    var tab = ui.ykTab || 'ozet', toplam = rows.reduce(function (a, o) { return a + o.tutar; }, 0);
+    var donor = {}; rows.forEach(function (o) { donor[o.x ? o.x.d.id : 'e:' + o.r.ad] = 1; });
+    var nd = Object.keys(donor).length, es = rows.filter(function (o) { return !o.x; }).length, iade = rows.filter(function (o) { return o.tutar < 0; });
+    html += '<div class="seg sub">' + [['ozet', 'Özet'], ['liste', 'Yüklemeler']].map(function (t) { return '<button class="' + (tab === t[0] ? 'on' : '') + '" data-act="ykTab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="toolbar"><select class="inp" data-ui="ykAy"><option value="">Tüm aylar</option>' + ayList.map(function (k) { var a = k.split('-'); return '<option value="' + k + '"' + (ui.ykAy === k ? ' selected' : '') + '>' + DT.AYLAR[+a[1] - 1] + ' ' + a[0] + '</option>'; }).join('') + '</select>' +
+      '<button class="btn" data-act="ykPick" style="flex:none">' + I.up + 'Excel’den al</button><button class="btn" data-act="rpAc" data-v="yemek" style="flex:none">' + I.doc + 'Rapor</button></div>';
+    if (tab === 'liste') {
+      var q = DT.fold(ui.ykAra || ''), asm = ui.ykAsama || '';
+      var list = rows.filter(function (o) { return (!asm || o.asama === asm) && (!q || DT.fold((o.x ? o.x.d.ad + ' ' + o.x.d.hk : '') + ' ' + o.r.ad + ' ' + o.r.aciklama).indexOf(q) >= 0); })
+        .sort(function (a, b) { return b.r.tarih - a.r.tarih || S(b.r.saat).localeCompare(S(a.r.saat)); });
+      html += '<div class="toolbar"><div class="search grow">' + I.search + '<input class="inp" type="search" placeholder="Ad, hasta kodu…" value="' + h(ui.ykAra || '') + '" data-ui="ykAra"></div>' +
+        '<select class="inp" data-ui="ykAsama" style="flex:none;width:auto"><option value="">Tüm aşamalar</option>' + YK.ASAMA.map(function (a) { return '<option' + (asm === a ? ' selected' : '') + '>' + h(a) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="summary">' + list.length + ' yükleme · <b>' + tl(list.reduce(function (a, o) { return a + o.tutar; }, 0), true) + '</b> · Aşamayı değiştirmek için yüklemeye dokunun.</div><div class="card">' +
+        list.slice(0, 400).map(function (o) {
+          var r = o.r;
+          return '<button class="hrrow" data-act="ykEdit" data-id="' + h(r.id) + '"><span class="grow"><b>' + h(o.x ? o.x.d.ad : r.ad) + '</b>' + (o.x ? '' : ' <span class="pillx p-red">donör bulunamadı</span>') +
+            '<span class="small muted"><br>' + h(DT.fmt(r.tarih)) + (r.saat ? ' ' + h(r.saat) : '') + (o.x && o.x.d.hk ? ' · ' + h(o.x.d.hk) : '') + '</span>' +
+            '<span class="small"><br><span class="pillx yk" style="background:' + YK.RENK[o.asama] + ';margin-left:0">' + h(o.asama) + '</span> ' + (o.oto ? '' : '<b>elle</b> · ') + h(o.oto ? o.sebep : '') + '</span></span>' +
+            '<b class="amt' + (r.tutar < 0 ? ' neg' : '') + '">' + tl(r.tutar, true) + '</b></button>';
+        }).join('') + (list.length ? '' : emptyBox('Eşleşen yükleme yok')) + '</div></div>';
+      return { title: 'Yemek Kartı', html: html };
+    }
+    html += '<div class="kpis rpkpis">' + [[tl(toplam), 'Toplam yükleme'], [num(rows.length), 'Yükleme'], [num(nd), 'Donör'], [tl(nd ? toplam / nd : 0), 'Donör başı ortalama'],
+      [iade.length ? tl(iade.reduce(function (a, o) { return a + o.tutar; }, 0)) : '–', 'İade / geri çekim'], [num(es), 'Donörü bulunamayan']].map(function (k) {
+      return '<div class="kpi"><div class="n">' + h(k[0]) + '</div><div class="l">' + h(k[1]) + '</div></div>'; }).join('') + '</div>';
+    var asamaTop = {}, asamaN = {}, asamaD = {};
+    YK.ASAMA.forEach(function (a) { asamaTop[a] = 0; asamaN[a] = 0; asamaD[a] = {}; });
+    rows.forEach(function (o) { asamaTop[o.asama] += o.tutar; asamaN[o.asama]++; asamaD[o.asama][o.x ? o.x.d.id : 'e:' + o.r.ad] = 1; });
+    var mx = Math.max.apply(null, YK.ASAMA.map(function (a) { return asamaTop[a]; }).concat([1]));
+    html += '<div class="card pad"><h2>Aşamalara göre · ' + h(P0.ad) + '</h2><div class="ykasama">' + YK.ASAMA.map(function (a) {
+      var nd2 = Object.keys(asamaD[a]).length;
+      return '<div><div class="t"><span class="dot" style="background:' + YK.RENK[a] + '"></span><b>' + h(a) + '</b><span class="grow"></span><b>' + tl(asamaTop[a], true) + '</b></div>' +
+        '<div class="b"><i style="width:' + Math.max(0, asamaTop[a] / mx * 100).toFixed(1) + '%;background:' + YK.RENK[a] + '"></i></div>' +
+        '<div class="small muted">' + asamaN[a] + ' yükleme · ' + nd2 + ' donör' + (nd2 ? ' · donör başı ' + tl(asamaTop[a] / nd2) : '') + ' · ' + pct(toplam ? asamaTop[a] / toplam : null) + '</div></div>';
+    }).join('') + '</div><div class="note">Aşama, yükleme tarihinin donörün sağlık kontrolü, aşı ve toplama tarihlerine göre bulunur. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerinde ise “Toplama süreci” sayılır. Yanlışsa Yüklemeler’den değiştirin.</div></div>';
+    // her aşamanın alt başlığı: donörler
+    YK.ASAMA.forEach(function (a) {
+      var b = rows.filter(function (o) { return o.asama === a; });
+      if (!b.length) return;
+      var m = {}, dl = [];
+      b.forEach(function (o) { var k = o.x ? o.x.d.id : 'e:' + o.r.ad, d = m[k]; if (!d) { d = m[k] = { o: o, t: 0, n: 0, g: [] }; dl.push(d); } d.t += o.tutar; d.n++; var g = DT.fmtShort(o.r.tarih); if (d.g.indexOf(g) < 0) d.g.push(g); });
+      dl.sort(function (p, q2) { return q2.t - p.t; });
+      html += '<div class="sec-title" style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:' + YK.RENK[a] + '"></span>' + h(a) + ' · ' + tl(asamaTop[a]) + '</div><div class="card">' + dl.map(function (d) {
+        var o = d.o, x = o.x;
+        return '<button class="hrrow" ' + (x ? 'data-act="donor" data-id="' + h(x.d.id) + '"' : 'data-act="ykEdit" data-id="' + h(o.r.id) + '"') + '><span class="grow"><b>' + h(x ? x.d.ad : o.r.ad) + '</b>' +
+          (x ? '<span class="small muted"> · ' + h(x.d.hk || '') + '</span>' : ' <span class="pillx p-red">donör bulunamadı</span>') +
+          '<span class="small muted"><br>' + h(o.oto ? o.sebep : 'Elle seçildi') + '</span><span class="small"><br>' + d.n + ' yükleme · ' + h(d.g.join(', ')) + '</span></span><b class="amt">' + tl(d.t) + '</b></button>';
+      }).join('') + '</div>';
+    });
+    if (ayList.length > 1 && !ui.ykAy) {
+      html += '<div class="card pad" style="margin-top:12px"><h2>Aylara göre</h2>' + tbl(['Ay'].concat(YK.ASAMA, ['Toplam']), ayList.slice().reverse().map(function (k) {
+        var a = k.split('-'), y = +a[0], mm = +a[1], b = rows.filter(function (o) { var p0 = DT.parts(o.r.tarih); return p0.y === y && p0.m === mm; });
+        return [DT.AYLAR[mm - 1].slice(0, 3) + ' ' + y].concat(YK.ASAMA.map(function (as) { return tl(b.filter(function (o) { return o.asama === as; }).reduce(function (s2, o) { return s2 + o.tutar; }, 0)); }), [tl(b.reduce(function (s2, o) { return s2 + o.tutar; }, 0))]);
+      })) + '</div>';
+    }
+    html += '</div>';
+    return { title: 'Yemek Kartı', html: html, actions: '<button class="icon" data-act="ykExcel" aria-label="Excel’e aktar">' + I.down + '</button>' };
+  }
+  function ykImport(buf, name) {
+    busy(true, 'Yükleme detayı okunuyor…');
+    YK.importWorkbook(buf).then(function (res) {
+      busy(false);
+      var rp = res.rapor, mg = YK.merge(state.yemekKart || [], res.rows);
+      // yeni gelenlerin kaçı donöre bağlanıyor (önizleme)
+      var tmp = { yemekKart: mg.list, ekKons: state.ekKons }, rr = YK.derive(tmp, D), yeniId = {};
+      res.rows.forEach(function (r) { yeniId[r.id] = 1; });
+      var yeni = rr.filter(function (o) { return yeniId[o.r.id]; }), bag = yeni.filter(function (o) { return o.x; }).length;
+      var asm = YK.ASAMA.map(function (a) { var t = yeni.filter(function (o) { return o.asama === a; }).reduce(function (s2, o) { return s2 + o.tutar; }, 0); return t ? a + ' ' + tl(t) : ''; }).filter(Boolean).join(' · ');
+      recompute();
+      if (!rp.satir) { toast('Dosyada yükleme satırı bulunamadı'); return; }
+      confirmSheet('Yemek kartı yüklemeleri', name + '\n\n' + rp.satir + ' yükleme · ' + tl(rp.toplam, true) + (rp.iade ? ' (' + rp.iade + ' iade dahil)' : '') + '\n' + DT.fmt(rp.ilk) + ' – ' + DT.fmt(rp.son) +
+        '\n\n' + (mg.ayni ? mg.ayni + ' yükleme zaten vardı, tekrar eklenmeyecek.\n' : '') + mg.eklenen + ' yeni yükleme eklenecek' + (mg.eklenen ? ': ' + bag + ' tanesi donöre bağlandı' + (mg.eklenen - bag ? ', ' + (mg.eklenen - bag) + ' tanesinin donörü bulunamadı' : '') + '.\n' + asm : '.'),
+        mg.eklenen ? 'Ekle' : 'Tamam', false, function () {
+          if (!mg.eklenen) return;
+          state.yemekKart = mg.list; commit(); toast(mg.eklenen + ' yükleme eklendi');
+          if (route()[1] !== 'yemek') go('/harcama/yemek');
+        });
+    }).catch(function (e) { busy(false); recompute(); toast('Okunamadı: ' + e.message); });
+  }
+  function ykForm(id) {
+    var o = yrows.filter(function (z) { return z.r.id === id; })[0];
+    if (!o) return;
+    var r = o.r, oto = o.oto ? o.asama : o.otoAsama;
+    var donors = D.filter(function (x) { return S(x.d.hk) || S(x.d.ad); }).sort(function (a, b) { return (b.d.top || b.d.sk || 0) - (a.d.top || a.d.sk || 0); });
+    var cur = r.donorId || '';
+    var dopts = '<option value=""' + (!cur ? ' selected' : '') + '>Otomatik' + (!r.donorId && o.x ? ' (' + h(o.x.d.ad) + (o.x.d.hk ? ' · ' + h(o.x.d.hk) : '') + ')' : !r.donorId ? ' (bulunamadı)' : '') + '</option>' +
+      donors.map(function (x) { return '<option value="' + h(x.d.id) + '"' + (x.d.id === cur ? ' selected' : '') + '>' + h([x.d.ad, x.d.hk].filter(Boolean).join(' · ')) + (x.d.sk != null ? ' · SK ' + DT.fmt(x.d.sk) : '') + '</option>'; }).join('');
+    openSheet('<h3>Yemek kartı yüklemesi</h3><div class="sub">' + h(DT.fmt(r.tarih)) + (r.saat ? ' ' + h(r.saat) : '') + ' · ' + h(r.ad) + ' · <b>' + tl(r.tutar, true) + '</b>' + (r.kart4 ? ' · kart …' + h(r.kart4) : '') + '</div>' +
+      (r.aciklama || r.aciklama2 ? '<div class="calc small" style="margin-bottom:12px">' + h(r.aciklama) + (r.aciklama2 && r.aciklama2 !== r.aciklama ? '<br>' + h(r.aciklama2) : '') + '</div>' : '') +
+      '<form id="ykform"><div class="field"><label>Aşama</label><div class="radios">' + [''].concat(YK.ASAMA).map(function (a) {
+        var on = (r.asama || '') === a;
+        return '<label class="' + (on ? 'on' : '') + '"><input type="radio" name="asama" value="' + h(a) + '"' + (on ? ' checked' : '') + '>' + (a ? h(a) : 'Otomatik: ' + h(oto)) + '</label>';
+      }).join('') + '</div></div>' +
+      '<div class="field"><label>Donör</label><select class="inp" name="donor">' + dopts + '</select><div class="hint">' + h(o.oto ? o.sebep : 'Aşama elle seçildi · otomatik: ' + oto) + '</div></div>' +
+      '<div class="btns"><button type="button" class="btn danger" id="ykDel">Sil</button><button class="btn pri">Kaydet</button></div></form>');
+    var f = $('#ykform');
+    f.addEventListener('change', function () { f.querySelectorAll('.radios label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); });
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var a = (f.querySelector('input[name=asama]:checked') || {}).value || '';
+      r.asama = a || null; r.donorId = f.donor.value || null;
+      closeSheet(); commit(); toast('Kaydedildi');
+    });
+    $('#ykDel').onclick = function () {
+      confirmSheet('Yüklemeyi sil', DT.fmt(r.tarih) + ' · ' + r.ad + ' · ' + tl(r.tutar, true), 'Sil', true, function () {
+        state.yemekKart = state.yemekKart.filter(function (z) { return z.id !== r.id; }); commit(); toast('Silindi');
+      });
+    };
+  }
+
   function scrIsYuku() {
     var P = periodOf('iy'), R = DT.isYuku(state, D, pool, P.from, P.to), kesim = DT.kesimOf(state);
     var card = function (t, inner, note) { return '<div class="card pad"><h2>' + h(t) + '</h2>' + inner + (note ? '<div class="note">' + h(note) + '</div>' : '') + '</div>'; };
@@ -1575,7 +1719,7 @@
   function rpAyrinti() { return ui.rpTur !== 'ozet' && !!ui.rpAyr[ui.rpTur]; }
   function rpModel() {
     var r = rpDonem();
-    return RP.build({ state: state, D: D, pool: pool, hrows: hrows, today: today },
+    return RP.build({ state: state, D: D, pool: pool, hrows: hrows, yrows: yrows, today: today },
       { tur: ui.rpTur, from: r.from, to: r.to, ayrinti: rpAyrinti(), filtre: { durum: ui.rpDurum, hastane: ui.rpHast, yontem: ui.rpYon, olcut: ui.rpOlcut } });
   }
   // önizleme: rapor modelinin bölümleri kartlar hâlinde
@@ -1689,6 +1833,7 @@
       '<button class="btn block" data-act="exportXlsx" style="margin-bottom:8px">' + I.down + 'Excel’e aktar (Donör Kayıt)</button>' +
       '<button class="btn block" data-act="arsivAl" style="margin-bottom:8px">' + I.up + 'Excel’den yalnızca geçmiş kayıtları al</button>' +
       '<button class="btn block" data-act="hrImportPick" style="margin-bottom:8px">' + I.up + 'Excel’den donör harcamalarını al</button>' +
+      '<button class="btn block" data-act="ykPick" style="margin-bottom:8px">' + I.up + 'Yemek kartı yükleme detayını al</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="backup">' + I.down + 'Yedek al</button><button class="btn" data-act="importJson">' + I.up + 'Yedekten yükle</button></div>' +
       (prev ? '<button class="btn ghost block" data-act="restorePrev">İçe aktarmadan önceki veriye dön</button>' : '') +
       '</div>' + tabloCard() + '<div class="sec-title">Listeler</div><div class="card pad"><div class="small muted" style="margin-bottom:10px">Personel, hastaneler, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar.</div>' +
@@ -1793,6 +1938,7 @@
       }
       if (fileMode === 'arsiv') { busy(false); arsivYukle(buf, file.name); return; }
       if (fileMode === 'harcama') { busy(false); hrImport(buf, file.name); return; }
+      if (fileMode === 'yemek') { busy(false); ykImport(buf, file.name); return; }
       if (fileMode === 'sablon') {
         XLSXTablo.check(buf).then(function () { return saveTemplate(buf, file.name); })
           .then(function () { busy(false); render(true); toast('Excel şablonu kaydedildi'); })
@@ -1800,7 +1946,11 @@
         return;
       }
       setTimeout(function () {
-        XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS).then(function (res) {
+        YK.detect(buf).then(function (yk) {
+          if (yk) { busy(false); ykImport(buf, file.name); return null; }
+          return XLSXIO.importWorkbook(buf, window.DT_DEFAULT_LISTS);
+        }).then(function (res) {
+          if (!res) return;
           busy(false);
           var r = res.report;
           confirmSheet('Excel’den içe aktar', file.name + '\n\n' + r.donors + ' donör · ' + r.overrides + ' personel ataması · ' + r.ekGorevler + ' ek görev · ' + (r.ekKons || 0) + ' ek konsültasyon · ' + (r.ajanda || 0) + ' ajanda notu · ' + (r.gorevKayit || 0) + ' görev kaydı · ' + (r.tasimaKayit || 0) + ' taşıma kaydı' + (r.lists ? ' · listeler' : '') +
@@ -1956,6 +2106,7 @@
       s.harcama = HR.relink(state.harcama, state.donors, s.donors || []);
       s.ilEslesme = Object.assign({}, state.ilEslesme || {}, s.ilEslesme || {});
     }
+    if ((!s.yemekKart || !s.yemekKart.length) && state.yemekKart && state.yemekKart.length) s.yemekKart = HR.relink(state.yemekKart, state.donors, s.donors || []);
     s = migrate(s);
     state = s; save(); recompute(); ui.calY = null; ui.calSel = null; ui.progDate = null;
     go('/', true); render(); toast(msg);
@@ -2047,6 +2198,20 @@
     hrEdit: function (el) { hrForm({ id: el.dataset.id }); },
     hrTab: function (el) { ui.hrTab = el.dataset.v; render(); },
     hrImportPick: function () { pickFile('harcama'); },
+    ykPick: function () { pickFile('yemek'); },
+    ykTab: function (el) { ui.ykTab = el.dataset.v; render(); },
+    ykEdit: function (el) { ykForm(el.dataset.id); },
+    ykExcel: function () {
+      var P0 = ykDonem();
+      busy(true, 'Excel hazırlanıyor…');
+      setTimeout(function () {
+        try {
+          var m = RP.build({ state: state, D: D, pool: pool, hrows: hrows, yrows: yrows, today: today }, { tur: 'yemek', from: P0.from, to: P0.to, ayrinti: true });
+          saveFile(RP.toXlsx(m), m.dosya + '.xlsx', XLSX_MIME);
+        } catch (e) { toast('Hata: ' + e.message); }
+        busy(false);
+      }, 30);
+    },
     hrExport: function () {
       try { saveFile(HR.exportXlsx(state, D, hrows), 'Donor_Harcama_' + stamp() + '.xlsx', XLSX_MIME); } catch (e) { toast('Hata: ' + e.message); }
     },

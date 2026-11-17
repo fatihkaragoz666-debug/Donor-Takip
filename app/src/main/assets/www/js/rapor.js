@@ -13,11 +13,12 @@
     ['donor', 'Donör raporu', 'Dönemdeki donörler: durum, hastane, yöntem, aylık dağılım ve donör listesi'],
     ['harcama', 'Harcama raporu', 'Dönemdeki harcamalar: kategori, harcama ve ulaşım türü, il, donör bazında'],
     ['isyuku', 'İş yükü ve taşıma raporu', 'Personel başına görevler, görev türleri ve ürün taşımaları'],
-    ['ozet', 'Dashboard özeti', 'Dönemin sayıları ve grafikleri tek raporda: yöneticiye sunum için']
+    ['ozet', 'Dashboard özeti', 'Dönemin sayıları ve grafikleri tek raporda: yöneticiye sunum için'],
+    ['yemek', 'Yemek kartı raporu', 'Yemek kartı yüklemeleri: sağlık kontrolü, aşı + toplama, toplama süreci ve donör bazında']
   ];
   RP.ad = function (tur) { for (var i = 0; i < RP.TURLER.length; i++) if (RP.TURLER[i][0] === tur) return RP.TURLER[i][1]; return 'Rapor'; };
-  var BASLIK = { donor: 'Donör Raporu', harcama: 'Harcama Raporu', isyuku: 'İş Yükü ve Taşıma Raporu', ozet: 'Dashboard Özeti' };
-  var DOSYA = { donor: 'Donor_Raporu', harcama: 'Harcama_Raporu', isyuku: 'Is_Yuku_Tasima_Raporu', ozet: 'Dashboard_Ozeti' };
+  var BASLIK = { donor: 'Donör Raporu', harcama: 'Harcama Raporu', isyuku: 'İş Yükü ve Taşıma Raporu', ozet: 'Dashboard Özeti', yemek: 'Yemek Kartı Raporu' };
+  var DOSYA = { donor: 'Donor_Raporu', harcama: 'Harcama_Raporu', isyuku: 'Is_Yuku_Tasima_Raporu', ozet: 'Dashboard_Ozeti', yemek: 'Yemek_Karti_Raporu' };
 
   /* ---------------- biçimler ---------------- */
   var nf = function (v, d) { return (+v).toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -70,6 +71,7 @@
     var mn = null, mx = null, f = function (s) { if (s == null) return; if (mn == null || s < mn) mn = s; if (mx == null || s > mx) mx = s; };
     c.D.forEach(function (x) { f(x.d.sk); f(x.d.top); });
     (c.state.harcama || []).forEach(function (r) { f(r.tarih); });
+    (c.state.yemekKart || []).forEach(function (r) { f(r.tarih); });
     (c.state.gorevKayit || []).forEach(function (r) { f(r.tarih); });
     (c.state.tasimaKayit || []).forEach(function (r) { f(r.tarih); });
     if (mn == null) mn = mx = c.today;
@@ -283,6 +285,8 @@
       xw: [24, 12, 18, 22, 14, 11, 18, 12, 18, 10, 10, 14, 14, 14, 14, 14, 15, 8],
       rows: dlist.map(function (d) { var x = d.x, dd = x ? x.d : {}; return [d.ad, x ? dd.hk : 'EŞLEŞMEDİ', dd.dno, dd.ikamet, x ? x.h.il : '', x ? x.h.konum : '', dd.hastane, dd.yontem, x ? x.h.grup : '', d.rf, d.gece].concat(K.map(function (k) { return d.kat[k] || 0; }), [d.toplam, d.n]); }),
       tot: ['Toplam', '', '', '', '', '', '', '', '', '', sum(dlist, function (d) { return d.gece; })].concat(K.map(function (k) { return sum(rows, function (q) { return q.r.kategori === k ? q.tutar : 0; }); }), [top, rows.length]), pdf: false, html: false }));
+    // yemek kartı (harcama toplamına dahil değil)
+    yemekBolumu(c, o, B, top);
     // harcama satırları
     var det = rows.slice().sort(function (a, b) { return (a.r.tarih || 0) - (b.r.tarih || 0); });
     B.push(Object.assign(H('Harcama satırları', det.length + ' kalem · tarihe göre'), { pdf: o.ayrinti, xlsx: false }));
@@ -360,6 +364,80 @@
       not: 'Görevler Görev Kayıtları’ndan ve kapatılmamış haftalarda programdan sayılır (yurt dışı ürün taşıma hariç).' };
   }
 
+  /* ================= 5 · YEMEK KARTI ================= */
+  function ykSatirlar(c, o) {
+    return (c.yrows || []).filter(function (q) { return o.tumu || (q.r.tarih >= o.from && q.r.tarih <= o.to); });
+  }
+  function ykAsamaTablosu(rows, top) {
+    var YK = root.YK, dn = function (a) { var m = {}; a.forEach(function (q) { m[q.x ? q.x.d.id : 'e:' + q.r.ad] = 1; }); return Object.keys(m).length; };
+    var r = YK.ASAMA.map(function (a) { var b = rows.filter(function (q) { return q.asama === a; }), t = sum(b, function (q) { return q.tutar; }), n = dn(b); return [a, b.length, n, t, div(t, n), div(t, top)]; });
+    return T({ cols: [col('Aşama'), col('Yükleme', 'int'), col('Donör', 'int'), col('Tutar', 'tl'), col('Donör başı', 'tl'), col('Pay', 'pct')], rows: r,
+      tot: ['Toplam', rows.length, dn(rows), top, div(top, dn(rows)), top ? 1 : null] });
+  }
+  function ykDonorler(rows) {
+    var m = {}, out = [];
+    rows.forEach(function (q) {
+      var k = q.x ? q.x.d.id : 'e:' + q.r.ad, d = m[k];
+      if (!d) { d = m[k] = { x: q.x, ad: q.x ? q.x.d.ad : q.r.ad, tarih: [], t: 0, n: 0, asama: {} }; out.push(d); }
+      d.t += q.tutar; d.n++; d.asama[q.asama] = (d.asama[q.asama] || 0) + q.tutar;
+      var g = DT.fmtShort(q.r.tarih); if (d.tarih.indexOf(g) < 0) d.tarih.push(g);
+    });
+    return out;
+  }
+  function yemekBolumu(c, o, B, hTop) {
+    var rows = ykSatirlar(c, o);
+    if (!rows.length) return;
+    var top = sum(rows, function (q) { return q.tutar; });
+    B.push(H('Yemek kartı yüklemeleri', fmt(top, 'tl') + ' · ' + rows.length + ' yükleme'));
+    B.push(ykAsamaTablosu(rows, top));
+    B.push(NOTE('Yemek kartı yüklemeleri harcama toplamına dahil değildir. Harcama ve yemek kartı birlikte: ' + fmt(hTop + top, 'tl') + '.'));
+  }
+  function yemekRaporu(c, o) {
+    var YK = root.YK, rows = ykSatirlar(c, o).slice().sort(function (a, b) { return a.r.tarih - b.r.tarih || S(a.r.saat).localeCompare(S(b.r.saat)); });
+    var top = sum(rows, function (q) { return q.tutar; }), iade = rows.filter(function (q) { return q.tutar < 0; }), es = rows.filter(function (q) { return !q.x; });
+    var dl = ykDonorler(rows), eslesen = dl.filter(function (d) { return d.x; });
+    var B = [];
+    B.push({ type: 'kpis', items: [
+      { v: top, f: 'tl', l: 'Toplam yükleme', c: '#A3262A' }, { v: rows.length, f: 'int', l: 'Yükleme', c: NAVY },
+      { v: dl.length, f: 'int', l: 'Donör', c: '#2F6FB0' }, { v: div(top, dl.length), f: 'tl', l: 'Donör başı ortalama', c: '#D99A2B' },
+      { v: sum(iade, function (q) { return q.tutar; }), f: 'tl', l: 'İade / geri çekim (' + iade.length + ')', c: '#8a8f98' }, { v: es.length, f: 'int', l: 'Donörü bulunamayan yükleme', c: '#5B3A8C' }] });
+    B.push(H('Aşamalara göre', 'yükleme tarihi donörün sağlık kontrolü, aşı ve toplama tarihlerine göre'));
+    B.push(ROW(ykAsamaTablosu(rows, top), { type: 'hbars', rows: YK.ASAMA.map(function (a) { return [a, sum(rows, function (q) { return q.asama === a ? q.tutar : 0; }), YK.RENK[a]]; }), f: 'tl0', xlsx: false }));
+    if (rows.length) {
+      var d0 = dilimler(o.tumu ? rows[0].r.tarih : o.from, o.tumu ? rows[rows.length - 1].r.tarih : o.to);
+      var ay = d0.map(function (d) { var a = rows.filter(function (q) { return icinde(q.r.tarih, d); }); return { d: d, a: a }; });
+      B.push(H(d0.baslik));
+      if (d0.length > 1) B.push({ type: 'bars', labels: ay.map(function (a) { return a.d.ad; }), f: 'tl', xlsx: false,
+        series: YK.ASAMA.map(function (a) { return { name: a, color: YK.RENK[a], values: ay.map(function (z) { return sum(z.a, function (q) { return q.asama === a ? q.tutar : 0; }); }) }; }) });
+      B.push(T({ cols: [col(d0.sutun)].concat(YK.ASAMA.map(function (a) { return col(a, 'tlz'); }), [col('Toplam', 'tl'), col('Yükleme', 'int')]),
+        rows: ay.map(function (z) { return [z.d.uzun].concat(YK.ASAMA.map(function (a) { return sum(z.a, function (q) { return q.asama === a ? q.tutar : 0; }); }), [sum(z.a, function (q) { return q.tutar; }), z.a.length]); }),
+        tot: ['Toplam'].concat(YK.ASAMA.map(function (a) { return sum(rows, function (q) { return q.asama === a ? q.tutar : 0; }); }), [top, rows.length]) }));
+    }
+    // her aşama için donörler (alt başlıklar)
+    YK.ASAMA.forEach(function (a) {
+      var b = rows.filter(function (q) { return q.asama === a; });
+      if (!b.length) return;
+      var dd = ykDonorler(b).sort(function (p, q) { return q.t - p.t; }), t = sum(b, function (q) { return q.tutar; });
+      B.push(H(a, fmt(t, 'tl') + ' · ' + dd.length + ' donör · ' + b.length + ' yükleme'));
+      B.push(T({ cols: [col('Ad soyad'), col('Hasta kodu'), col('Süreç'), col('Yükleme günleri', 'txt', { wrap: 2 }), col('Yükleme', 'int'), col('Tutar', 'tl')],
+        rows: dd.map(function (d) { var q0 = b.filter(function (q) { return (q.x ? q.x.d.id : 'e:' + q.r.ad) === (d.x ? d.x.d.id : 'e:' + d.ad); })[0]; return { v: [d.ad, d.x ? d.x.d.hk : 'bulunamadı', q0 ? q0.sebep : '', d.tarih.join(', '), d.n, d.t], muted: !d.x }; }),
+        tot: ['Toplam', '', '', '', b.length, t] }));
+    });
+    // donör bazında (Excel) ve yüklemeler
+    B.push(T({ sheet: 'Donör bazında', cols: [col('Ad soyad'), col('Hasta kodu'), col('Donör no'), col('Hastane'), col('Yöntem'), col('Sağlık kontrolü', 'date'), col('Toplama', 'date')]
+      .concat(YK.ASAMA.map(function (a) { return col(a, 'tl'); }), [col('Toplam', 'tl'), col('Yükleme', 'int')]), xw: [24, 12, 18, 18, 12, 12, 12, 14, 14, 14, 12, 14, 9],
+      rows: dl.sort(function (p, q) { return q.t - p.t; }).map(function (d) { var x = d.x, dd = x ? x.d : {}; return [d.ad, x ? dd.hk : 'BULUNAMADI', dd.dno, dd.hastane, dd.yontem, dd.sk, dd.top].concat(YK.ASAMA.map(function (a) { return d.asama[a] || 0; }), [d.t, d.n]); }),
+      tot: ['Toplam', '', '', '', '', '', ''].concat(YK.ASAMA.map(function (a) { return sum(rows, function (q) { return q.asama === a ? q.tutar : 0; }); }), [top, rows.length]), pdf: false, html: false }));
+    B.push(Object.assign(H('Yüklemeler', rows.length + ' yükleme · tarihe göre'), { pdf: o.ayrinti, xlsx: false }));
+    B.push(T({ sheet: 'Yüklemeler', cols: [col('Tarih', 'date', { a: 'c' }), col('Saat', 'txt', { a: 'c' }), col('Ad soyad'), col('Hasta kodu'), col('Aşama'), col('Açıklama', 'txt', { wrap: 2 }), col('Tutar', 'tl')],
+      xw: [11, 7, 24, 12, 16, 70, 12],
+      rows: rows.map(function (q) { var r = q.r; return { v: [r.tarih, r.saat, q.x ? q.x.d.ad : r.ad, q.x ? q.x.d.hk : 'bulunamadı', q.asama, r.aciklama || r.aciklama2, q.tutar], muted: q.tutar < 0 }; }),
+      tot: ['', '', 'Toplam', '', '', '', top], pdf: o.ayrinti, uzun: true, empty: 'Bu dönemde yemek kartı yüklemesi yok' }));
+    return { landscape: false, info: [], blocks: B, ayrinti: { ad: 'Yüklemeler', n: rows.length },
+      ozet: 'Toplam ' + fmt(top, 'tl') + ' · ' + rows.length + ' yükleme · ' + dl.length + ' donör · ' + YK.ASAMA.map(function (a) { return a + ' ' + fmt(sum(rows, function (q) { return q.asama === a ? q.tutar : 0; }), 'tl0'); }).join(' · '),
+      not: 'Aşama, yükleme tarihinin donörün tarihlerine göre bulunur: sağlık kontrolünden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde yükleme varsa “Aşı + toplama”, yalnızca toplama günlerinde ise “Toplama süreci”. Uymayanlar “Diğer”dir; aşama yükleme listesinden elle değiştirilebilir.' };
+  }
+
   /* ================= 4 · DASHBOARD ÖZETİ ================= */
   function ozetRaporu(c, o) {
     var t = c.today, R = DT.dashboard(c.state, c.D, c.pool, { today: t, from: o.from, to: o.to, esik: c.state.settings.esik });
@@ -417,19 +495,20 @@
     var kon = ['Şehir İçi', 'Şehir Dışı'].map(function (k) { var a = hr.filter(function (q) { return q.konum === k; }), d2 = {}; a.forEach(function (q) { d2[q.x.d.id] = 1; }); var tt = sum(a, function (q) { return q.tutar; }); return [k, Object.keys(d2).length, tt, div(tt, Object.keys(d2).length)]; });
     B.push(ROW(T({ title: 'Kategoriye göre', cols: [col('Kategori'), col('Tutar', 'tl'), col('Pay', 'pct')], rows: kat.map(function (r) { return [r[0], r[1], div(r[1], htop)]; }), tot: ['Toplam', htop, htop ? 1 : null] }),
       T({ title: 'Şehir içi / dışı', cols: [col('Konum'), col('Donör', 'int'), col('Tutar', 'tl'), col('Donör başı', 'tl')], rows: kon, tot: ['Toplam', nd, htop, div(htop, nd)] })));
+    yemekBolumu(c, o, B, htop);
     return { landscape: false, info: [], blocks: B,
       ozet: R.topGer + ' toplama gerçekleşti · ' + R.topPlan + ' planlı · ' + R.durdu + ' süreç durdu · ' + gorev + ' görev · harcama ' + fmt(htop, 'tl0'),
       not: 'Sayılar sağlık kontrolü ve toplama tarihine göre döneme yazılır. Süreç durdu: açıklamasında iptal, erteleme, red, vazgeç ya da hasta ex geçen donörler (toplama sayılarına dahil değildir).' };
   }
 
   /* ---------------- rapor modeli ---------------- */
-  /** c: { state, D, pool, hrows, today } · o: { tur, from, to, ayrinti, filtre } */
+  /** c: { state, D, pool, hrows, yrows, today } · o: { tur, from, to, ayrinti, filtre } */
   RP.build = function (c, o) {
     o = Object.assign({}, o);
     o.tumu = o.from == null || o.to == null;
     var period = RP.donemAd(o.from, o.to);
     if (o.tumu) { var k = kapsam(c); o.from = k.from; o.to = k.to; }
-    var fn = { donor: donorRaporu, harcama: harcamaRaporu, isyuku: isYukuRaporu, ozet: ozetRaporu }[o.tur] || donorRaporu;
+    var fn = { donor: donorRaporu, harcama: harcamaRaporu, isyuku: isYukuRaporu, ozet: ozetRaporu, yemek: yemekRaporu }[o.tur] || donorRaporu;
     var m = fn(c, o);
     m.tur = o.tur; m.title = BASLIK[o.tur] || 'Rapor'; m.period = period;
     m.info = (o.tumu ? [] : [DT.fmt(o.from) + ' – ' + DT.fmt(o.to)]).concat(m.info || []);
