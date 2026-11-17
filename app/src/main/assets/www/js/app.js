@@ -1545,7 +1545,7 @@
         if (i >= bytes.length) {
           busy(false);
           if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); };
-          if (target === 'whatsapp') toast('WhatsApp açılıyor: sohbeti seçip Gönder’e basın');
+          if (target === 'whatsapp') toast(S(tabloAyar().tel) ? 'WhatsApp açılıyor: Gönder’e basın' : 'WhatsApp açılıyor: sohbeti seçip Gönder’e basın');
           NB.fileFinish(target, mime, name.replace(/\.xlsx$/i, ''), text, S(tabloAyar().tel));
           return;
         }
@@ -1572,7 +1572,8 @@
       '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Günlük hatırlatma<div class="s">Seçtiğiniz saatte bildirim gelir; dokununca tablo hazırlanıp WhatsApp açılır.</div></span></label>' +
       '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Günler</label><select class="inp" id="tbGun"><option value="haftaici"' + (t.gun !== 'hergun' ? ' selected' : '') + '>Hafta içi (tatiller hariç)</option><option value="hergun"' + (t.gun === 'hergun' ? ' selected' : '') + '>Her gün</option></select></div>' +
       '<div class="field" style="margin:0;width:132px"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div></div>' +
-      '<div class="hint" style="margin:-2px 2px 10px">WhatsApp açılınca sohbeti seçin (kendinize göndermek için “Siz” / kendi adınız) ve Gönder’e basın.</div>' +
+      '<div class="field" style="margin:0 0 6px"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="05xx xxx xx xx"></div>' +
+      '<div class="hint" style="margin:0 2px 10px">Tablo bu numaranın sohbetinde açılır (kendi numaranız = kendinize mesaj); Gönder’e siz basarsınız. WhatsApp numarayla açmazsa birkaç saniye içinde sohbet listesi açılır, sohbeti seçersiniz.</div>' +
       '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:8px">Kaydet</button>' +
       '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
   }
@@ -1676,7 +1677,7 @@
     tabloWa: function () { tabloGonder('whatsapp'); },
     tabloSave: function () { tabloGonder('save'); },
     tabloKaydet: function () {
-      var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = '', gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
+      var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
       if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return; }
       state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun };
       save(); syncReminder();

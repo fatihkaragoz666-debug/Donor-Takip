@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.view.ViewGroup
@@ -52,6 +53,11 @@ class MainActivity : ComponentActivity() {
     private var pendingSaveBytes: ByteArray? = null
     private var pendingSaveFile: File? = null
     private var bigFile: File? = null
+    // Numarayla açma denemesi: WhatsApp yok sayarsa sohbet listesiyle yeniden açılır
+    private var waFallback: Intent? = null
+    private var waStart = 0L
+    private var waPaused = false
+    private var isActive = false
     private var bigStream: FileOutputStream? = null
     private var sharedUri: Uri? = null
     private var sharedName = "dosya"
@@ -468,7 +474,7 @@ class MainActivity : ComponentActivity() {
                             }
                             createFileLauncher.launch(intent)
                         }
-                        "whatsapp" -> shareToWhatsApp(f, mimeType, text)
+                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
                     }
@@ -550,20 +556,79 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Dosyayı WhatsApp'ta açar; WhatsApp sohbet seçme ekranını gösterir (kendinize mesaj dahil) */
-    private fun shareToWhatsApp(file: File, mimeType: String, text: String) {
+    /**
+     * Dosyayı WhatsApp'ta açar. Numara verilmişse doğrudan o sohbeti açmayı dener ("jid");
+     * WhatsApp bunu sessizce yok sayarsa (hemen geri döner ya da hiç açılmazsa) sohbet listesiyle yeniden açar.
+     */
+    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String) {
         val pkg = installedPackage("com.whatsapp", "com.whatsapp.w4b")
-        val send = fileIntent(file, mimeType, "", text)
+        val plain = fileIntent(file, mimeType, "", text)
         if (pkg == null) {
             toast("WhatsApp bulunamadı; paylaşma ekranı açılıyor")
-            startActivity(Intent.createChooser(send, "Paylaş"))
+            startActivity(Intent.createChooser(plain, "Paylaş"))
             return
         }
-        send.setPackage(pkg)
+        plain.setPackage(pkg)
+        val jid = whatsappJid(phone)
+        if (jid == null) {
+            launchWhatsApp(plain)
+            return
+        }
+        val direct = Intent(plain).putExtra("jid", jid)
+        waFallback = Intent(plain)
+        waStart = SystemClock.elapsedRealtime()
+        waPaused = false
+        try {
+            startActivity(direct)
+        } catch (e: Exception) {
+            waFallback = null
+            launchWhatsApp(plain)
+            return
+        }
+        // WhatsApp hiç öne gelmediyse 3 sn sonra sohbet listesiyle aç
+        webView.postDelayed({
+            val fb = waFallback
+            if (fb != null && !waPaused && isActive) {
+                waFallback = null
+                toast("Numarayla açılamadı; sohbeti seçin")
+                launchWhatsApp(fb)
+            }
+        }, 3000)
+    }
+
+    private fun launchWhatsApp(send: Intent) {
         try {
             startActivity(send)
         } catch (e: ActivityNotFoundException) {
-            startActivity(Intent.createChooser(send.setPackage(null), "Paylaş"))
+            startActivity(Intent.createChooser(Intent(send).setPackage(null), "Paylaş"))
+        }
+    }
+
+    /** 0 5xx…, 5xx…, +90 5xx…, 0090… → 905xxxxxxxxx@s.whatsapp.net */
+    private fun whatsappJid(phone: String): String? {
+        var d = phone.filter { it.isDigit() }
+        if (d.startsWith("00")) d = d.substring(2)
+        if (d.length == 11 && d.startsWith("0")) d = "9$d"
+        if (d.length == 10 && d.startsWith("5")) d = "90$d"
+        return if (d.length >= 11) "$d@s.whatsapp.net" else null
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isActive = false
+        if (waFallback != null) waPaused = true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActive = true
+        val fb = waFallback ?: return
+        if (!waPaused) return
+        waFallback = null
+        // WhatsApp 2,5 sn içinde geri döndüyse numarayı yok saymıştır
+        if (SystemClock.elapsedRealtime() - waStart < 2500) {
+            toast("Numarayla açılamadı; sohbeti seçin")
+            launchWhatsApp(fb)
         }
     }
 
