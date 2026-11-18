@@ -2452,12 +2452,45 @@
       save();
     });
   }
-  function tabloAyar() { return state.settings.tablo || { on: false, saat: '08:30', tel: '', gun: 'haftaici' }; }
+  function tabloAyar() { return state.settings.tablo || { on: false, saat: '08:30', tel: '', gun: 'haftaici', oto: false, sohbet: '' }; }
   function syncReminder() {
-    if (!NB || !NB.setReminder) return;
+    if (!NB || !NB.hatirlatmaKur) return;
     var t = tabloAyar(), m = /^(\d{1,2}):(\d{2})$/.exec(t.saat || '08:30') || [0, 8, 30];
     var tatil = (state.lists.tatiller || []).map(function (x) { return DT.iso(x.tarih); }).join(',');
-    try { NB.setReminder(!!t.on, +m[1], +m[2], tatil, t.gun === 'hergun'); } catch (e) { console.error(e); }
+    try {
+      NB.hatirlatmaKur(JSON.stringify({ on: !!t.on, saat: +m[1], dakika: +m[2], tatil: tatil, hergun: t.gun === 'hergun', oto: !!t.oto, sohbet: S(t.sohbet).trim() }));
+    } catch (e) { console.error(e); }
+  }
+  // Telefonun durumu: bildirim izni, tam saat alarmı, pil kısıtlaması, otomatik gönderme hizmeti, son çalışma
+  function hDurum() {
+    if (!NB || !NB.hatirlatmaDurum) return null;
+    try { return JSON.parse(NB.hatirlatmaDurum()); } catch (e) { return null; }
+  }
+  var GUN_AD = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  function msYazi(ms) {
+    var d = new Date(ms), p2 = function (n) { return ('0' + n).slice(-2); };
+    return p2(d.getDate()) + '.' + p2(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + GUN_AD[d.getDay()] + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+  function tbDurumHtml() {
+    var t = tabloAyar(), d = hDurum();
+    if (!d) return '<div class="hint">Durum bilgisi yalnızca Android uygulamasında görünür.</div>';
+    var satir = function (ok, ad, alt, ne, dugme) {
+      return '<div class="tbd"><span class="ic ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '!') + '</span><div class="l">' + ad + (alt ? '<div class="s">' + alt + '</div>' : '') + '</div>' +
+        (ok || !ne ? '' : '<button class="btn sm" data-act="tbAyar" data-ne="' + ne + '">' + dugme + '</button>') + '</div>';
+    };
+    var html = satir(d.bildirim, 'Bildirim izni', d.bildirim ? '' : 'Kapalıysa hatırlatma görünmez', 'bildirim', 'Aç') +
+      satir(d.tamAlarm, 'Tam saatinde çalışma', d.tamAlarm ? '' : 'İzin yoksa telefon gönderimi geciktirebilir', 'alarm', 'İzin ver') +
+      satir(d.pil, 'Pil kısıtlaması yok', d.pil ? '' : 'Pil tasarrufu uygulamayı uyutup saati kaçırabilir', 'pil', 'Kaldır');
+    if (t.oto) {
+      html += satir(d.erisim, 'Otomatik gönderme hizmeti', d.erisim ? 'Erişilebilirlik › Donör Takip – tablo gönderme: açık' :
+        'Erişilebilirlik › Yüklenen uygulamalar › “Donör Takip – tablo gönderme”yi açın', 'erisim', 'Aç');
+      if (!d.erisim && d.sdk >= 33) html += '<div class="hint" style="margin:2px 2px 8px">Açılmıyorsa ya da “Kısıtlanmış ayar” derse: Uygulama bilgileri › sağ üstte ⋮ › <b>Kısıtlanmış ayarlara izin ver</b>, sonra yeniden “Aç”.</div>' +
+        '<button class="btn sm" data-act="tbAyar" data-ne="uygulama" style="margin:0 0 8px">Uygulama bilgileri</button>';
+    }
+    html += '<div class="calc small" style="margin-top:10px">' +
+      '<div><b>Sonraki:</b> ' + (t.on && d.sonraki ? msYazi(d.sonraki) : 'kapalı') + '</div>' +
+      '<div><b>Son çalışma:</b> ' + (d.son ? msYazi(d.son) + (d.sonSonuc ? ' · ' + h(d.sonSonuc) : '') : 'henüz yok') + '</div></div>';
+    return html;
   }
   function tabloGonder(target) {
     busy(true, 'Güncel tablo hazırlanıyor…');
@@ -2508,22 +2541,46 @@
     if (target === 'open') { var u = URL.createObjectURL(new Blob([bytes], { type: mime })); window.open(u, '_blank'); setTimeout(function () { URL.revokeObjectURL(u); }, 60000); return; }
     emailFile(bytes, name, mime, opt.subject || name, text);
   }
-  window.onNativeAction = function (a) { if (a === 'tabloGonder') tabloGonder('whatsapp'); };
+  window.onNativeAction = function (a) {
+    if (DT.today() !== today) { recompute(); render(true); }
+    if (a === 'tabloGonder') tabloGonder('whatsapp');
+    else if (a === 'otoGonder') tabloGonder('whatsappOto');
+  };
+  window.onNativeResume = function () { var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml(); };
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
+  function tabloAyarKaydet(sessiz) {
+    var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
+    var oto = $('#tbOto').checked, sohbet = $('#tbSohbet').value.replace(/\s+/g, ' ').trim();
+    if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return false; }
+    if (oto && !tel.replace(/\D/g, '') && !sohbet) { toast('Otomatik gönderme için numara ya da sohbet / grup adı yazın'); return false; }
+    state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun, oto: oto, sohbet: sohbet };
+    save(); syncReminder();
+    var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml();
+    if (sessiz) return true;
+    if (on && !state.settings.sablon) toast('Kuruldu. Excel şablonunu da seçin.');
+    else toast(on ? (oto ? 'Otomatik gönderim kuruldu: ' : 'Hatırlatma kuruldu: ') + (gun === 'hergun' ? 'her gün ' : 'hafta içi ') + saat : 'Günlük gönderim kapalı');
+    if (on && !NB) toast('Günlük gönderim yalnızca Android uygulamasında çalışır');
+    var d = hDurum();
+    if (on && oto && d && !d.erisim) setTimeout(function () { toast('Otomatik gönderme hizmetini açın: aşağıdaki “Aç” düğmesi'); }, 1600);
+    return true;
+  }
   function tabloCard() {
     var t = tabloAyar(), sb = state.settings.sablon;
     var mb = function (n) { return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
     return '<div class="sec-title">WhatsApp’ta güncel tablo</div><div class="card pad">' +
-      '<div class="small muted" style="margin-bottom:10px">Excel tablonuzun aynısı (bütün sayfalar, formüller, resim) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp’ta gönderime açılır. Gönder’e siz basarsınız.</div>' +
+      '<div class="small muted" style="margin-bottom:10px">Excel tablonuzun aynısı (bütün sayfalar, formüller, resim) uygulamadaki güncel bilgilerle hazırlanır ve WhatsApp’ta gönderilir.</div>' +
       '<div class="calc small" style="margin-bottom:10px">' + (sb ? '<b>Excel şablonu:</b> ' + h(sb.ad) + (sb.boyut ? ' · ' + mb(sb.boyut) : '') + (sb.tarih ? ' · ' + (function (dt) { return ('0' + dt.getDate()).slice(-2) + '.' + ('0' + (dt.getMonth() + 1)).slice(-2) + '.' + dt.getFullYear(); })(new Date(sb.tarih)) : '') : '<b>Excel şablonu yok.</b> Excel’den içe aktardığınızda kendiliğinden saklanır; ya da aşağıdan bir kez seçin.') + '</div>' +
       '<button class="btn block" data-act="tabloSablon" style="margin-bottom:12px">' + I.up + (sb ? 'Excel şablonunu değiştir' : 'Excel şablonunu seç') + '</button>' +
-      '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Günlük hatırlatma<div class="s">Seçtiğiniz saatte bildirim gelir; dokununca tablo hazırlanıp WhatsApp açılır.</div></span></label>' +
+      '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Her gün seçilen saatte<div class="s">Saat gelince tablo hazırlanır ve WhatsApp açılır.</div></span></label>' +
       '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Günler</label><select class="inp" id="tbGun"><option value="haftaici"' + (t.gun !== 'hergun' ? ' selected' : '') + '>Hafta içi (tatiller hariç)</option><option value="hergun"' + (t.gun === 'hergun' ? ' selected' : '') + '>Her gün</option></select></div>' +
       '<div class="field" style="margin:0;width:132px"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div></div>' +
-      '<div class="row" style="gap:8px;margin:0 0 10px">' +
-      '<div class="field grow" style="margin:0"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="isteğe bağlı · 05xx…"></div></div>' +
-      '<div class="hint" style="margin:-4px 2px 10px">Numara yazarsanız WhatsApp doğrudan o sohbette açılabilir (kendi numaranız = kendinize mesaj). Açılmazsa sohbeti siz seçersiniz.</div>' +
-      '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:8px">Kaydet</button>' +
+      '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOto"' + (t.oto ? ' checked' : '') + '><span>Otomatik gönder<div class="s">Gönder’e uygulama basar. Telefon açıksa saatinde, kilitliyse kilidi açınca gönderilir. Kapalıysa bildirim gelir; dokununca WhatsApp açılır, Gönder’e siz basarsınız.</div></span></label>' +
+      '<div class="field" style="margin:6px 0 8px"><label>WhatsApp numarası (kişiye)</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="05xx… · kendi numaranız = kendinize"></div>' +
+      '<div class="field" style="margin:0 0 4px"><label>ya da sohbet / grup adı</label><input class="inp" id="tbSohbet" value="' + h(t.sohbet || '') + '" placeholder="WhatsApp’taki adıyla, birebir"></div>' +
+      '<div class="hint" style="margin:0 2px 10px">Numara yazarsanız WhatsApp doğrudan o kişinin sohbetinde açılır. Gruba göndermek için numarayı boş bırakıp grubun adını WhatsApp’ta göründüğü gibi yazın; grup son sohbetlerde olmalı.</div>' +
+      '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:10px">Kaydet</button>' +
+      '<div id="tbDurum">' + tbDurumHtml() + '</div>' +
+      (NB && NB.hatirlatmaDene ? '<button class="btn block" data-act="tabloDene" style="margin:10px 0 8px">Dene: 1 dakika sonra çalıştır</button>' : '') +
       '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
   }
   function replaceState(s, msg) {
@@ -2677,15 +2734,15 @@
       setTimeout(function () { sendBigFile(r.bytes, r.name, r.mime, t, metin, { label: 'Rapor', subject: konu, phone: '' }); }, 30);
     },
     tabloSave: function () { tabloGonder('save'); },
-    tabloKaydet: function () {
-      var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
-      if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return; }
-      state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun };
-      save(); syncReminder();
-      if (on && !state.settings.sablon) toast('Hatırlatma kuruldu. Excel şablonunu da seçin.');
-      else toast(on ? 'Hatırlatma kuruldu: ' + (gun === 'hergun' ? 'her gün ' : 'hafta içi ') + saat : 'Hatırlatma kapalı');
-      if (on && !NB) toast('Hatırlatma yalnızca Android uygulamasında çalışır');
+    tabloKaydet: function () { tabloAyarKaydet(false); },
+    tabloDene: function () {
+      if (!tabloAyarKaydet(true)) return;
+      NB.hatirlatmaDene();
+      var t = tabloAyar();
+      toast(t.oto ? 'Deneme 1 dakika sonra: tablo gerçekten gönderilir. Telefon kilitliyse kilidi açınca.' : 'Deneme 1 dakika sonra: bildirim gelecek');
+      setTimeout(window.onNativeResume, 300);
     },
+    tbAyar: function (el) { if (NB && NB.ayarAc) NB.ayarAc(el.dataset.ne); },
     mailDurum: function () { mailPasteSheet(); },
     durumNew: function (el) { durumSheet({ id: el.dataset.id }); },
     importJson: function () { pickFile('json'); },

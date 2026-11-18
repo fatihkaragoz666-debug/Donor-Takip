@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.util.Base64
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -236,6 +237,7 @@ class MainActivity : ComponentActivity() {
         val eylem = intent.getStringExtra(Hatirlatma.EXTRA_EYLEM)
         if (eylem != null) {
             intent.removeExtra(Hatirlatma.EXTRA_EYLEM)
+            if (eylem == "otoGonder") Hatirlatma.bildirimiKaldir(this)
             pendingJs = "window.onNativeAction && window.onNativeAction(${JSONObject.quote(eylem)})"
             deliverShared()
             return
@@ -310,6 +312,12 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             false
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Ayarlar'dan (bildirim, pil, erişilebilirlik) dönünce durum satırları yenilenir
+        if (pageReady) webView.evaluateJavascript("window.onNativeResume && window.onNativeResume()", null)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -446,7 +454,7 @@ class MainActivity : ComponentActivity() {
             false
         }
 
-        /** target: whatsapp | email | save | share | open */
+        /** target: whatsapp | whatsappOto (Gönder'e OtoGonder basar) | email | save | share | open */
         @JavascriptInterface
         fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String) {
             try {
@@ -469,6 +477,13 @@ class MainActivity : ComponentActivity() {
                             createFileLauncher.launch(intent)
                         }
                         "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
+                        "whatsappOto" -> {
+                            if (!OtoGonder.kur(Hatirlatma.sohbet(this@MainActivity))) {
+                                Hatirlatma.sonuc(this@MainActivity, "Otomatik gönderme hizmeti kapalı; Gönder’e siz basın")
+                                toast("Otomatik gönderme hizmeti kapalı: Gönder’e siz basın")
+                            }
+                            shareToWhatsApp(f, mimeType, text, phone)
+                        }
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
                         "open" -> openFile(f, mimeType)
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
@@ -479,15 +494,32 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Günlük hatırlatma; tatiller "yyyy-MM-dd,…"; everyDay = hafta sonu ve tatiller dahil */
+        /** Günlük gönderim: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun, oto, sohbet} */
         @JavascriptInterface
-        fun setReminder(on: Boolean, hour: Int, minute: Int, holidays: String, everyDay: Boolean) {
-            Hatirlatma.save(this@MainActivity, on, hour, minute, holidays, everyDay)
+        fun hatirlatmaKur(json: String) {
+            Hatirlatma.save(this@MainActivity, json)
+            val on = try { JSONObject(json).optBoolean("on", false) } catch (e: Exception) { false }
             if (on && Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) {
                 runOnUiThread { notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
             }
+        }
+
+        /** Bildirim, tam saat alarmı, pil kısıtlaması, erişilebilirlik hizmeti, son çalışma (JSON) */
+        @JavascriptInterface
+        fun hatirlatmaDurum(): String = Hatirlatma.durum(this@MainActivity)
+
+        /** Bir dakika sonra bir kez dener */
+        @JavascriptInterface
+        fun hatirlatmaDene() {
+            Hatirlatma.dene(this@MainActivity)
+        }
+
+        /** Telefon ayarları: bildirim | alarm | pil | erisim | uygulama */
+        @JavascriptInterface
+        fun ayarAc(ne: String) {
+            runOnUiThread { telefonAyari(ne) }
         }
 
         @JavascriptInterface
@@ -532,6 +564,27 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun appVersion(): String = BuildConfig.VERSION_NAME
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun telefonAyari(ne: String) {
+        val paket = Uri.parse("package:$packageName")
+        val intent = when (ne) {
+            "bildirim" -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            "alarm" -> if (Build.VERSION.SDK_INT >= 31) Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, paket) else null
+            "pil" -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, paket)
+            "erisim" -> Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            else -> null
+        } ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, paket)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, paket))
+            } catch (e2: Exception) {
+                toast("Ayarlar açılamadı")
+            }
+        }
     }
 
     private fun safeName(name: String): String =

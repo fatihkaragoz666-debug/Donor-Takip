@@ -80,10 +80,21 @@ görev kayıtları) ayrı sayfalardadır. Hazır dosya açılır, telefona kayde
 
 ## WhatsApp’ta güncel tablo
 
-Excel’den içe aktarılan dosya telefonda şablon olarak saklanır (ya da Ayarlar’dan bir kez seçilir). “Şimdi gönder” ya da hafta içi
-hatırlatma bildirimi, bu dosyanın aynısını (bütün sayfalar, formüller, resim) uygulamadaki güncel verilerle hazırlar ve WhatsApp’ı açar.
+Excel’den içe aktarılan dosya telefonda şablon olarak saklanır (ya da Ayarlar’dan bir kez seçilir). “Şimdi gönder” ya da seçilen
+saatteki günlük gönderim, bu dosyanın aynısını (bütün sayfalar, formüller, resim) uygulamadaki güncel verilerle hazırlar ve WhatsApp’ı açar.
 Güncellenen alanlar: Donör Kayıt, bu haftanın personel seçimleri, ek görevler, ek konsültasyon, ajanda, görev ve taşıma kayıtları,
 listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller yeniden hesaplanır.
+
+Ayarlar › WhatsApp’ta güncel tablo:
+- **Her gün seçilen saatte** (hafta içi tatiller hariç ya da her gün): tam saatinde çalışan alarm (`Hatirlatma.kt`).
+- **Otomatik gönder**: “Donör Takip – tablo gönderme” erişilebilirlik hizmeti (`OtoGonder.kt`) açıksa, telefon açıksa saatinde,
+  kilitliyse kilit açılınca uygulama tabloyu hazırlar, WhatsApp’ı açar ve Gönder’e kendisi basar. Hedef: numara (kişinin sohbeti)
+  ya da WhatsApp’taki sohbet / grup adı (son sohbetlerde olmalı). Hizmet yalnızca WhatsApp ekranlarında, gönderimden sonraki en çok
+  90 saniye çalışır; her ekranda Gönder’e en çok bir kez basar, sohbet ekranındaki yazma kutusuna dokunmaz. Sonuç bildirimle bildirilir.
+  Android 13+’ta tarayıcıdan kurulan uygulamalarda: Uygulama bilgileri › ⋮ › Kısıtlanmış ayarlara izin ver.
+- Otomatik gönder kapalıysa bildirim gelir; dokununca WhatsApp açılır, Gönder’e kullanıcı basar.
+- Durum satırları: bildirim izni, tam saat izni, pil kısıtlaması, otomatik gönderme hizmeti; sonraki ve son çalışma.
+  “Dene: 1 dakika sonra çalıştır” bütün akışı bir kez çalıştırır.
 
 ## Dosya yapısı
 
@@ -98,6 +109,7 @@ listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller 
   - `js/defaults.js` — varsayılan listeler (Excel'deki Listeler sayfasından)
 - `app/src/main/java/.../MainActivity.kt` — WebView kabuğu: dosya seçme/kaydetme, WhatsApp'ta
   paylaşma, panoya kopyalama, telefon araması, geri tuşu
+- `Hatirlatma.kt` — günlük gönderim alarmı ve bildirimleri; `OtoGonder.kt` — WhatsApp’ta Gönder’e basan erişilebilirlik hizmeti
 - Uygulama adı, paket adı ve sürüm: `app/build.gradle.kts` (`applicationId`, `versionName`)
 
 ## Excel ile farklar

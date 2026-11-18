@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Donör Takip</string>
+    <string name="oto_ad">Donör Takip – tablo gönderme</string>
+    <string name="oto_ozet">Güncel tabloyu ayarlanan saatte WhatsApp’ta kendiliğinden gönderir</string>
+    <string name="oto_aciklama">Donör Takip, ayarladığınız saatte güncel tabloyu WhatsApp’ta açtığında Gönder düğmesine sizin yerinize basar (numara yoksa ayarlardaki sohbet ya da grup adını seçer). Yalnızca WhatsApp ekranlarında ve yalnızca bu gönderim sırasında, en çok 90 saniye çalışır. Ekrandaki hiçbir bilgi okunup saklanmaz, internete gönderilmez. Telefon kilitliyken saat gelirse, gönderim kilidi açtığınızda yapılır.</string>
 </resources>

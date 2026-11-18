@@ -249,7 +249,7 @@ table.t tr.tot td { font-weight: 700; background: #fafbfc; }
 #sheet .sub { color: var(--ink-2); font-size: 13.5px; margin-bottom: 12px; white-space: pre-line; }
 .opt { display: flex; align-items: center; gap: 12px; padding: 12px 6px; border-bottom: 1px solid var(--line); font-weight: 550; }
 .opt:last-child { border-bottom: 0; }
-.opt input { width: 20px; height: 20px; accent-color: var(--pri); }
+.opt input { flex: none; width: 20px; height: 20px; accent-color: var(--pri); }
 .opt .s { font-weight: 400; color: var(--ink-3); font-size: 13px; }
 .popts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .popt { border: 1px solid var(--line-2); border-radius: 12px; padding: 11px 12px; font-weight: 600; font-size: 14.5px; background: #fff; min-height: 46px; display: flex; align-items: center; gap: 6px; }
@@ -419,3 +419,12 @@ details.kl div { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color
 .esbol .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .esbol .v { font-size: 12px; color: var(--ink-2); font-weight: 600; }
 .eskon { margin-bottom: 10px; }
+
+/* WhatsApp'ta güncel tablo: telefon durumu */
+.tbd { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.tbd .ic { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+.tbd .ic.ok { background: #E3F4EA; color: #1F8A4C; }
+.tbd .ic.no { background: var(--red-bg); color: var(--red); }
+.tbd .l { flex: 1; font-size: 14px; font-weight: 550; min-width: 0; }
+.tbd .l .s { font-size: 12px; font-weight: 400; color: var(--ink-3); margin-top: 1px; }
+.tbd .btn.sm { flex: none; }
