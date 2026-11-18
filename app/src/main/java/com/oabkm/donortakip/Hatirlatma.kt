@@ -2,7 +2,6 @@ package com.oabkm.donortakip
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -18,11 +17,9 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * Seçilen saatte (hafta içi, resmi tatiller hariç; ya da her gün) güncel tabloyu WhatsApp'ta gönderme.
- *
- * Otomatik gönderme açık ve "Donör Takip – tablo gönderme" erişilebilirlik hizmeti etkinse: telefon açıksa hemen,
- * kilitliyse kilit açılınca uygulama açılır, tabloyu hazırlar, WhatsApp'ı açar ve Gönder'e kendisi basar (OtoGonder).
- * Değilse bildirim gelir; dokununca tablo hazırlanıp WhatsApp açılır, mesajı kullanıcı gönderir.
+ * Seçilen saatte (hafta içi, resmi tatiller hariç; ya da her gün) "güncel tabloyu WhatsApp'ta gönder" bildirimi.
+ * Tam saatinde çalışan alarm kullanılır. Bildirime dokununca uygulama açılır, tabloyu hazırlar ve WhatsApp'ı açar;
+ * Gönder'e kullanıcı basar (Android, WhatsApp'ta başka bir uygulamanın göndermesine izin vermez).
  */
 object Hatirlatma {
     const val EXTRA_EYLEM = "donortakip.eylem"
@@ -32,11 +29,10 @@ object Hatirlatma {
     const val ACTION_ALARM = "com.oabkm.donortakip.HATIRLATMA"
     const val ACTION_DENEME = "com.oabkm.donortakip.HATIRLATMA_DENEME"
     private const val NOTIF_ID = 1001
-    private const val NOTIF_SONUC = 1002
 
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** JS'ten: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun, oto, sohbet} */
+    /** JS'ten: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun} */
     fun save(c: Context, json: String) {
         val o = try { JSONObject(json) } catch (e: Exception) { JSONObject() }
         prefs(c).edit()
@@ -45,13 +41,9 @@ object Hatirlatma {
             .putInt("saat", o.optInt("saat", 8).coerceIn(0, 23))
             .putInt("dakika", o.optInt("dakika", 30).coerceIn(0, 59))
             .putString("tatil", o.optString("tatil", ""))
-            .putBoolean("oto", o.optBoolean("oto", false))
-            .putString("sohbet", o.optString("sohbet", "").trim())
             .apply()
         schedule(c)
     }
-
-    fun sohbet(c: Context): String = prefs(c).getString("sohbet", "") ?: ""
 
     private fun alarmIntent(c: Context, action: String, code: Int): PendingIntent = PendingIntent.getBroadcast(
         c, code,
@@ -133,71 +125,8 @@ object Hatirlatma {
     }
 
     private fun calistir(c: Context) {
-        val p = prefs(c)
-        p.edit().putLong("son", System.currentTimeMillis()).apply()
-        if (p.getBoolean("oto", false) && OtoGonder.etkin(c)) {
-            p.edit().putString("bekleyen", gunAnahtari(Calendar.getInstance())).apply()
-            if (kilitAcik(c)) {
-                otoBaslat(c)
-            } else {
-                sonuc(c, "Kilit açılınca gönderilecek")
-                bildir(c, "Güncel donör tablosu", "Telefonun kilidini açınca WhatsApp’ta kendiliğinden gönderilecek", "tabloGonder")
-            }
-        } else {
-            sonuc(c, if (p.getBoolean("oto", false)) "Bildirim gösterildi (otomatik gönderme hizmeti kapalı)" else "Bildirim gösterildi")
-            bildir(c, "Güncel donör tablosu", "WhatsApp’ta göndermek için dokunun", "tabloGonder")
-        }
-    }
-
-    private fun kilitAcik(c: Context): Boolean {
-        val pm = c.getSystemService(PowerManager::class.java) ?: return false
-        val km = c.getSystemService(KeyguardManager::class.java) ?: return false
-        return pm.isInteractive && !km.isKeyguardLocked
-    }
-
-    /** Kilit açıldı: bugün için bekleyen otomatik gönderim varsa başlatır */
-    fun bekleyeniBaslat(c: Context) {
-        val p = prefs(c)
-        if (p.getString("bekleyen", "") != gunAnahtari(Calendar.getInstance())) return
-        if (!kilitAcik(c)) return
-        otoBaslat(c)
-    }
-
-    private fun otoBaslat(c: Context) {
-        prefs(c).edit().remove("bekleyen").apply()
-        // Uygulama açılamazsa diye bildirim de bırakılır; uygulama açılınca kaldırılır.
-        bildir(c, "Güncel donör tablosu gönderiliyor", "Açılmazsa dokunun", "otoGonder")
-        val i = Intent(c, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN)
-            .putExtra(EXTRA_EYLEM, "otoGonder")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        try {
-            (OtoGonder.servis ?: c).startActivity(i)
-            sonuc(c, "Otomatik gönderim başladı")
-        } catch (e: Exception) {
-            sonuc(c, "Uygulama açılamadı; bildirim gösterildi")
-        }
-    }
-
-    fun sonuc(c: Context, metin: String) {
-        prefs(c).edit().putString("sonSonuc", metin).apply()
-    }
-
-    /** Otomatik gönderimin sonucu (OtoGonder) */
-    fun sonucBildir(c: Context, ok: Boolean) {
-        if (ok) {
-            sonuc(c, "WhatsApp’ta gönderildi")
-            bildir(c, "Güncel tablo gönderildi", "WhatsApp’ta gönderildi · " + saatYazi(System.currentTimeMillis()), null, NOTIF_SONUC, true)
-        } else {
-            sonuc(c, "Otomatik gönderilemedi; WhatsApp’ta Gönder’e siz basın")
-            bildir(c, "Tablo otomatik gönderilemedi", "WhatsApp’ta Gönder’e basın ya da yeniden göndermek için dokunun", "tabloGonder", NOTIF_SONUC)
-        }
-    }
-
-    private fun saatYazi(t: Long): String {
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = t
-        return String.format(Locale.ROOT, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+        prefs(c).edit().putLong("son", System.currentTimeMillis()).putString("sonSonuc", "Bildirim gösterildi").apply()
+        bildir(c, "Güncel donör tablosu", "WhatsApp’ta göndermek için dokunun", "tabloGonder")
     }
 
     fun bildirimiKaldir(c: Context) {
@@ -213,7 +142,7 @@ object Hatirlatma {
         )
     }
 
-    private fun bildir(c: Context, baslik: String, metin: String, eylem: String?, id: Int = NOTIF_ID, sessiz: Boolean = false) {
+    private fun bildir(c: Context, baslik: String, metin: String, eylem: String?, id: Int = NOTIF_ID) {
         if (Build.VERSION.SDK_INT >= 33 &&
             c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
@@ -231,7 +160,6 @@ object Hatirlatma {
             .setStyle(NotificationCompat.BigTextStyle().bigText(metin))
             .setContentIntent(pi)
             .setAutoCancel(true)
-            .setSilent(sessiz)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .build()
@@ -255,7 +183,6 @@ object Hatirlatma {
             .put("bildirim", bildirim)
             .put("tamAlarm", tamAlarm)
             .put("pil", pil)
-            .put("erisim", OtoGonder.etkin(c))
             .put("sonraki", p.getLong("sonraki", 0L))
             .put("son", p.getLong("son", 0L))
             .put("sonSonuc", p.getString("sonSonuc", "") ?: "")

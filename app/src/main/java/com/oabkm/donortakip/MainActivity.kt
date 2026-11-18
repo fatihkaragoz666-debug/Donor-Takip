@@ -237,7 +237,6 @@ class MainActivity : ComponentActivity() {
         val eylem = intent.getStringExtra(Hatirlatma.EXTRA_EYLEM)
         if (eylem != null) {
             intent.removeExtra(Hatirlatma.EXTRA_EYLEM)
-            if (eylem == "otoGonder") Hatirlatma.bildirimiKaldir(this)
             pendingJs = "window.onNativeAction && window.onNativeAction(${JSONObject.quote(eylem)})"
             deliverShared()
             return
@@ -316,7 +315,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Ayarlar'dan (bildirim, pil, erişilebilirlik) dönünce durum satırları yenilenir
+        // Ayarlar'dan (bildirim, alarm, pil) dönünce durum satırları yenilenir
         if (pageReady) webView.evaluateJavascript("window.onNativeResume && window.onNativeResume()", null)
     }
 
@@ -454,7 +453,7 @@ class MainActivity : ComponentActivity() {
             false
         }
 
-        /** target: whatsapp | whatsappOto (Gönder'e OtoGonder basar) | email | save | share | open */
+        /** target: whatsapp | email | save | share | open */
         @JavascriptInterface
         fun fileFinish(target: String, mimeType: String, subject: String, text: String, phone: String) {
             try {
@@ -477,13 +476,6 @@ class MainActivity : ComponentActivity() {
                             createFileLauncher.launch(intent)
                         }
                         "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
-                        "whatsappOto" -> {
-                            if (!OtoGonder.kur(Hatirlatma.sohbet(this@MainActivity))) {
-                                Hatirlatma.sonuc(this@MainActivity, "Otomatik gönderme hizmeti kapalı; Gönder’e siz basın")
-                                toast("Otomatik gönderme hizmeti kapalı: Gönder’e siz basın")
-                            }
-                            shareToWhatsApp(f, mimeType, text, phone)
-                        }
                         "email" -> startShare(fileIntent(f, mimeType, subject, text))
                         "open" -> openFile(f, mimeType)
                         else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
@@ -494,7 +486,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Günlük gönderim: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun, oto, sohbet} */
+        /** Günlük hatırlatma: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun} */
         @JavascriptInterface
         fun hatirlatmaKur(json: String) {
             Hatirlatma.save(this@MainActivity, json)
@@ -506,7 +498,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Bildirim, tam saat alarmı, pil kısıtlaması, erişilebilirlik hizmeti, son çalışma (JSON) */
+        /** Bildirim, tam saat alarmı, pil kısıtlaması, son çalışma (JSON) */
         @JavascriptInterface
         fun hatirlatmaDurum(): String = Hatirlatma.durum(this@MainActivity)
 
@@ -516,7 +508,7 @@ class MainActivity : ComponentActivity() {
             Hatirlatma.dene(this@MainActivity)
         }
 
-        /** Telefon ayarları: bildirim | alarm | pil | erisim | uygulama */
+        /** Telefon ayarları: bildirim | alarm | pil | uygulama */
         @JavascriptInterface
         fun ayarAc(ne: String) {
             runOnUiThread { telefonAyari(ne) }
@@ -573,7 +565,6 @@ class MainActivity : ComponentActivity() {
             "bildirim" -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
             "alarm" -> if (Build.VERSION.SDK_INT >= 31) Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, paket) else null
             "pil" -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, paket)
-            "erisim" -> Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             else -> null
         } ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, paket)
         try {
