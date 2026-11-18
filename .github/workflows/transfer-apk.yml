@@ -1,0 +1,49 @@
+name: Antalya Transfer APK
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'transfer/**'
+      - '.github/workflows/transfer-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu al
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: APK derle
+        run: |
+          chmod +x gradlew
+          ./gradlew -p transfer assembleRelease --no-daemon --stacktrace
+          cp transfer/app/build/outputs/apk/release/app-release.apk "AntalyaTransfer-1.0.${GITHUB_RUN_NUMBER}.apk"
+
+      - name: APK'yı derleme sonucuna ekle
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntalyaTransfer-APK
+          path: AntalyaTransfer-*.apk
+
+      - name: Sürüm (Release) oluştur
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: transfer-v1.0.${{ github.run_number }}
+          name: Antalya Transfer 1.0.${{ github.run_number }}
+          body: Antalya Transfer 2026 takip uygulaması. Telefona indirip kurun; önceki sürümün üzerine kurulur, kayıtlar korunur. Donör Takip'ten ayrı bir uygulamadır.
+          make_latest: false
+          files: AntalyaTransfer-*.apk

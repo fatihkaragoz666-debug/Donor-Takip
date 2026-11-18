@@ -3,6 +3,10 @@ name: APK oluştur
 on:
   push:
     branches: [ main, master ]
+    # Antalya Transfer ayrı derlenir (transfer-apk.yml); onun dosyaları Donör Takip'i yeniden derletmez.
+    paths-ignore:
+      - 'transfer/**'
+      - '.github/workflows/transfer-apk.yml'
   workflow_dispatch:
 
 permissions:
