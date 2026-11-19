@@ -272,6 +272,7 @@ pre.copy{white-space:pre-wrap;background:var(--surface);border:1px solid var(--l
 <input type="file" id="fileIn" accept=".xlsx,.json" hidden>
 
 <script src="js/xlsx-io.js"></script>
+<script src="js/okuyucu.js"></script>
 <script src="js/yerel.js"></script>
 <script>
 'use strict';
@@ -949,18 +950,33 @@ addpax(s){
 },
 text(s){return head(esc(s.title||'Metin'))+`<div class="sheet-body"><p class="small muted" style="margin:0">Otomatik kopyalama bu görünümde engellendi. Metni seçip kopyalayın.</p><textarea id="cptxt" class="inp" style="min-height:300px;font-size:13px" readonly>${esc(s.text)}</textarea><button class="btn" data-a="selall">Tümünü seç</button></div>`;},
 imp(s){
-  const ch=s.ch;const groups=[['sefer','Yeni araç seferleri'],['yeni','Yeni kişiler'],['degisen','Değişen kayıtlar'],['yok','Yeni listede bulunmayanlar']];
+  const ch=s.ch;const groups=[['seferdegisti','Değişen araç seferleri'],['sefer','Yeni araç seferleri'],['seferkalkti','Excel’den kaldırılan seferler (iptal edilir)'],['yeni','Yeni kişiler'],['degisen','Değişen kayıtlar'],['bacakkalkti','Listeden çıkarılan transferler (iptal edilir)'],['yok','Yeni listede bulunmayan kişiler (katılmayacak yapılır)']];
   let h=head('Excel güncellemesi',esc(s.dosya))+`<div class="sheet-body">`;
-  if(!S.people.size){const nk=ch.filter(c=>c.kind==='yeni').length,nt=ch.filter(c=>c.kind==='sefer').length;h+=`<div class="panel"><h3>İlk aktarım</h3><p style="margin:0"><b>${nk} kişi</b> ve <b>${nt} araç seferi</b> eklenecek. Listeleri açıp kontrol edebilirsiniz.</p></div>`;}
-  h+=`<div class="note info">${ic('info')} ${s.sheets.map(x=>`${esc(x.name)}: ${x.cnt} kişi`).join(' · ')}</div>`;
+  h+=`<div class="panel"><h3>Dosya tarandı</h3><div class="small">${s.parsed.satir} satır okundu · ${s.parsed.people.size} kişi · ${s.parsed.trips.length} araç işareti</div><div class="small muted">${s.sheets.map(x=>`${esc(x.name)}: ${x.cnt} kişi${x.hidden?' (gizli sayfa)':''}`).join(' · ')}</div><div class="small muted">Uygulamada şu an ${S.people.size} kişi ve ${[...S.trips.values()].filter(t=>t.durum!=='iptal').length} sefer var.</div></div>`;
+  if(!S.people.size){const nk=ch.filter(c=>c.kind==='yeni').length,nt=ch.filter(c=>c.kind==='sefer').length;h+=`<div class="panel"><h3>İlk aktarım</h3><p style="margin:0"><b>${nk} kişi</b> ve <b>${nt} araç seferi</b> eklenecek.</p></div>`;}
   for(const w of s.warnings)h+=`<div class="note warn">${ic('alert')} ${esc(w)}</div>`;
-  if(!ch.length)h+=`<div class="panel"><h3 style="color:var(--ok)">${ic('check')} Fark yok</h3><p class="muted" style="margin:0">Dosyadaki bilgiler mevcut kayıtlarla aynı.</p></div>`;
+  if(!ch.length)h+=`<div class="panel"><h3 style="color:var(--ok)">${ic('check')} Fark yok</h3><p class="muted" style="margin:0">Dosyadaki kişiler, saatler, misafirler, notlar ve araç seferleri uygulamadakiyle aynı.</p></div>`;
   for(const [k,t] of groups){
     const xs=ch.map((c,i)=>({c,i})).filter(o=>o.c.kind===k);if(!xs.length)continue;
-    h+=`<details class="card" ${xs.length>12?'':'open'}><summary class="ihead ${k==='yok'?'warn':''}" style="cursor:pointer">${esc(t)} <span class="chip" style="margin-left:auto">${xs.length}</span>${ic('down')}</summary>${xs.map(({c,i})=>`<label class="check"><input type="checkbox" data-ci="${i}" ${c.checked?'checked':''}><span><b>${esc(c.text)}</b><br><span class="small muted">${esc(c.sub)}</span></span><span></span></label>`).join('')}</details>`;
+    const warnG=k==='yok'||k==='bacakkalkti'||k==='seferkalkti';
+    h+=`<details class="card" ${xs.length>12?'':'open'}><summary class="ihead ${warnG?'warn':''}" style="cursor:pointer">${esc(t)} <span class="chip ${warnG?'warn':''}" style="margin-left:auto">${xs.length}</span>${ic('down')}</summary>${xs.map(({c,i})=>`<label class="check"><input type="checkbox" data-ci="${i}" ${c.checked?'checked':''}><span><b>${esc(c.text)}</b><br><span class="small muted">${esc(c.sub)}</span></span><span></span></label>`).join('')}</details>`;
   }
-  h+=`<p class="small muted" style="margin:0">Durumlar (karşılandı, bırakıldı vb.) ve araç atamaları korunur. Saat değişen kişilerin araç uygunluğu Kontrol sekmesinde gösterilir.</p></div>`;
+  h+=supheliHtml(s.supheli,false);
+  h+=`<p class="small muted" style="margin:0">İşaretlediğiniz durumlar (karşılandı, bırakıldı vb.), plaka ve şoför bilgileri korunur. Saati değişen kişi eski aracına artık uymuyorsa o saatteki araca alınır, araç yoksa “Araç atanmamış” listesine düşer. Uygulamadan sonra dosya yeniden karşılaştırılır.</p></div>`;
   if(ch.length)h+=`<div class="sheet-foot"><button class="btn" data-a="close">Vazgeç</button><button class="btn primary" data-a="applyimp">Seçilenleri uygula</button></div>`;
+  return h;
+},
+impres(s){
+  const lab={sefer:'yeni sefer',seferdegisti:'sefer değişti',seferkalkti:'sefer iptal',yeni:'yeni kişi',degisen:'kişi güncellendi',bacakkalkti:'transfer iptal',yok:'katılmayacak yapıldı'};
+  let h=head('Güncelleme tamamlandı',esc(s.dosya))+'<div class="sheet-body">';
+  h+=`<div class="panel"><h3 style="color:var(--ok)">${ic('check')} ${s.n} değişiklik uygulandı</h3><div class="small">${Object.entries(s.cnt).map(([k,v])=>`${v} ${lab[k]||k}`).join(' · ')||'Değişiklik seçilmedi'}${s.moved?` · ${s.moved} kişinin aracı güncellendi`:''}</div></div>`;
+  h+=s.kalan.length?`<div class="panel"><h3 style="color:var(--warn)">${ic('alert')} Dosyayla kalan fark: ${s.kalan.length}</h3><p class="small muted" style="margin:0">İşaretini kaldırdığınız değişiklikler. Uygulamak isterseniz Excel’i yeniden seçin.</p><div class="small">${s.kalan.slice(0,40).map(c=>`• <b>${esc(c.text)}</b> — ${esc(c.sub)}`).join('<br>')}</div></div>`
+    :`<div class="panel"><h3 style="color:var(--ok)">${ic('check')} Doğrulandı</h3><p style="margin:0">Dosya uygulamayla yeniden karşılaştırıldı: <b>fark kalmadı</b>. Excel’deki kişiler, saatler, misafirler, notlar ve araç seferleri uygulamada.</p></div>`;
+  const kap=(S.issues||[]).filter(i=>i.type==='kapasite'||i.type==='bos');
+  if(kap.length)h+=`<div class="panel" style="padding:0;overflow:hidden"><div style="padding:12px 14px 6px"><h3 style="color:var(--bad);margin:0">${ic('alert')} Araç kontrolü gerekiyor: ${kap.length}</h3><p class="small muted" style="margin:4px 0 0">Kapasitesi aşılan veya boş kalan araçlar. Dokunup düzeltin.</p></div>${kap.map(i=>`<button class="iss" data-a="issue" data-rk="${i.ref.k}" data-rid="${esc(i.ref.id||'')}" data-rd="" data-ry="" data-rs="" data-rt=""><span class="small"><b>${esc(i.title)}</b> · ${esc(i.sub)}</span>${ic('chev')}</button>`).join('')}</div>`;
+  if(s.aracsiz)h+=`<button class="cta" data-a="sugg">${ic('wand')}<span><b>${s.aracsiz} kişi henüz araca atanmamış</b><span class="small">Önerilen araçları gözden geçirip atayın</span></span>${ic('chev')}</button>`;
+  h+=supheliHtml(s.supheli,true);
+  h+=`</div><div class="sheet-foot"><button class="btn" data-a="close">Kapat</button><button class="btn primary" data-a="gokontrol">Kontrol’e git</button></div>`;
   return h;
 }
 };
@@ -1082,6 +1098,7 @@ const ACT={
   backup:()=>backupJson(),
   import:()=>{$('#fileIn').value='';$('#fileIn').click();},
   restore:()=>{$('#fileIn').value='';$('#fileIn').click();},
+  gokontrol:()=>{closeSheet();ACT.tab({t:'kontrol'});},
   btest:()=>{if(!NB){toast('Bildirimler telefonda çalışır');return;}try{NB.testReminder();toast('1 dakika içinde deneme bildirimi gelecek',' ',null,4000);}catch(e){}},
   ayar:d=>{try{NB&&NB.openSettings(d.n);}catch(e){}},
   applyimp:()=>applyImport()
@@ -1208,14 +1225,45 @@ async function restoreBackup(buf,name){
   window.YEREL.replaceAll({kisiler:toMap(ks),seferler:toMap(ts),meta:{ayarlar:Object.assign({},d.meta||{})}});
   toast(`${ks.length} kişi ve ${ts.length} sefer geri yüklendi`);
 }
-async function readWorkbookRows(buf){
-  const wb=await XLSXIO.openWorkbook(buf);const out=[];
-  for(const n of wb.sheetNames){
-    const rows=await wb.sheet(n,{maxCol:40});const arr=[];
-    if(rows)for(const r of Object.keys(rows)){const row=[];const cs=rows[r];for(const c of Object.keys(cs))row[+c-1]=cs[c].v;arr[+r-1]=row;}
-    out.push({name:n,rows:arr});
-  }
-  return out;
+/* ================= Excel güncellemesi: okuma ve karşılaştırma ================= */
+async function readWorkbookRows(buf){return await OKUYUCU.read(buf,{maxCol:40});}
+const AY={OCAK:1,SUBAT:2,MART:3,NISAN:4,MAYIS:5,HAZIRAN:6,TEMMUZ:7,AGUSTOS:8,EYLUL:9,EKIM:10,KASIM:11,ARALIK:12};
+function defYear(){const d=allDays()[0];return d?+d.slice(0,4):new Date().getFullYear();}
+function sheetDate(name){
+  const F=fold(name);let m=/(\d{1,2})[.\-\/](\d{1,2})(?:[.\-\/](\d{2,4}))?/.exec(F);
+  if(m){const da=+m[1],mo=+m[2];if(mo>=1&&mo<=12&&da>=1&&da<=31){let y=m[3]?+m[3]:defYear();if(y<100)y+=2000;return `${y}-${pad(mo)}-${pad(da)}`;}}
+  m=/(\d{1,2})\s*(OCAK|SUBAT|MART|NISAN|MAYIS|HAZIRAN|TEMMUZ|AGUSTOS|EYLUL|EKIM|KASIM|ARALIK)(?:\s*(\d{4}))?/.exec(F);
+  return m?`${m[3]||defYear()}-${pad(AY[m[2]])}-${pad(+m[1])}`:null;
+}
+function sheetDir(name,H){
+  const F=fold(name);const h=F.indexOf('HAVAL'),o=F.indexOf('OTEL');
+  if(h>=0&&o>=0)return h<o?'gelis':'donus';
+  if(/GELIS|VARIS|KARSILAMA/.test(F))return 'gelis';
+  if(/DONUS|AYRILIS|UGURLAMA|CIKIS/.test(F))return 'donus';
+  const HJ=(H||[]).join(' ');
+  if(/GIRIS TARIHI|VARIS/.test(HJ))return 'gelis';
+  if(/CIKIS TARIHI|BINIS|KALKIS/.test(HJ))return 'donus';
+  return null;
+}
+const NAME_H=/PERSONEL|AD SOYAD|ADI SOYADI|AD-SOYAD|ADI-SOYADI|ISIM|KATILIMCI/;
+const KW_KATILMAZ=/KATILIM SAGLAMAYACAK|KATILMAYACAK|KATILMIYOR|GELMEYECEK|GELMIYOR|KATILIMI IPTAL/;
+const KW_KENDI=/KENDI(SI)? (GELECEK|GIDECEK|GELIYOR|GIDIYOR|IMKAN|ARAC)|OZEL ARAC|TRANSFER (ISTEMIYOR|GEREKMIYOR|YOK)/;
+const KW_IPTAL=/(^|[^A-Z])IPTAL([^A-Z]|$)/;
+function misafirOf(F){const m=/(\d+)\s*(?:KISI\s*)?MISAFIR|MISAFIR\s*[:\-]?\s*\+?(\d+)/.exec(F);return m?+(m[1]||m[2]):null;}
+function cDate(v,fb){
+  if(typeof v==='number'&&v>20000){const dt=new Date(Date.UTC(1899,11,30)+Math.floor(v+1e-9)*86400000);return dt.toISOString().slice(0,10);}
+  const m=/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/.exec(clean(v));
+  if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${pad(+m[2])}-${pad(+m[1])}`;}
+  return fb;
+}
+function cTime(v){
+  if(v==null||v==='')return{saat:'',txt:''};
+  if(typeof v==='number'){const f=v-Math.floor(v);if(f<1e-9&&v>=1)return{saat:'',txt:''};const mm=Math.round(f*1440)%1440;return{saat:hhmm(mm),txt:''};}
+  const s=clean(v);
+  if(/^\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}$/.test(s))return{saat:'',txt:s,tarih:true};
+  const m=/(^|[^\d])(\d{1,2})[:.](\d{2})(?!\d)/.exec(s);
+  if(m&&+m[2]<24&&+m[3]<60){const rest=clean(s.replace(m[0].slice(m[1].length),' '));return{saat:pad(+m[2])+':'+m[3],txt:rest&&rest!=='-'?rest:''};}
+  return{saat:'',txt:s==='-'?'':s};
 }
 /* Araç yazımı: "VİTO+OTOBÜS", "2 VİTO", "2 ADET CRAFTER", "VİTO x2", "VİTO / CRAFTER", "1 VİTO 1 OTOBÜS" … */
 function parseArac(n){
@@ -1227,76 +1275,157 @@ function parseArac(n){
   const rest=F.replace(re,' ').replace(/\b(VE|ADET|ARAC|ARACI|TANE|ILE)\b/g,' ').replace(/[\s+,\/&\-.()]+/g,'');
   return rest?null:out;
 }
-/* pure parser: sheets = [{name, rows}] where rows = arrays of raw cell values */
+/* sheets: OKUYUCU çıktısı ya da [{name, rows}] */
 function parseSheets(sheets){
-  const out={people:new Map(),trips:[],sheets:[],warnings:[]};const tk=new Set();
-  const PH=/(0\d{3}\s?\d{3}\s?\d{2}\s?\d{2})/;
-  const cDate=(v,fb)=>{if(typeof v==='number'&&v>20000){const dt=new Date(Date.UTC(1899,11,30)+Math.floor(v+1e-9)*86400000);return dt.toISOString().slice(0,10);}const m=/(\d{1,2})[./](\d{1,2})[./](\d{4})/.exec(clean(v));return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:fb;};
-  const cTime=v=>{if(typeof v==='number'){const f=v-Math.floor(v);const mm=Math.round(f*1440)%1440;return{saat:hhmm(mm),txt:''};}const s=clean(v);const m=/^(\d{1,2})[:.](\d{2})/.exec(s);if(m)return{saat:m[1].padStart(2,'0')+':'+m[2],txt:''};return{saat:'',txt:s&&s!=='-'?s:''};};
+  const out={people:new Map(),trips:[],sheets:[],warnings:[],supheli:[],cover:new Set(),exp:false,satir:0};
+  const PH=/(0\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2})/;
   for(const sh of sheets){
-    const m=/(\d{1,2})\.(\d{1,2})\.(\d{4})\s*(.*)/.exec(clean(sh.name));
-    if(!m){if(!['SEFERLER','ÖZET','KONTROL'].includes(clean(sh.name).toLocaleUpperCase('tr-TR')))out.warnings.push(`“${sh.name}” sayfası atlandı: adında tarih yok.`);continue;}
-    const d=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;const rest=fold(m[4]);
-    const y=rest.startsWith('HAVAL')?'gelis':rest.startsWith('OTEL')?'donus':null;
-    if(!y){out.warnings.push(`“${sh.name}” sayfası atlandı: yön anlaşılamadı (HAVALİMANI-OTEL veya OTEL-HAVALİMANI olmalı).`);continue;}
+    const nm=clean(sh.name);const NF=fold(nm);
+    if(['SEFERLER','OZET','KONTROL'].includes(NF))continue;
     const rows=sh.rows||[];let hi=-1;
-    for(let i=0;i<Math.min(rows.length,12);i++){if((rows[i]||[]).some(c=>fold(c).includes('PERSONEL'))){hi=i;break;}}
-    if(hi<0){out.warnings.push(`“${sh.name}” sayfasında başlık satırı (PERSONEL İSMİ) bulunamadı.`);continue;}
-    const H=Array.from(rows[hi],c=>fold(c));const col=(...keys)=>H.findIndex(h=>keys.some(k=>h.includes(k)));
-    const C={kurum:col('KURUM'),ad:col('PERSONEL'),gorev:col('GOREV','UNVAN'),tel:col('TELEFON'),ulasim:col('ULASIM'),tarih:H.findIndex(h=>h.includes('TARIH')&&!h.includes('SEFER')),saat:H.findIndex(h=>h.includes('SAAT')&&!h.includes('SEFER')&&!h.includes('DURUM')),mis:col('MISAFIR'),arac:H.findIndex(h=>/^ARAC/.test(h)),sefer:col('SEFER SAATI'),not:H.findIndex(h=>h==='NOT')};
-    if(C.ad<0){out.warnings.push(`“${sh.name}”: isim sütunu bulunamadı.`);continue;}
-    const isExp=C.sefer>=0;const noteCols=[];if(!isExp&&C.saat>=0){for(let c=C.saat+1;c<=C.saat+2;c++)if(!H[c])noteCols.push(c);}
-    if(C.not>=0)noteCols.push(C.not);
-    const acik=H.findIndex(h=>h.includes('ACIKLAMA'));if(acik>=0&&!noteCols.includes(acik))noteCols.push(acik);
-    if(!isExp&&C.arac>=0&&!noteCols.includes(C.arac))noteCols.push(C.arac);
-    let cnt=0;
+    for(let i=0;i<Math.min(rows.length,15);i++){if(Array.from(rows[i]||[],c=>fold(c)).some(h=>NAME_H.test(h)&&!/KURUM/.test(h))){hi=i;break;}}
+    if(hi<0){if(rows.some(r=>r&&r.some(v=>v!=null&&v!=='')))out.warnings.push(`“${nm}” sayfasında isim sütunu (PERSONEL İSMİ / AD SOYAD) bulunamadı; bu sayfa okunmadı.`);continue;}
+    const H=Array.from(rows[hi],c=>fold(c));
+    const y=sheetDir(nm,H),sd=sheetDate(nm);
+    if(!y){out.warnings.push(`“${nm}”: yön anlaşılamadı (sayfa adında HAVALİMANI-OTEL / OTEL-HAVALİMANI ya da GELİŞ / DÖNÜŞ geçmeli); bu sayfa okunmadı.`);continue;}
+    const col=re=>H.findIndex(h=>re.test(h));
+    const C={kurum:col(/KURUM|FAALIYET|HASTANE/),ad:H.findIndex(h=>NAME_H.test(h)&&!/KURUM/.test(h)),gorev:col(/GOREV|UNVAN/),tel:col(/TELEFON|GSM|CEP/),ulasim:col(/ULASIM/),
+      tarih:H.findIndex(h=>/TARIH/.test(h)&&!/SEFER|DURUM/.test(h)),saat:H.findIndex(h=>/SAAT/.test(h)&&!/SEFER|DURUM/.test(h)),mis:col(/MISAFIR/),arac:col(/^ARAC/),sefer:col(/SEFER SAATI/),not:col(/^NOT|ACIKLAMA/)};
+    const isExp=C.sefer>=0;if(isExp)out.exp=true;
+    const noteCols=[];
+    if(!isExp&&C.saat>=0)for(let c=C.saat+1;c<=C.saat+2;c++)if(!H[c])noteCols.push(c);
+    for(const c of [C.not,isExp?-1:C.arac,C.mis])if(c>=0&&!noteCols.includes(c))noteCols.push(c);
+    let cnt=0;const seenTk=new Set();
     for(let i=hi+1;i<rows.length;i++){
-      const r=rows[i]||[];const ad=clean(r[C.ad]);if(!ad||fold(ad).includes('PERSONEL'))continue;
+      const r=rows[i]||[];const ad=clean(r[C.ad]);if(!ad)continue;const AF=fold(ad);
+      if(NAME_H.test(AF)||/^(GENEL )?TOPLAM|^S\.?N\.?$|^\d+([.,]\d+)?$/.test(AF))continue;
+      out.satir++;
+      const where=`${nm} / satır ${i+1}`;
+      const stRow=(sh.st&&sh.st[i])||[];const cizili=!!(stRow[C.ad]&&stRow[C.ad].strike);
       const gr=clean(C.gorev>=0?r[C.gorev]:'');const pm=PH.exec(gr);let gorev=gr,tel=C.tel>=0?clean(r[C.tel]):'';
-      if(pm){tel=tel||pm[1];gorev=gr.replace(pm[1],'').replace(/[\s-]+$/,'').trim();}
+      if(pm){tel=tel||clean(pm[1]);gorev=clean(gr.replace(pm[1],'').replace(/[\s-]+$/,''));}
       const tm=cTime(C.saat>=0?r[C.saat]:null);
-      let mis=C.mis>=0?(parseInt(r[C.mis],10)||0):0,arac=[],katilmaz=false,notes=[];
-      for(const c of noteCols){const n=clean(r[c]);if(!n)continue;const N=up(n);const mm=/(\d+)\s*K[İI]Ş[İI]\s*M[İI]SAF[İI]R/.exec(N);if(mm){mis=+mm[1];continue;}if(N.includes('KATILIM SAĞLAMAYACAK')||N.includes('KATILMAYACAK')){katilmaz=true;continue;}const av=parseArac(n);if(av){arac.push(...av);continue;}notes.push(n);}
-      if(isExp&&C.arac>=0){const a=up(r[C.arac]);if(CAP0[a]&&a!=='DİĞER'){const ss=C.sefer>=0?cTime(r[C.sefer]).saat:tm.saat;const key=[d,y,ss,a].join('|');if(ss&&!tk.has(key)){tk.add(key);out.trips.push({tarih:d,yon:y,saat:ss,arac:a,kapasite:capOf(a),kaynak:`${sh.name} / satır ${i+1}`});}}}
-      const tarih=cDate(C.tarih>=0?r[C.tarih]:null,d);
-      for(const a of arac)out.trips.push({tarih,yon:y,saat:tm.saat,arac:a,kapasite:capOf(a),kaynak:`${sh.name} / satır ${i+1}`});
-      if(tm.txt)notes.push(tm.txt);
+      let mis=C.mis>=0&&typeof r[C.mis]==='number'?Math.max(0,Math.round(r[C.mis])):0;
+      const arac=[],notes=[];let katilmaz=false,iptal=false,kendi=false;
+      const words=(n,fromMerge)=>{const N=fold(n);
+        const mm=misafirOf(N);if(mm!=null){mis=mm;return;}
+        if(KW_KATILMAZ.test(N)){katilmaz=true;return;}
+        if(KW_KENDI.test(N)){kendi=true;notes.push(n);return;}
+        if(KW_IPTAL.test(N)){iptal=true;notes.push(n);return;}
+        const av=parseArac(n);if(av){if(!fromMerge)arac.push(...av);return;}
+        notes.push(n);};
+      for(const c of noteCols){const v=r[c];if(v==null||v==='')continue;if(c===C.mis&&typeof v==='number')continue;words(clean(v),!!(sh.merged&&sh.merged[i]&&sh.merged[i][c]));}
+      if(tm.txt){const n0=notes.length;words(tm.txt,true);if(!tm.saat&&!tm.tarih&&!kendi&&!katilmaz&&!iptal&&notes.length>n0)out.supheli.push({where,ad,msg:`saat okunamadı: “${tm.txt}”`});}
+      if(isExp&&C.arac>=0){const a=up(r[C.arac]);if(CAP0[a]&&a!=='DİĞER'){const ss=C.sefer>=0?cTime(r[C.sefer]).saat:tm.saat;const key=[sd,y,ss,a].join('|');if(ss&&!seenTk.has(key)){seenTk.add(key);out.trips.push({tarih:cDate(C.tarih>=0?r[C.tarih]:null,sd),yon:y,saat:ss,arac:a,kapasite:capOf(a),kaynak:where});}}}
+      const tarih=cDate(C.tarih>=0?r[C.tarih]:null,null)||sd;
+      if(!tarih){out.supheli.push({where,ad,msg:'tarih yok (sayfa adında da tarih yok); satır okunmadı'});continue;}
+      if(sd&&tarih!==sd)out.supheli.push({where,ad,msg:`satırdaki tarih (${trDate(tarih)}) sayfa adındakinden (${trDate(sd)}) farklı; satırdaki tarih kullanıldı`});
+      for(const a of arac)out.trips.push({tarih,yon:y,saat:tm.saat,arac:a,kapasite:capOf(a),kaynak:where});
+      if(arac.length&&!tm.saat)out.supheli.push({where,ad,msg:'araç işareti var ama saat yok'});
       const k=nameKey(ad);
-      if(!out.people.has(k))out.people.set(k,{ad:up(ad).replace(/^DR\.(?=\S)/,'DR. '),kurum:up(C.kurum>=0?r[C.kurum]:'').replace(/\/+$/,'').trim(),gorev:up(gorev),tel,katilim:true});
+      if(!out.people.has(k))out.people.set(k,{ad:up(ad).replace(/^DR\.(?=\S)/,'DR. '),kurum:up(C.kurum>=0?r[C.kurum]:'').replace(/\/+$/,'').trim(),gorev:up(gorev),tel,katilim:true,rows:{}});
       const p=out.people.get(k);if(tel&&!p.tel)p.tel=tel;if(katilmaz)p.katilim=false;
-      if(p[y])out.warnings.push(`${ad} “${sh.name}” içinde ikinci kez geçiyor (satır ${i+1}).`);
-      p[y]={tarih,saat:tm.saat,ulasim:up(C.ulasim>=0?r[C.ulasim]:'')||'UÇAK',seferId:'',durum:katilmaz?'iptal':(fold(tm.txt).startsWith('KENDI')?'kendi':'bekliyor'),misafir:mis,not:notes.join('; '),kaynak:`${sh.name} / satır ${i+1}`};
+      if(p[y]){
+        out.supheli.push({where,ad,msg:`${YON_T[y].toLocaleLowerCase('tr-TR')} listesinde ikinci kez var (ilk: ${p.rows[y]}); ${cizili&&!p[y].cizili?'üstü çizili olan yok sayıldı':'son satır kullanıldı'}`});
+        if(cizili&&!p[y].cizili)continue;
+      }
+      const durum=katilmaz||cizili||iptal?'iptal':kendi?'kendi':'bekliyor';
+      p[y]={tarih,saat:tm.saat,ulasim:up(C.ulasim>=0?r[C.ulasim]:'')||'UÇAK',seferId:'',durum,misafir:mis,not:notes.join('; '),kaynak:where,cizili};
+      p.rows[y]=where;out.cover.add(tarih+'|'+y);
+      if(cizili)out.supheli.push({where,ad,msg:'üstü çizili: iptal olarak alındı'});
+      if(sh.hiddenRows&&sh.hiddenRows[i])out.supheli.push({where,ad,msg:'gizli satır (yine de okundu)'});
+      if(!tm.saat&&durum==='bekliyor'&&!tm.txt)out.supheli.push({where,ad,msg:'saat boş'});
       cnt++;
     }
-    out.sheets.push({name:sh.name,y,d,cnt});
+    if(sd)out.cover.add(sd+'|'+y);
+    out.sheets.push({name:nm,y,d:sd,cnt,hidden:!!sh.hidden});
   }
   return out;
 }
+function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let prev=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur;}return prev[n];}
+const nameSim=(a,b)=>1-lev(a,b)/Math.max(a.length,b.length,1);
+const sameTokens=(a,b)=>a.split(' ').sort().join(' ')===b.split(' ').sort().join(' ');
+const STARTED=['karsilandi','otelde','bindi','birakildi'];
 function diffImport(parsed){
-  const by=new Map([...S.people.values()].map(p=>[nameKey(p.ad),p]));const ch=[];
-  const existsTrip=t=>[...S.trips.values()].some(x=>x.tarih===t.tarih&&x.yon===t.yon&&x.saat===t.saat&&x.arac===t.arac&&x.durum!=='iptal');
-  const seenT=new Map();
-  for(const t of parsed.trips){const k=[t.tarih,t.yon,t.saat,t.arac].join('|');const nExist=[...S.trips.values()].filter(x=>x.tarih===t.tarih&&x.yon===t.yon&&x.saat===t.saat&&x.arac===t.arac&&x.durum!=='iptal').length;const nSeen=(seenT.get(k)||0)+1;seenT.set(k,nSeen);if(nSeen>nExist)ch.push({kind:'sefer',text:`${shortDate(t.tarih)} ${YON_T[t.yon]} ${t.saat} ${ARAC_T[t.arac]}`,sub:t.kaynak,t,checked:true});}
+  const ch=[],supheli=[];const P=[...S.people.values()];
+  const byKey=new Map(P.map(p=>[nameKey(p.ad),p]));
+  const matched=new Map(),used=new Set();
+  for(const k of parsed.people.keys()){const p=byKey.get(k);if(p&&!used.has(p.id)){matched.set(k,p);used.add(p.id);}}
+  // Ad düzeltmesi: benzer isim + aynı kurum ya da aynı saat
   for(const [k,np] of parsed.people){
-    const p=by.get(k);
-    if(!p){ch.push({kind:'yeni',text:np.ad,sub:`${np.kurum} · ${YON.map(y=>np[y]?`${YON_T[y]} ${shortDate(np[y].tarih)} ${np[y].saat||'—'}`:`${YON_T[y]} yok`).join(' · ')}`,np,checked:true});continue;}
-    const patch={},msgs=[];
-    for(const y of YON){const nl=np[y],ol=p[y];if(!nl)continue;
-      if(!ol){patch[y]=Object.assign({},nl);msgs.push(`${YON_T[y]} kaydı eklendi: ${trDate(nl.tarih)} ${nl.saat||'—'}`);continue;}
+    if(matched.has(k))continue;let best=null,bs=0;
+    for(const p of P){if(used.has(p.id)||parsed.people.has(nameKey(p.ad)))continue;
+      const pk=nameKey(p.ad),sc=nameSim(k,pk),sameK=fold(p.kurum)===fold(np.kurum),sameLeg=YON.some(y=>np[y]&&p[y]&&np[y].tarih===p[y].tarih&&np[y].saat===p[y].saat);
+      const ok=sc>=0.92||(sc>=0.8&&(sameK||sameLeg))||(sameTokens(k,pk)&&(sameK||sameLeg));
+      if(ok&&sc>bs){best=p;bs=sc;}}
+    if(best){matched.set(k,best);used.add(best.id);}
+  }
+  // Seferler (gün + yön bazında)
+  const isX=t=>!/Uygulamadan/.test(t.kaynak||'');
+  const dys=new Set(parsed.trips.map(t=>t.tarih+'|'+t.yon));
+  for(const t of S.trips.values())if(t.durum!=='iptal'&&parsed.cover.has(t.tarih+'|'+t.yon))dys.add(t.tarih+'|'+t.yon);
+  for(const dy of dys){
+    const [d,y]=dy.split('|');
+    const F=parsed.trips.filter(t=>t.tarih===d&&t.yon===y).map(t=>Object.assign({},t));
+    const E=[...S.trips.values()].filter(t=>t.tarih===d&&t.yon===y&&t.durum!=='iptal');
+    const take=(a,i)=>a.splice(i,1)[0];
+    for(let i=F.length-1;i>=0;i--){const j=E.findIndex(e=>e.saat===F[i].saat&&e.arac===F[i].arac);if(j>=0){take(E,j);take(F,i);}}
+    if(!parsed.exp){
+      for(let i=F.length-1;i>=0;i--){const j=E.findIndex(e=>isX(e)&&e.saat===F[i].saat);if(j>=0){const e=take(E,j),f=take(F,i);ch.push({kind:'seferdegisti',tid:e.id,text:`${shortDate(d)} ${YON_T[y]} ${e.saat}: ${ARAC_T[e.arac]} → ${ARAC_T[f.arac]}`,sub:`Araç tipi değişti · ${f.kaynak}`,patch:{arac:f.arac,kapasite:capOf(f.arac)},msgs:[`Araç: ${ARAC_T[e.arac]} → ${ARAC_T[f.arac]} (Excel güncellemesi)`],checked:true});}}
+      for(let i=F.length-1;i>=0;i--){let bj=-1,bd=61;E.forEach((e,j)=>{if(!isX(e)||e.arac!==F[i].arac||!e.saat||!F[i].saat)return;const dd=Math.abs(toMin(e.saat)-toMin(F[i].saat));if(dd<bd){bd=dd;bj=j;}});
+        if(bj>=0){const e=take(E,bj),f=take(F,i);ch.push({kind:'seferdegisti',tid:e.id,text:`${shortDate(d)} ${YON_T[y]} ${ARAC_T[e.arac]}: ${e.saat} → ${f.saat}`,sub:`Sefer saati değişti · ${f.kaynak}`,patch:{saat:f.saat},msgs:[`Saat: ${e.saat} → ${f.saat} (Excel güncellemesi)`],checked:true});}}
+    }
+    for(const f of F)ch.push({kind:'sefer',text:`${shortDate(f.tarih)} ${YON_T[f.yon]} ${f.saat||'saat yok'} ${ARAC_T[f.arac]}`,sub:f.kaynak,t:f,checked:true});
+    if(!parsed.exp&&parsed.cover.has(dy))for(const e of E)if(isX(e)){const l=loadOf(e.id);ch.push({kind:'seferkalkti',tid:e.id,text:`${shortDate(d)} ${YON_T[y]} ${tripLabel(e)}`,sub:`Excel'de bu araç artık yok${l.n?` · ${l.n} yolcusu saatlerine göre yeniden dağıtılır`:''}`,checked:true});}
+  }
+  // Kişiler
+  for(const [k,np] of parsed.people){
+    const p=matched.get(k);
+    if(!p){
+      if(YON.every(y=>!np[y]||np[y].durum==='iptal')){supheli.push({where:np.rows.gelis||np.rows.donus,ad:np.ad,msg:'listede yeni ama iptal / üstü çizili; eklenmedi'});continue;}
+      ch.push({kind:'yeni',text:np.ad,sub:`${np.kurum} · ${YON.map(y=>np[y]?`${YON_T[y]} ${shortDate(np[y].tarih)} ${np[y].saat||'saat yok'}${np[y].misafir?' +'+np[y].misafir:''}`:`${YON_T[y]} yok`).join(' · ')}`,np,checked:true});continue;
+    }
+    const patch={},msgs=[];let defOn=true;
+    if(nameKey(np.ad)!==nameKey(p.ad)){patch.ad=np.ad;msgs.push(`Ad: ${p.ad} → ${np.ad}`);}
+    for(const y of YON){
+      const nl=np[y],ol=p[y];if(!nl)continue;
+      if(!ol){const lp=Object.assign({},nl,{xnot:nl.not,xdurum:nl.durum});delete lp.cizili;patch[y]=lp;msgs.push(`${YON_T[y]} kaydı eklendi: ${trDate(nl.tarih)} ${nl.saat||'saat yok'}`);continue;}
       const lp={};
       if(nl.tarih!==ol.tarih){lp.tarih=nl.tarih;msgs.push(`${YON_T[y]} tarihi ${trDate(ol.tarih)} → ${trDate(nl.tarih)}`);}
       if(nl.saat!==(ol.saat||'')){lp.saat=nl.saat;msgs.push(`${YON_T[y]} saati ${ol.saat||'belirsiz'} → ${nl.saat||'belirsiz'}`);}
       if(nl.misafir!==misafir(ol)){lp.misafir=nl.misafir;msgs.push(`${YON_T[y]} misafir ${misafir(ol)} → ${nl.misafir}`);}
-      if(nl.durum==='kendi'&&ol.durum!=='kendi'){lp.durum='kendi';msgs.push(`${YON_T[y]}: kendi imkânıyla`);}
+      if(nl.ulasim&&nl.ulasim!==(ol.ulasim||'UÇAK')){lp.ulasim=nl.ulasim;msgs.push(`${YON_T[y]} ulaşım ${ol.ulasim||'—'} → ${nl.ulasim}`);}
+      const manual=(p.gecmis||[]).some(g=>g&&g.m&&g.m.startsWith(`${YON_T[y]} durumu:`));
+      if(nl.durum!=='bekliyor'&&nl.durum!==ol.durum&&!(nl.durum==='iptal'&&np.katilim===false&&p.katilim===false)){
+        if(STARTED.includes(ol.durum))supheli.push({where:nl.kaynak,ad:p.ad,msg:`Excel'de ${nl.durum==='kendi'?'kendi imkânıyla':'iptal'} görünüyor ama uygulamada “${durT(y,ol.durum)}” işaretli; değiştirilmedi`});
+        else{lp.durum=nl.durum;lp.xdurum=nl.durum;msgs.push(`${YON_T[y]}: ${durT(y,ol.durum)} → ${durT(y,nl.durum)}${nl.cizili?' (Excel’de üstü çizili)':''}`);}
+      }else if(nl.durum==='bekliyor'&&(ol.durum==='kendi'||ol.durum==='iptal')){
+        const fromExcel=ol.xdurum?ol.xdurum===ol.durum:!manual;
+        lp.durum='bekliyor';lp.xdurum='bekliyor';msgs.push(`${YON_T[y]}: ${durT(y,ol.durum)} → Bekleniyor (Excel’de transfer var)`);if(!fromExcel)defOn=false;
+      }
+      const base=ol.xnot!=null?ol.xnot:(ol.not||'');
+      if((nl.not||'')!==base){const cur=ol.not||'';lp.not=cur===base?(nl.not||''):(cur+(nl.not?' / Excel: '+nl.not:''));lp.xnot=nl.not||'';msgs.push(`${YON_T[y]} notu: ${base||'—'} → ${nl.not||'—'}`);}
       if(Object.keys(lp).length)patch[y]=lp;
     }
-    if(np.katilim===false&&p.katilim!==false){patch.katilim=false;msgs.push('Katılmayacak olarak işaretlendi');}
-    if(np.tel&&np.tel!==(p.tel||'')){patch.tel=np.tel;msgs.push(`Telefon ${np.tel}`);}
+    if(np.katilim===false&&p.katilim!==false){patch.katilim=false;msgs.push('Katılmayacak (Excel’de yazıyor)');}
+    if(np.katilim!==false&&p.katilim===false){const last=[...(p.gecmis||[])].reverse().find(g=>g&&/atılmayacak|atılacak/.test(g.m||''));patch.katilim=true;msgs.push('Excel’de tekrar listede: katılacak');if(last&&!/Excel/.test(last.m))defOn=false;}
+    if(np.tel&&np.tel.replace(/\s/g,'')!==(p.tel||'').replace(/\s/g,'')){patch.tel=np.tel;msgs.push(`Telefon: ${np.tel}`);}
     if(np.kurum&&fold(np.kurum)!==fold(p.kurum||'')){patch.kurum=np.kurum;msgs.push(`Kurum: ${np.kurum}`);}
-    if(msgs.length)ch.push({kind:'degisen',pid:p.id,text:p.ad,sub:msgs.join(' · '),patch,msgs,checked:true});
+    if(np.gorev&&fold(np.gorev)!==fold(p.gorev||'')){patch.gorev=np.gorev;msgs.push(`Görev: ${np.gorev}`);}
+    if(msgs.length)ch.push({kind:'degisen',pid:p.id,text:p.ad+(patch.ad?' → '+patch.ad:''),sub:msgs.join(' · '),patch,msgs,checked:defOn});
+    // Dosyada bu yön yok ama o günün listesi dosyada var → transfer listeden çıkarılmış
+    for(const y of YON){const ol=p[y];if(np[y]||!ol||!activeLeg(p,ol)||!parsed.cover.has(ol.tarih+'|'+y))continue;
+      ch.push({kind:'bacakkalkti',pid:p.id,y,text:`${p.ad} · ${YON_T[y]}`,sub:`${trDate(ol.tarih)} ${ol.saat||''} ${YON_T[y].toLocaleLowerCase('tr-TR')} listesinde artık yok → bu transfer iptal edilir`,checked:!STARTED.includes(ol.durum)});}
   }
-  for(const p of S.people.values())if(!parsed.people.has(nameKey(p.ad))&&p.katilim!==false)ch.push({kind:'yok',pid:p.id,text:p.ad,sub:`${p.kurum||''} · işaretlerseniz “Katılmayacak” yapılır (silinmez)`,checked:false});
-  return ch;
+  const matchedIds=new Set([...matched.values()].map(p=>p.id));
+  for(const p of P){
+    if(matchedIds.has(p.id)||p.katilim===false)continue;
+    const legs=YON.filter(y=>p[y]&&activeLeg(p,p[y]));const cov=legs.map(y=>parsed.cover.has(p[y].tarih+'|'+y));
+    if(!cov.some(Boolean))continue;
+    const started=legs.some(y=>STARTED.includes(p[y].durum));
+    ch.push({kind:'yok',pid:p.id,text:p.ad,sub:`${p.kurum||''} · yeni listede yok → katılmayacak olarak işaretlenir (silinmez)${cov.every(Boolean)?'':' · dosyada bu kişinin bazı günleri yok'}${started?' · uygulamada transferi başlamış':''}`,checked:cov.every(Boolean)&&!started});
+  }
+  return {ch,supheli};
 }
 document.getElementById('fileIn').addEventListener('change',async e=>{
   const f=e.target.files&&e.target.files[0];if(!f)return;
@@ -1306,49 +1435,88 @@ document.getElementById('fileIn').addEventListener('change',async e=>{
     if(u8[0]===0x7B||/\.json$/i.test(f.name)){await restoreBackup(buf,f.name);return;}
     if(!(u8[0]===0x50&&u8[1]===0x4B)){toast('Bu dosya bir Excel (.xlsx) dosyası değil. Eski .xls dosyasını Excel’de .xlsx olarak kaydedin.','bad',null,8000);return;}
     const parsed=parseSheets(await readWorkbookRows(buf));
-    if(!parsed.people.size){toast('Dosyada transfer listesi bulunamadı. Sayfa adları “20.11.2026 HAVALİMANI-OTEL” biçiminde olmalı.','bad',null,8000);return;}
-    openSheet({type:'imp',dosya:f.name,ch:diffImport(parsed),sheets:parsed.sheets,warnings:parsed.warnings},true);
+    if(!parsed.people.size){toast('Dosyada transfer listesi bulunamadı. Sayfa adları “20.11.2026 HAVALİMANI-OTEL” gibi olmalı ve bir “PERSONEL İSMİ / AD SOYAD” sütunu bulunmalı.','bad',null,9000);return;}
+    const d=diffImport(parsed);
+    openSheet({type:'imp',dosya:f.name,parsed,ch:d.ch,supheli:parsed.supheli.concat(d.supheli),sheets:parsed.sheets,warnings:parsed.warnings},true);
   }catch(err){toast('Dosya okunamadı: '+(err&&err.message||''),'bad',null,7000);}
 });
 function applyImport(){
   const s=S.sheet;if(!s)return;const sel=new Set($$('input[data-ci]').filter(c=>c.checked).map(c=>+c.dataset.ci));
-  let n=0;const keyOf=(d,y,sa)=>[d,y,sa].join('|');
-  const local=[...S.trips.values()].filter(t=>t.durum!=='iptal');const newKeys=new Set();
-  for(const [i,c] of s.ch.entries()){if(!sel.has(i)||c.kind!=='sefer')continue;const id=createTrip(Object.assign({},c.t,{kaynak:c.t.kaynak+' (Excel güncellemesi)'}));if(id){local.push(Object.assign({id,durum:'planli'},c.t));newKeys.add(keyOf(c.t.tarih,c.t.yon,c.t.saat));n++;}}
-  const pend=new Map();
-  const want=(view,y,kurum,set)=>{if(!view||view.durum!=='bekliyor'||!view.tarih||!view.saat)return;const k=keyOf(view.tarih,y,view.saat);if(!pend.has(k))pend.set(k,[]);pend.get(k).push({n:1+misafir(view),kurum:kurum||'',set});};
-  const newDocs=[],patches=[],gone=[];
+  let n=0;const cnt={},bump=k=>{cnt[k]=(cnt[k]||0)+1;n++;};const keyOf=(d,y,sa)=>[d,y,sa].join('|');
+  const local=new Map([...S.trips.values()].filter(t=>t.durum!=='iptal').map(t=>[t.id,Object.assign({},t)]));
+  const newKeys=new Set(),freed=[];
   for(const [i,c] of s.ch.entries()){
     if(!sel.has(i))continue;
-    if(c.kind==='yeni'){const np=JSON.parse(JSON.stringify(c.np));for(const y of YON)if(np[y]){np[y].seferId='';want(np[y],y,np.kurum,id=>{np[y].seferId=id;});}newDocs.push(np);n++;}
-    else if(c.kind==='degisen'){const p=S.people.get(c.pid);if(!p)continue;const patch=JSON.parse(JSON.stringify(c.patch));
-      for(const y of YON){const lp=patch[y];if(!lp)continue;const L=p[y];
-        if(!L){lp.seferId='';want(lp,y,patch.kurum||p.kurum,id=>{lp.seferId=id;});continue;}
-        if((lp.saat!=null||lp.tarih!=null)&&!L.seferId)want(Object.assign({},L,lp),y,patch.kurum||p.kurum,id=>{lp.seferId=id;});}
-      patches.push({pid:p.id,patch,msgs:c.msgs});n++;}
-    else if(c.kind==='yok'){gone.push(c.pid);n++;}
+    if(c.kind==='sefer'){const id=createTrip(Object.assign({},c.t,{kaynak:c.t.kaynak+' (Excel güncellemesi)'}));if(id){local.set(id,Object.assign({id,durum:'planli'},c.t));newKeys.add(keyOf(c.t.tarih,c.t.yon,c.t.saat));bump('sefer');}}
+    else if(c.kind==='seferdegisti'){const t=S.trips.get(c.tid);if(!t)continue;updTrip(t,c.patch,c.msgs);const lt=local.get(t.id);if(lt)Object.assign(lt,c.patch);newKeys.add(keyOf(t.tarih,t.yon,c.patch.saat||t.saat));bump('seferdegisti');}
+    else if(c.kind==='seferkalkti'){const t=S.trips.get(c.tid);if(!t)continue;updTrip(t,{durum:'iptal'},[`Excel güncellemesinde bu araç yok: sefer iptal edildi (${s.dosya})`]);local.delete(t.id);for(const x of (S.idx.pax.get(t.id)||[]))freed.push(x);bump('seferkalkti');}
   }
+  const pend=new Map();
+  const want=(view,y,kurum,set)=>{if(!view||view.durum!=='bekliyor'||!view.tarih||!view.saat)return;const k=keyOf(view.tarih,y,view.saat);if(!pend.has(k))pend.set(k,[]);pend.get(k).push({n:1+misafir(view),kurum:kurum||'',set});};
+  const newDocs=[],patches=[],legOff=[],gone=[];
+  for(const [i,c] of s.ch.entries()){
+    if(!sel.has(i))continue;
+    if(c.kind==='yeni'){const np=JSON.parse(JSON.stringify(c.np));delete np.rows;for(const y of YON)if(np[y]){delete np[y].cizili;np[y].xnot=np[y].not;np[y].xdurum=np[y].durum;np[y].seferId='';if(np.katilim!==false)want(np[y],y,np.kurum,id=>{np[y].seferId=id;});}newDocs.push(np);bump('yeni');}
+    else if(c.kind==='degisen'){
+      const p=S.people.get(c.pid);if(!p)continue;const patch=JSON.parse(JSON.stringify(c.patch));const msgs=c.msgs.slice();
+      const offNow=patch.katilim===false;
+      for(const y of YON){
+        const L=p[y];let lp=patch[y];
+        if(offNow&&L){lp=patch[y]=Object.assign(lp||{},{seferId:''});continue;}
+        if(!lp)continue;
+        if(!L){lp.seferId='';want(lp,y,patch.kurum||p.kurum,id=>{lp.seferId=id;});continue;}
+        const view=Object.assign({},L,lp);
+        if(view.durum!=='bekliyor'&&view.durum!=='rotar'){if(L.seferId)lp.seferId='';continue;}
+        if(lp.saat!=null||lp.tarih!=null||lp.durum==='bekliyor'){
+          const t=L.seferId&&local.get(L.seferId);
+          const fits=t&&t.tarih===view.tarih&&t.yon===y&&(!view.saat||!t.saat||Math.abs(toMin(t.saat)-toMin(view.saat))<=45);
+          if(!fits){const old=L.seferId&&S.trips.get(L.seferId);lp.seferId='';
+            if(old)msgs.push(`${YON_T[y]} aracı ${tripLabel(old)} kaldırıldı (saat/tarih değişti)`);
+            if(p.katilim!==false||patch.katilim===true)want(view,y,patch.kurum||p.kurum,id=>{lp.seferId=id;const t2=local.get(id);msgs.push(`${YON_T[y]} aracı: ${t2?tripLabel(t2):'yeni sefer'}`);});}
+        }
+      }
+      patches.push({pid:p.id,patch,msgs});bump('degisen');
+    }
+    else if(c.kind==='bacakkalkti'){legOff.push(c);bump('bacakkalkti');}
+    else if(c.kind==='yok'){gone.push(c.pid);bump('yok');}
+  }
+  const touched=new Set();for(const x of patches)for(const y of YON)if(x.patch[y]&&'seferId' in x.patch[y])touched.add(x.pid+'|'+y);
+  for(const c of legOff)touched.add(c.pid+'|'+c.y);for(const id of gone)for(const y of YON)touched.add(id+'|'+y);
   const moves=[];
+  for(const x of freed){const k=x.p.id+'|'+x.y;if(touched.has(k))continue;const mv={pid:x.p.id,y:x.y,tid:''};moves.push(mv);want(x.L,x.y,x.p.kurum,id=>{mv.tid=id;});}
   for(const k of new Set([...pend.keys(),...newKeys])){
     const [d,y,sa]=k.split('|');
-    const trips=local.filter(t=>t.tarih===d&&t.yon===y&&t.saat===sa);if(!trips.length)continue;
+    const trips=[...local.values()].filter(t=>t.tarih===d&&t.yon===y&&t.saat===sa);if(!trips.length)continue;
     const items=(pend.get(k)||[]).slice();
     const base=new Map(trips.map(t=>{const l=loadOf(t.id);return [t.id,l.n+l.m];}));
+    if(newKeys.has(k)){ // bu saate yeni/değişen araç geldiyse o saatte araçsız kalanlar da alınır
+      for(const p of S.people.values())for(const y2 of YON){if(y2!==y)continue;const L=p[y2];if(!L||L.tarih!==d||L.saat!==sa||!rides(p,L)||touched.has(p.id+'|'+y2))continue;if(L.seferId&&local.has(L.seferId))continue;if(items.some(it=>it.pid===p.id))continue;
+        items.push({pid:p.id,n:1+misafir(L),kurum:p.kurum||'',set:id=>moves.push({pid:p.id,y:y2,tid:id})});}
+    }
     if(newKeys.has(k)&&trips.some(t=>(base.get(t.id)||0)>(+t.kapasite||0))){
-      for(const t of trips)for(const x of (S.idx.pax.get(t.id)||[]))items.push({n:1+misafir(x.L),kurum:x.p.kurum||'',set:id=>{if(id!==x.L.seferId)moves.push({pid:x.p.id,y:x.y,tid:id});}});
+      for(const t of trips)for(const x of (S.idx.pax.get(t.id)||[])){if(touched.has(x.p.id+'|'+x.y))continue;items.push({n:1+misafir(x.L),kurum:x.p.kurum||'',set:id=>{if(id!==x.L.seferId)moves.push({pid:x.p.id,y:x.y,tid:id});}});}
       for(const t of trips)base.set(t.id,0);
     }
     if(!items.length)continue;
     for(const [it,tid] of planDistribution(items,trips,base))it.set(tid);
   }
-  let sira=S.people.size;
+  let sira=Math.max(0,...[...S.people.values()].map(p=>+p.sira||0));
   for(const np of newDocs)enqueue({op:'set',path:'kisiler/'+newId('k'),data:Object.assign({},np,{not:'',sira:++sira,gecmis:[logE(`Excel güncellemesinden eklendi (${s.dosya})`)],guncelleme:nowIso(),guncelleyen:S.uid||''}),label:np.ad});
   for(const x of patches){const p=S.people.get(x.pid);if(p)updPerson(p,x.patch,x.msgs.map(m=>m+' (Excel güncellemesi)'));}
-  for(const id of gone){const p=S.people.get(id);if(p)updPerson(p,{katilim:false},[`Yeni Excel listesinde yok (${s.dosya}): katılmayacak olarak işaretlendi`]);}
-  const byT=new Map();for(const m of moves){if(!byT.has(m.tid))byT.set(m.tid,[]);byT.get(m.tid).push(m);}
-  for(const [tid,arr] of byT)assignLegs(arr,tid,'Excel güncellemesi: araçlara bölündü');
+  for(const c of legOff){const p=S.people.get(c.pid);if(p)updPerson(p,{[c.y]:{durum:'iptal',xdurum:'iptal',seferId:''}},[`${YON_T[c.y]} transferi yeni Excel listesinde yok: iptal edildi (${s.dosya})`]);}
+  for(const id of gone){const p=S.people.get(id);if(!p)continue;const pt={katilim:false};for(const y of YON)if(p[y])pt[y]={seferId:''};updPerson(p,pt,[`Yeni Excel listesinde yok (${s.dosya}): katılmayacak olarak işaretlendi`]);}
+  const byT=new Map();for(const m of moves){const t=m.tid||'';if(!byT.has(t))byT.set(t,[]);byT.get(t).push(m);}
+  let moved=0;for(const [tid,arr] of byT)moved+=assignLegs(arr,tid,'Excel güncellemesi: araçlar değişti');
   enqueue({op:'set',path:'meta/ayarlar',data:Object.assign({},S.meta,S.meta.kaynakDosya?{}:{kaynakDosya:s.dosya},{sonIceAktarma:{t:nowIso(),dosya:s.dosya,degisiklik:n}}),label:'Ayarlar'});
-  closeSheet();toast(`${n} değişiklik uygulandı${moves.length?` · ${moves.length} kişi araçlara bölündü`:''}`,'',null,5000);
+  // Doğrulama: dosya uygulamaya işlendikten sonra yeniden karşılaştır
+  const after=diffImport(s.parsed);
+  buildIndex();
+  const aracsiz=legs().filter(x=>rides(x.p,x.L)&&x.L.saat&&!(x.L.seferId&&S.trips.has(x.L.seferId))).length;
+  openSheet({type:'impres',dosya:s.dosya,n,cnt,moved,kalan:after.ch,supheli:s.supheli,aracsiz},true);
+}
+function supheliHtml(list,open){
+  if(!list.length)return '';
+  return `<details class="card" ${open?'open':''}><summary class="ihead warn" style="cursor:pointer">${ic('alert')} Kontrol etmeniz gereken satırlar <span class="chip warn" style="margin-left:auto">${list.length}</span>${ic('down')}</summary>${list.map(x=>`<div class="iss" style="cursor:default"><span class="small"><b>${esc(x.ad||'')}</b> · ${esc(x.msg)}<br><span class="muted">${esc(x.where||'')}</span></span><span></span></div>`).join('')}</details>`;
 }
 
 /* ================= birden fazla araca bölme ================= */
