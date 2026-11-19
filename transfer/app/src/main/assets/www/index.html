@@ -540,7 +540,7 @@ function computeIssues(){
   for(const t of S.trips.values()){
     if(t.durum==='iptal')continue;
     const l=loadOf(t.id),tot=l.n+l.m,cap=+t.kapasite||0;
-    if(cap&&tot>cap)add('bad','kapasite','Kapasite aşıldı',`${shortDate(t.tarih)} ${YON_T[t.yon]} ${tripLabel(t)} · ${tot} kişi / ${cap} koltuk`,{k:'t',id:t.id});
+    if(cap&&tot>cap){const sib=[...S.trips.values()].filter(x=>x.id!==t.id&&x.tarih===t.tarih&&x.yon===t.yon&&x.durum!=='iptal'&&x.saat&&x.saat===t.saat);add('bad','kapasite','Kapasite aşıldı',`${shortDate(t.tarih)} ${YON_T[t.yon]} ${tripLabel(t)} · ${tot} kişi / ${cap} koltuk · ${sib.length?'aynı saatte '+sib.map(x=>ARAC_T[x.arac]||x.arac).join(', ')+' var, bölmek için dokunun':'bölmek için dokunun'}`,{k:'split',id:t.id});}
     if(tot===0)add('warn','bos','Yolcusu olmayan sefer',`${shortDate(t.tarih)} ${YON_T[t.yon]} ${tripLabel(t)}`,{k:'t',id:t.id});
     if(t.durum==='tamam'){const o=(S.idx.pax.get(t.id)||[]).filter(isOpen).length;if(o)add('warn','tamamacik','Sefer tamamlandı ama yolcu durumu açık',`${tripLabel(t)} · ${o} kişi`,{k:'t',id:t.id});}
     if(!t.plaka||!t.sofor)eksik.push(t);
@@ -822,6 +822,7 @@ function renderSheet(first){
   if(fid){const x=document.getElementById(fid);if(x)x.focus({preventScroll:true});}
   if(first){const x=el.querySelector('.x');if(x)x.focus({preventScroll:true});}
   if(s.type==='person')fillNames(s.id);
+  if(s.type==='assign')renderAssignPrev();
 }
 const head=(t,sub)=>`<div class="sheet-head"><div style="flex:1;min-width:0"><h2>${t}</h2>${sub?`<p>${sub}</p>`:''}</div><button class="x" data-a="close" aria-label="Kapat">${ic('x')}</button></div>`;
 const fld=(id,lab,val,type='text',extra='')=>`<div class="field"><label for="${id}">${lab}</label><input id="${id}" type="${type}" value="${esc(val)}" ${extra}></div>`;
@@ -866,7 +867,7 @@ trip(s){
   const ro=S.canWrite?'':'disabled';
   let h=head(`${t.saat||'--:--'} ${esc(ARAC_T[t.arac]||t.arac)}`,`${dayLong(t.tarih)} · ${YON_L[t.yon]}`)+'<div class="sheet-body">';
   h+=`<div class="sts" role="group" aria-label="Sefer durumu">${TDUR.map(([k,tt,c])=>`<button class="sbtn ${c}" data-a="tdur" data-t="${t.id}" data-k="${k}" aria-pressed="${t.durum===k}" ${ro}>${tt}</button>`).join('')}</div>`;
-  if(cap&&tot>cap)h+=`<div class="note bad">${ic('alert')} Kapasite aşıldı: ${tot} kişi (${l.n} yolcu + ${l.m} misafir), araç ${cap} kişilik. Bazı yolcuları başka bir araca taşıyın.</div>`;
+  if(cap&&tot>cap)h+=`<div class="note bad" style="display:grid;gap:8px"><span>${ic('alert')} Kapasite aşıldı: ${tot} kişi (${l.n} yolcu + ${l.m} misafir), araç ${cap} kişilik.</span>${S.canWrite?`<button class="btn sm" data-a="split" data-t="${t.id}">${ic('van')} Yolcuları başka araçla böl</button>`:''}</div>`;
   h+=`<div class="panel"><div class="row between"><h3>${ic('users')} Yolcular · ${l.n}${l.m?' +'+l.m+' misafir':''} / ${cap}</h3></div>`;
   h+=pax.length?`<div class="card" style="box-shadow:none">${pax.map(x=>personRow(x,false)).join('')}</div>`:'<div class="muted small">Bu sefere atanmış yolcu yok.</div>';
   if(S.canWrite){
@@ -907,13 +908,18 @@ assign(s){
   const items=s.items.map(x=>({...x,p:S.people.get(x.pid)})).filter(x=>x.p&&x.p[x.y]);
   const need=items.reduce((a,x)=>a+1+misafir(x.p[x.y]),0);
   const ts=[...S.trips.values()].filter(t=>t.tarih===s.tarih&&t.yon===s.yon&&t.durum!=='iptal').map(t=>({t,d:s.saat&&t.saat?Math.abs(toMin(t.saat)-toMin(s.saat)):9999})).sort((a,b)=>a.d-b.d);
-  let h=head('Araç ata',`${shortDate(s.tarih)} ${YON_T[s.yon]} ${s.saat||''} · ${items.length} kişi${need>items.length?' +'+(need-items.length)+' misafir':''}`)+'<div class="sheet-body"><div class="card">';
-  h+=ts.map(({t,d})=>{const l=loadOf(t.id);const already=items.filter(x=>x.p[x.y].seferId===t.id).reduce((a,x)=>a+1+misafir(x.p[x.y]),0);const after=l.n+l.m-already+need;const over=after>(+t.kapasite||0);
-    return `<label class="check"><input type="radio" name="as" value="${t.id}"><span><b>${esc(tripLabel(t))}</b><br><span class="small muted">${d<9999?(d===0?'Aynı saat':d+' dk fark')+' · ':''}şu an ${l.n+l.m}/${t.kapasite}, sonra ${after}/${t.kapasite}</span></span>${over?'<span class="chip bad">Sığmaz</span>':'<span class="chip ok">Sığar</span>'}</label>`;}).join('');
-  h+=`<label class="check"><input type="radio" name="as" value="__new"><span><b>Yeni sefer oluştur</b><br><span class="small muted">Saat ${s.saat||'—'} · araç tipini seçin</span></span><select id="as_arac" aria-label="Araç tipi">${ARAC.map(a=>`<option value="${a}" ${a===(need>19?'OTOBÜS':need>9?'CRAFTER':'VİTO')?'selected':''}>${ARAC_T[a]} (${capOf(a)})</option>`).join('')}</select></label>`;
-  h+=`<label class="check"><input type="radio" name="as" value="__none"><span><b>Araç atamasını kaldır</b></span><span></span></label></div>`;
+  const cur=new Set(s.pre||items.map(x=>x.p[x.y].seferId).filter(id=>id&&S.trips.has(id)));
+  const def=need>19?'OTOBÜS':need>9?'CRAFTER':'VİTO';
+  let h=head('Araç ata',`${shortDate(s.tarih)} ${YON_T[s.yon]} ${s.saat||''} · ${items.length} kişi${need>items.length?' +'+(need-items.length)+' misafir = '+need+' yer':''}`)+'<div class="sheet-body">';
+  const row=({t,d})=>{const l=loadOf(t.id);return `<label class="check"><input type="checkbox" data-as="${t.id}" ${cur.has(t.id)?'checked':''}><span><b>${esc(tripLabel(t))}</b><br><span class="small muted">${d<9999?(d===0?'Aynı saat':d+' dk fark')+' · ':''}şu an ${l.n+l.m}/${t.kapasite}</span></span><span></span></label>`;};
+  const near=ts.filter(x=>x.d<=90||cur.has(x.t.id)),far=ts.filter(x=>!(x.d<=90||cur.has(x.t.id)));
+  h+=`<div class="note info">${ic('info')} İki ya da daha fazla araç işaretlerseniz kişiler kapasiteye göre araçlara bölünür; aynı kurumdan gelenler bir arada kalır.</div><div class="card">`;
+  h+=near.map(row).join('');
+  h+=`<div class="check"><span>${ic('plus')}</span><span><b>Yeni araç ekle</b><br><span class="small muted">Saat ${s.saat||'—'}</span></span><span class="row" style="flex-wrap:nowrap"><select id="as_n" aria-label="Kaç araç">${[0,1,2,3].map(k=>`<option value="${k}" ${k===(ts.length?0:1)?'selected':''}>${k}</option>`).join('')}</select><select id="as_arac" aria-label="Araç tipi">${ARAC.map(a=>`<option value="${a}" ${a===def?'selected':''}>${ARAC_T[a]} (${capOf(a)})</option>`).join('')}</select></span></div></div>`;
+  if(far.length)h+=`<details class="card"><summary class="ihead" style="cursor:pointer">Diğer seferler bu gün <span class="chip" style="margin-left:auto">${far.length}</span>${ic('down')}</summary>${far.map(row).join('')}</details>`;
+  h+=`<div class="panel"><h3>Dağılım</h3><div id="as_prev" class="small"></div></div>`;
   h+=`<details class="panel"><summary style="cursor:pointer;font-weight:700">Kişiler (${items.length})</summary><div class="small">${items.map(x=>esc(x.p.ad)+(misafir(x.p[x.y])?` (+${misafir(x.p[x.y])})`:'')).join(', ')}</div></details></div>`;
-  h+=`<div class="sheet-foot"><button class="btn" data-a="close">Vazgeç</button><button class="btn primary" data-a="doassign">Uygula</button></div>`;
+  h+=`<div class="sheet-foot"><button class="btn" data-a="unassign">Atamayı kaldır</button><button class="btn primary" data-a="doassign">Uygula</button></div>`;
   return h;
 },
 sugg(s){
@@ -925,7 +931,7 @@ sugg(s){
     const dk=x.tarih+x.y;
     if(dk!==lastD){lastD=dk;h+=`<div class="kgroup">${dayLong(x.tarih)} · ${YON_T[x.y]}</div>`;}
     const ts=[...S.trips.values()].filter(t=>t.tarih===x.tarih&&t.yon===x.y&&t.durum!=='iptal').sort((a,b)=>Math.abs(toMin(a.saat)-toMin(x.saat))-Math.abs(toMin(b.saat)-toMin(x.saat)));
-    h+=`<div class="srow"><input type="checkbox" data-sk="${esc(x.k)}" ${x.oneri?'checked':''} aria-label="${x.saat} grubunu uygula"><div><b class="disp" style="font-size:20px">${x.saat}</b> <span class="small"><b>${x.items.length} kişi</b>${x.need>x.items.length?' +'+(x.need-x.items.length)+' misafir':''}</span> <span class="small muted">· ${esc(kurumSummary(x.items))}</span>${x.oneri?'':'<div class="small" style="color:var(--warn)">Yeri olan yakın araç yok: yeni sefer açın veya kapasiteyi kontrol edin</div>'}</div>
+    h+=`<div class="srow"><input type="checkbox" data-sk="${esc(x.k)}" ${x.oneri?'checked':''} aria-label="${x.saat} grubunu uygula"><div><b class="disp" style="font-size:20px">${x.saat}</b> <span class="small"><b>${x.items.length} kişi</b>${x.need>x.items.length?' +'+(x.need-x.items.length)+' misafir':''}</span> <span class="small muted">· ${esc(kurumSummary(x.items))}</span>${x.oneri?'':`<div class="small" style="color:var(--warn)">Tek araca sığmıyor ya da yakın araç yok.</div><button class="btn sm" style="margin-top:6px" data-a="assign" data-k="${esc(x.k)}">${ic('van')} Birden fazla araca böl</button>`}</div>
       <select data-ss="${esc(x.k)}" aria-label="Sefer seçimi"><option value="">— seçin —</option>${ts.map(t=>{const l=loadOf(t.id);return `<option value="${t.id}" ${t.id===x.oneri?'selected':''}>${esc(tripLabel(t))} · ${l.n+l.m}/${t.kapasite} · ${Math.abs(toMin(t.saat)-toMin(x.saat))} dk</option>`;}).join('')}</select></div>`;
   }
   h+=`</div></div><div class="sheet-foot"><button class="btn" data-a="close">Vazgeç</button><button class="btn primary" data-a="applysugg">Seçilenleri ata</button></div>`;
@@ -1017,12 +1023,19 @@ const ACT={
   tbulk:d=>{const t=S.trips.get(d.t);if(!t)return;const fl=FLOW[t.yon];bulkDur((S.idx.pax.get(t.id)||[]).filter(isOpen).filter(x=>fl.indexOf(x.L.durum)<fl.indexOf(d.s)),d.s);},
   assign:d=>{const s=findSlot(d.k);if(!s)return;openSheet({type:'assign',tarih:s.day,yon:s.y,saat:s.saat,items:s.act.filter(x=>rides(x.p,x.L)).map(x=>({pid:x.p.id,y:x.y}))},true);},
   doassign:()=>{
-    const r=$('input[name="as"]:checked');if(!r){toast('Bir seçenek işaretleyin');return;}
-    const s=S.sheet;let tid=r.value;
-    if(tid==='__none'){const n=assignLegs(s.items,'');closeSheet();toast(`${n} kişinin araç ataması kaldırıldı`);return;}
-    if(tid==='__new'){const a=$('#as_arac').value;tid=createTrip({tarih:s.tarih,yon:s.yon,saat:s.saat||'',arac:a,kapasite:capOf(a)});if(!tid)return;}
-    const n=assignLegs(s.items,tid);closeSheet();toast(`${n} kişi araca atandı`);
+    const P=assignPlan();if(!P.trips.length){toast('En az bir araç işaretleyin ya da yeni araç ekleyin');return;}
+    const idMap=new Map();
+    for(const v of P.virt){const id=createTrip({tarih:v.tarih,yon:v.yon,saat:v.saat||'',arac:v.arac,kapasite:v.kapasite});if(!id)return;idMap.set(v.id,id);}
+    const byTrip=new Map();
+    for(const [w,tid] of P.plan){const real=idMap.get(tid)||tid;if(!byTrip.has(real))byTrip.set(real,[]);byTrip.get(real).push({pid:w.x.pid,y:w.x.y});}
+    const multi=byTrip.size>1;let n=0;const parts=[];
+    for(const [tid,arr] of byTrip){n+=assignLegs(arr,tid,multi?'araçlara bölündü':'');const t=S.trips.get(tid);parts.push(`${ARAC_T[t.arac]||t.arac} ${t.saat||''}: ${arr.length} kişi`);}
+    closeSheet();toast(n?parts.join(' · '):'Değişiklik yok','',null,5000);
   },
+  unassign:()=>{const s=S.sheet;if(!s)return;const n=assignLegs(s.items,'');closeSheet();toast(`${n} kişinin araç ataması kaldırıldı`);},
+  split:d=>{const t=S.trips.get(d.t);if(!t)return;const pax=S.idx.pax.get(t.id)||[];
+    const sib=[...S.trips.values()].filter(x=>x.id!==t.id&&x.tarih===t.tarih&&x.yon===t.yon&&x.durum!=='iptal'&&x.saat&&x.saat===t.saat).map(x=>x.id);
+    openSheet({type:'assign',tarih:t.tarih,yon:t.yon,saat:t.saat,items:pax.map(x=>({pid:x.p.id,y:x.y})),pre:[t.id,...sib]},true);},
   sugg:()=>openSheet({type:'sugg'},true),
   applysugg:()=>{
     let n=0,g=0;
@@ -1058,6 +1071,7 @@ const ACT={
   issue:d=>{const r={k:d.rk,id:d.rid,d:d.rd,y:d.ry,saat:d.rs,t:d.rt};
     if(r.k==='p')openSheet({type:'person',id:r.id});
     else if(r.k==='t')openSheet({type:'trip',id:r.id});
+    else if(r.k==='split')ACT.split({t:r.id});
     else if(r.k==='tab'){ACT.tab({t:r.t});}
     else if(r.k==='slot'){S.day=r.d;S.yon=r.y;S.yonManual=true;S.open.add(r.d+'|'+r.y+'|'+r.saat);ACT.tab({t:'akis'});setTimeout(()=>{const el=$(`[data-k="${CSS.escape(r.d+'|'+r.y+'|'+r.saat)}"]`);if(el)el.scrollIntoView({block:'center'});},120);}
   },
@@ -1083,6 +1097,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sheet&&$('#dlg').
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='kq'){S.q=t.value;render();return;}
+  if(S.sheet&&S.sheet.type==='assign'&&$('#sheet').contains(t)){renderAssignPrev();return;}
   if(t.id==='b_on'||t.id==='b_lead'){const on=$('#b_on').checked,lead=+$('#b_lead').value||30;enqueue({op:'set',path:'meta/ayarlar',data:Object.assign({},S.meta,{bildirim:{on,lead}}),label:'Bildirim ayarı'});toast(on?`Uyarılar ${lead} dk önce gelecek`:'Uyarılar kapatıldı');return;}
   if($('#sheet').contains(t)&&S.sheet&&(S.sheet.type==='person'||S.sheet.type==='trip')){
     S.dirty=true;const b=$('#psave')||$('#tsave');if(b)b.disabled=false;
@@ -1202,6 +1217,16 @@ async function readWorkbookRows(buf){
   }
   return out;
 }
+/* Araç yazımı: "VİTO+OTOBÜS", "2 VİTO", "2 ADET CRAFTER", "VİTO x2", "VİTO / CRAFTER", "1 VİTO 1 OTOBÜS" … */
+function parseArac(n){
+  const F=fold(n);if(!F)return null;
+  const re=/(\d+)?\s*(?:ADET\s*)?(?:X\s*)?(VITO|TRANSPORTER|CRAFTER|SPRINTER|OTOBUS)(?:\s*X\s*(\d+))?/g;
+  const out=[];let m;
+  while((m=re.exec(F))){const k=Math.min(9,Math.max(1,+(m[1]||m[3]||1)));const code=m[2]==='CRAFTER'||m[2]==='SPRINTER'?'CRAFTER':m[2]==='OTOBUS'?'OTOBÜS':'VİTO';for(let i=0;i<k;i++)out.push(code);}
+  if(!out.length)return null;
+  const rest=F.replace(re,' ').replace(/\b(VE|ADET|ARAC|ARACI|TANE|ILE)\b/g,' ').replace(/[\s+,\/&\-.()]+/g,'');
+  return rest?null:out;
+}
 /* pure parser: sheets = [{name, rows}] where rows = arrays of raw cell values */
 function parseSheets(sheets){
   const out={people:new Map(),trips:[],sheets:[],warnings:[]};const tk=new Set();
@@ -1218,10 +1243,12 @@ function parseSheets(sheets){
     for(let i=0;i<Math.min(rows.length,12);i++){if((rows[i]||[]).some(c=>fold(c).includes('PERSONEL'))){hi=i;break;}}
     if(hi<0){out.warnings.push(`“${sh.name}” sayfasında başlık satırı (PERSONEL İSMİ) bulunamadı.`);continue;}
     const H=Array.from(rows[hi],c=>fold(c));const col=(...keys)=>H.findIndex(h=>keys.some(k=>h.includes(k)));
-    const C={kurum:col('KURUM'),ad:col('PERSONEL'),gorev:col('GOREV','UNVAN'),tel:col('TELEFON'),ulasim:col('ULASIM'),tarih:H.findIndex(h=>h.includes('TARIH')&&!h.includes('SEFER')),saat:H.findIndex(h=>h.includes('SAAT')&&!h.includes('SEFER')&&!h.includes('DURUM')),mis:col('MISAFIR'),arac:H.findIndex(h=>h==='ARAC'),sefer:col('SEFER SAATI'),not:H.findIndex(h=>h==='NOT')};
+    const C={kurum:col('KURUM'),ad:col('PERSONEL'),gorev:col('GOREV','UNVAN'),tel:col('TELEFON'),ulasim:col('ULASIM'),tarih:H.findIndex(h=>h.includes('TARIH')&&!h.includes('SEFER')),saat:H.findIndex(h=>h.includes('SAAT')&&!h.includes('SEFER')&&!h.includes('DURUM')),mis:col('MISAFIR'),arac:H.findIndex(h=>/^ARAC/.test(h)),sefer:col('SEFER SAATI'),not:H.findIndex(h=>h==='NOT')};
     if(C.ad<0){out.warnings.push(`“${sh.name}”: isim sütunu bulunamadı.`);continue;}
-    const noteCols=[];if(C.mis<0&&C.saat>=0){for(let c=C.saat+1;c<=C.saat+2;c++)if(!H[c])noteCols.push(c);}
+    const isExp=C.sefer>=0;const noteCols=[];if(!isExp&&C.saat>=0){for(let c=C.saat+1;c<=C.saat+2;c++)if(!H[c])noteCols.push(c);}
     if(C.not>=0)noteCols.push(C.not);
+    const acik=H.findIndex(h=>h.includes('ACIKLAMA'));if(acik>=0&&!noteCols.includes(acik))noteCols.push(acik);
+    if(!isExp&&C.arac>=0&&!noteCols.includes(C.arac))noteCols.push(C.arac);
     let cnt=0;
     for(let i=hi+1;i<rows.length;i++){
       const r=rows[i]||[];const ad=clean(r[C.ad]);if(!ad||fold(ad).includes('PERSONEL'))continue;
@@ -1229,8 +1256,8 @@ function parseSheets(sheets){
       if(pm){tel=tel||pm[1];gorev=gr.replace(pm[1],'').replace(/[\s-]+$/,'').trim();}
       const tm=cTime(C.saat>=0?r[C.saat]:null);
       let mis=C.mis>=0?(parseInt(r[C.mis],10)||0):0,arac=[],katilmaz=false,notes=[];
-      for(const c of noteCols){const n=clean(r[c]);if(!n)continue;const N=up(n);const mm=/(\d+)\s*K[İI]Ş[İI]\s*M[İI]SAF[İI]R/.exec(N);if(mm){mis=+mm[1];continue;}if(N.includes('KATILIM SAĞLAMAYACAK')||N.includes('KATILMAYACAK')){katilmaz=true;continue;}const parts=N.split('+').map(x=>x.trim());if(parts.every(x=>CAP0[x]&&x!=='DİĞER')){arac.push(...parts);continue;}notes.push(n);}
-      if(C.arac>=0){const a=up(r[C.arac]);if(CAP0[a]&&a!=='DİĞER'){const ss=C.sefer>=0?cTime(r[C.sefer]).saat:tm.saat;const key=[d,y,ss,a].join('|');if(ss&&!tk.has(key)){tk.add(key);out.trips.push({tarih:d,yon:y,saat:ss,arac:a,kapasite:capOf(a),kaynak:`${sh.name} / satır ${i+1}`});}}}
+      for(const c of noteCols){const n=clean(r[c]);if(!n)continue;const N=up(n);const mm=/(\d+)\s*K[İI]Ş[İI]\s*M[İI]SAF[İI]R/.exec(N);if(mm){mis=+mm[1];continue;}if(N.includes('KATILIM SAĞLAMAYACAK')||N.includes('KATILMAYACAK')){katilmaz=true;continue;}const av=parseArac(n);if(av){arac.push(...av);continue;}notes.push(n);}
+      if(isExp&&C.arac>=0){const a=up(r[C.arac]);if(CAP0[a]&&a!=='DİĞER'){const ss=C.sefer>=0?cTime(r[C.sefer]).saat:tm.saat;const key=[d,y,ss,a].join('|');if(ss&&!tk.has(key)){tk.add(key);out.trips.push({tarih:d,yon:y,saat:ss,arac:a,kapasite:capOf(a),kaynak:`${sh.name} / satır ${i+1}`});}}}
       const tarih=cDate(C.tarih>=0?r[C.tarih]:null,d);
       for(const a of arac)out.trips.push({tarih,yon:y,saat:tm.saat,arac:a,kapasite:capOf(a),kaynak:`${sh.name} / satır ${i+1}`});
       if(tm.txt)notes.push(tm.txt);
@@ -1285,19 +1312,81 @@ document.getElementById('fileIn').addEventListener('change',async e=>{
 });
 function applyImport(){
   const s=S.sheet;if(!s)return;const sel=new Set($$('input[data-ci]').filter(c=>c.checked).map(c=>+c.dataset.ci));
-  const tripIds=[];let n=0;
-  const local=[...S.trips.values()];
-  for(const [i,c] of s.ch.entries()){if(!sel.has(i)||c.kind!=='sefer')continue;const id=createTrip(Object.assign({},c.t,{kaynak:c.t.kaynak+' (Excel güncellemesi)'}));if(id){local.push(Object.assign({id,durum:'planli'},c.t));n++;}}
-  const auto=(d,y,s2)=>{if(!d||!s2)return '';const ts=local.filter(t=>t.tarih===d&&t.yon===y&&t.saat===s2&&t.durum!=='iptal');if(!ts.length)return '';return ts.sort((a,b)=>(+b.kapasite||0)-(+a.kapasite||0))[0].id;};
-  let sira=S.people.size;
+  let n=0;const keyOf=(d,y,sa)=>[d,y,sa].join('|');
+  const local=[...S.trips.values()].filter(t=>t.durum!=='iptal');const newKeys=new Set();
+  for(const [i,c] of s.ch.entries()){if(!sel.has(i)||c.kind!=='sefer')continue;const id=createTrip(Object.assign({},c.t,{kaynak:c.t.kaynak+' (Excel güncellemesi)'}));if(id){local.push(Object.assign({id,durum:'planli'},c.t));newKeys.add(keyOf(c.t.tarih,c.t.yon,c.t.saat));n++;}}
+  const pend=new Map();
+  const want=(view,y,kurum,set)=>{if(!view||view.durum!=='bekliyor'||!view.tarih||!view.saat)return;const k=keyOf(view.tarih,y,view.saat);if(!pend.has(k))pend.set(k,[]);pend.get(k).push({n:1+misafir(view),kurum:kurum||'',set});};
+  const newDocs=[],patches=[],gone=[];
   for(const [i,c] of s.ch.entries()){
     if(!sel.has(i))continue;
-    if(c.kind==='yeni'){const np=c.np;for(const y of YON)if(np[y]&&np[y].durum==='bekliyor')np[y].seferId=auto(np[y].tarih,y,np[y].saat);enqueue({op:'set',path:'kisiler/'+newId('k'),data:Object.assign({},np,{not:'',sira:++sira,gecmis:[logE(`Excel güncellemesinden eklendi (${s.dosya})`)],guncelleme:nowIso(),guncelleyen:S.uid||''}),label:np.ad});n++;}
-    else if(c.kind==='degisen'){const p=S.people.get(c.pid);if(!p)continue;const patch=JSON.parse(JSON.stringify(c.patch));for(const y of YON){if(patch[y]&&patch[y].saat!=null){const L=p[y];const nd=patch[y].tarih||(L&&L.tarih);if(L&&!L.seferId)patch[y].seferId=auto(nd,y,patch[y].saat);}if(patch[y]&&!p[y]&&patch[y].durum==='bekliyor')patch[y].seferId=auto(patch[y].tarih,y,patch[y].saat);}updPerson(p,patch,c.msgs.map(m=>m+' (Excel güncellemesi)'));n++;}
-    else if(c.kind==='yok'){const p=S.people.get(c.pid);if(!p)continue;updPerson(p,{katilim:false},[`Yeni Excel listesinde yok (${s.dosya}): katılmayacak olarak işaretlendi`]);n++;}
+    if(c.kind==='yeni'){const np=JSON.parse(JSON.stringify(c.np));for(const y of YON)if(np[y]){np[y].seferId='';want(np[y],y,np.kurum,id=>{np[y].seferId=id;});}newDocs.push(np);n++;}
+    else if(c.kind==='degisen'){const p=S.people.get(c.pid);if(!p)continue;const patch=JSON.parse(JSON.stringify(c.patch));
+      for(const y of YON){const lp=patch[y];if(!lp)continue;const L=p[y];
+        if(!L){lp.seferId='';want(lp,y,patch.kurum||p.kurum,id=>{lp.seferId=id;});continue;}
+        if((lp.saat!=null||lp.tarih!=null)&&!L.seferId)want(Object.assign({},L,lp),y,patch.kurum||p.kurum,id=>{lp.seferId=id;});}
+      patches.push({pid:p.id,patch,msgs:c.msgs});n++;}
+    else if(c.kind==='yok'){gone.push(c.pid);n++;}
   }
+  const moves=[];
+  for(const k of new Set([...pend.keys(),...newKeys])){
+    const [d,y,sa]=k.split('|');
+    const trips=local.filter(t=>t.tarih===d&&t.yon===y&&t.saat===sa);if(!trips.length)continue;
+    const items=(pend.get(k)||[]).slice();
+    const base=new Map(trips.map(t=>{const l=loadOf(t.id);return [t.id,l.n+l.m];}));
+    if(newKeys.has(k)&&trips.some(t=>(base.get(t.id)||0)>(+t.kapasite||0))){
+      for(const t of trips)for(const x of (S.idx.pax.get(t.id)||[]))items.push({n:1+misafir(x.L),kurum:x.p.kurum||'',set:id=>{if(id!==x.L.seferId)moves.push({pid:x.p.id,y:x.y,tid:id});}});
+      for(const t of trips)base.set(t.id,0);
+    }
+    if(!items.length)continue;
+    for(const [it,tid] of planDistribution(items,trips,base))it.set(tid);
+  }
+  let sira=S.people.size;
+  for(const np of newDocs)enqueue({op:'set',path:'kisiler/'+newId('k'),data:Object.assign({},np,{not:'',sira:++sira,gecmis:[logE(`Excel güncellemesinden eklendi (${s.dosya})`)],guncelleme:nowIso(),guncelleyen:S.uid||''}),label:np.ad});
+  for(const x of patches){const p=S.people.get(x.pid);if(p)updPerson(p,x.patch,x.msgs.map(m=>m+' (Excel güncellemesi)'));}
+  for(const id of gone){const p=S.people.get(id);if(p)updPerson(p,{katilim:false},[`Yeni Excel listesinde yok (${s.dosya}): katılmayacak olarak işaretlendi`]);}
+  const byT=new Map();for(const m of moves){if(!byT.has(m.tid))byT.set(m.tid,[]);byT.get(m.tid).push(m);}
+  for(const [tid,arr] of byT)assignLegs(arr,tid,'Excel güncellemesi: araçlara bölündü');
   enqueue({op:'set',path:'meta/ayarlar',data:Object.assign({},S.meta,S.meta.kaynakDosya?{}:{kaynakDosya:s.dosya},{sonIceAktarma:{t:nowIso(),dosya:s.dosya,degisiklik:n}}),label:'Ayarlar'});
-  closeSheet();toast(`${n} değişiklik uygulandı`);
+  closeSheet();toast(`${n} değişiklik uygulandı${moves.length?` · ${moves.length} kişi araçlara bölündü`:''}`,'',null,5000);
+}
+
+/* ================= birden fazla araca bölme ================= */
+/* items: [{n (yer), kurum, ...}] · trips: [{id,kapasite}] · base: Map(tripId → dolu yer)
+   Kurumlar bir arada tutulur; büyük gruplar önce, büyük araçlar önce doldurulur. */
+function planDistribution(items,trips,base){
+  const rem=trips.slice().sort((a,b)=>(+b.kapasite||0)-(+a.kapasite||0)).map(t=>({t,r:(+t.kapasite||0)-((base&&base.get(t.id))||0)}));
+  const res=new Map();if(!rem.length)return res;
+  const groups=new Map();for(const it of items){const g=it.kurum||'';if(!groups.has(g))groups.set(g,[]);groups.get(g).push(it);}
+  const sumN=g=>g.reduce((a,x)=>a+x.n,0);
+  const gs=[...groups.values()].sort((a,b)=>sumN(b)-sumN(a));
+  for(const g of gs){
+    const need=sumN(g);const tr=rem.find(x=>x.r>=need);
+    if(tr){for(const it of g)res.set(it,tr.t.id);tr.r-=need;continue;}
+    for(const it of g.slice().sort((a,b)=>b.n-a.n)){const t2=rem.find(x=>x.r>=it.n)||rem.reduce((a,b)=>b.r>a.r?b:a);res.set(it,t2.t.id);t2.r-=it.n;}
+  }
+  return res;
+}
+function assignPlan(){
+  const s=S.sheet;
+  const items=s.items.map(x=>({pid:x.pid,y:x.y,p:S.people.get(x.pid)})).filter(x=>x.p&&x.p[x.y]&&rides(x.p,x.p[x.y]));
+  const chosen=$$('input[data-as]').filter(c=>c.checked).map(c=>S.trips.get(c.dataset.as)).filter(Boolean);
+  const nNew=+((($('#as_n')||{}).value)||0),aNew=($('#as_arac')||{}).value||'VİTO';
+  const virt=[];for(let i=0;i<nNew;i++)virt.push({id:'__yeni'+i,arac:aNew,kapasite:capOf(aNew),saat:s.saat,tarih:s.tarih,yon:s.yon,yeni:true});
+  const trips=[...chosen,...virt];
+  const base=new Map();
+  for(const t of chosen){const l=loadOf(t.id);let b=l.n+l.m;for(const x of items)if(x.p[x.y].seferId===t.id)b-=1+misafir(x.p[x.y]);base.set(t.id,Math.max(0,b));}
+  const plan=planDistribution(items.map(x=>({x,n:1+misafir(x.p[x.y]),kurum:x.p.kurum||''})),trips,base);
+  return {items,trips,virt,base,plan};
+}
+function renderAssignPrev(){
+  const el=$('#as_prev');if(!el)return;
+  const P=assignPlan();
+  if(!P.trips.length){el.innerHTML='<span class="muted">Araç seçilmedi.</span>';return;}
+  const add=new Map(),cnt=new Map();for(const [w,tid] of P.plan){add.set(tid,(add.get(tid)||0)+w.n);cnt.set(tid,(cnt.get(tid)||0)+1);}
+  el.innerHTML=P.trips.map(t=>{const b=P.base.get(t.id)||0,a=add.get(t.id)||0,tot=b+a,cap=+t.kapasite||0;
+    return `<div class="row between" style="padding:5px 0;border-top:1px solid var(--line)"><span>${t.yeni?'<span class="chip info">yeni</span> '+esc((ARAC_T[t.arac]||t.arac)+' '+(t.saat||'')):esc(tripLabel(t))}<br><span class="muted">${cnt.get(t.id)||0} kişi bu gruptan${b?' · '+b+' yer başka gruptan dolu':''}</span></span><b style="color:${tot>cap?'var(--bad)':'var(--ok)'}">${tot}/${cap}</b></div>`;}).join('')
+    +(P.trips.length>1?'':'<div class="muted" style="padding-top:4px">Tek araç seçili: hepsi bu araca atanır.</div>');
 }
 
 /* ================= telefon: bildirimler ve geri tuşu ================= */
