@@ -109,35 +109,78 @@
     return out;
   }
 
+  // ISO tarih/saat (t="d") → Excel seri sayısı
+  function isoSerial(x) {
+    x = String(x || '').trim();
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?)?/.exec(x);
+    if (m) {
+      var d = (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000;
+      return d + ((+(m[4] || 0)) * 3600 + (+(m[5] || 0)) * 60 + (+(m[6] || 0))) / 86400;
+    }
+    m = /^(\d{1,2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/.exec(x);
+    if (m) return ((+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0))) / 86400;
+    return x || null;
+  }
+  // Basit hücre başvurusu formülü (=G121, =$G$121) ve paylaşılan formül kaydırma
+  function shiftRef(f, dr, dc) {
+    var m = /^=?(\$?)([A-Z]{1,3})(\$?)(\d+)$/.exec(String(f || '').replace(/\s/g, ''));
+    if (!m) return null;
+    var c = colIndex(m[2]) - 1 + (m[1] ? 0 : dc), r = +m[4] - 1 + (m[3] ? 0 : dr);
+    return c >= 0 && r >= 0 ? { r: r, c: c } : null;
+  }
+  function stripNs(xml) { return xml ? xml.replace(/<(\/?)[A-Za-z_][\w.-]*:(?=[A-Za-z_])/g, '<$1') : xml; }
+
   function parseSheetXml(xml, sst, xfs, maxCol) {
     var rows = [], st = [], merged = [], anchor = [], hiddenRows = {};
-    var rowRe = /<row\s([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g, rm;
+    var refs = [], shared = {};
+    var rowRe = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g, rm, lastRow = 0;
     while ((rm = rowRe.exec(xml))) {
-      var rn = parseInt(attr(rm[1], 'r') || '0', 10);
-      if (!rn) continue;
+      var rn = parseInt(attr(rm[1], 'r') || '0', 10) || (lastRow + 1);
+      lastRow = rn;
       if (/(?:^|\s)hidden="(1|true)"/.test(rm[1])) hiddenRows[rn - 1] = true;
       var inner = rm[2] || '';
-      var re = /<c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
+      var re = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m, lastCol = 0;
       while ((m = re.exec(inner))) {
         var a = m[1], ref = attr(a, 'r');
-        if (!ref) continue;
-        var pos = refRC(ref);
+        var pos = ref ? refRC(ref) : { r: rn, c: lastCol + 1 };
+        if (!pos.r) pos.r = rn;
+        lastCol = pos.c;
         if (pos.c > maxCol) continue;
         var ci = m[2] || '', t = attr(a, 't'), v = null, sstFlags = null;
         var vm = /<v>([\s\S]*?)<\/v>/.exec(ci);
+        var fm = /<f\b([^>]*?)(?:\/>|>([\s\S]*?)<\/f>)/.exec(ci);
+        var r0 = pos.r - 1, c0 = pos.c - 1;
         if (t === 's') { var e = vm ? sst[parseInt(vm[1], 10)] : null; v = e ? e.t : ''; sstFlags = e; }
         else if (t === 'inlineStr') v = texts(ci);
         else if (t === 'str') v = vm ? unesc(vm[1]) : '';
         else if (t === 'b') v = vm ? vm[1] === '1' : false;
         else if (t === 'e') v = null;
-        else v = vm ? parseFloat(vm[1]) : null;
-        var r0 = pos.r - 1, c0 = pos.c - 1;
+        else if (t === 'd') v = vm ? isoSerial(unesc(vm[1])) : null;
+        else { v = vm && vm[1].trim() !== '' ? parseFloat(vm[1]) : null; if (v !== null && !isFinite(v)) v = null; }
+        if (fm) {
+          var fa = fm[1] || '', ftxt = unesc(fm[2] || ''), si = attr(fa, 'si');
+          if (/t="shared"/.test(fa) && si != null) {
+            if (ftxt) shared[si] = { f: ftxt, r: r0, c: c0 };
+            else if (shared[si]) ftxt = { sh: shared[si] };
+          }
+          if ((v === null || v === '') && ftxt) refs.push({ r: r0, c: c0, f: ftxt });
+        }
         var sx = xfs[parseInt(attr(a, 's') || '0', 10)] || {};
         var flags = { strike: !!(sx.strike || (sstFlags && sstFlags.strike)), red: !!(sx.red || (sstFlags && sstFlags.red)), fill: sx.fill || null };
         if (flags.strike || flags.red || flags.fill) (st[r0] = st[r0] || [])[c0] = flags;
         if (v === null || v === '') continue;
         (rows[r0] = rows[r0] || [])[c0] = v;
       }
+    }
+    // Değeri kaydedilmemiş formüller: yalnızca =G121 gibi tek hücre başvuruları çözülür
+    for (var pass = 0; pass < 4 && refs.length; pass++) {
+      refs = refs.filter(function (x) {
+        var tg = typeof x.f === 'string' ? shiftRef(x.f, 0, 0) : (x.f.sh ? shiftRef(x.f.sh.f, x.r - x.f.sh.r, x.c - x.f.sh.c) : null);
+        if (!tg) return false;
+        var val = rows[tg.r] && rows[tg.r][tg.c];
+        if (val == null || val === '') return true;
+        (rows[x.r] = rows[x.r] || [])[x.c] = val; return false;
+      });
     }
     // Birleştirilmiş hücreler: sol üst hücrenin değeri aralığın tamamına kopyalanır
     var mre = /<mergeCell\s+ref="([A-Z]+\d+):([A-Z]+\d+)"/g, mm;
@@ -174,10 +217,11 @@
           if (target.indexOf('xl/') !== 0) target = 'xl/' + target;
           list.push({ name: attr(m[1], 'name'), target: target, hidden: /state="(hidden|veryHidden)"/.test(m[1]) });
         }
+        r = r.map(stripNs);
         var sst = parseSST(r[2]), xfs = parseStyles(r[3]);
         return Promise.all(list.map(function (s) {
           return zip.text(s.target).then(function (xml) {
-            var p = xml ? parseSheetXml(xml, sst, xfs, maxCol) : { rows: [], st: [], merged: [], anchor: [], hiddenRows: {} };
+            var p = xml ? parseSheetXml(stripNs(xml), sst, xfs, maxCol) : { rows: [], st: [], merged: [], anchor: [], hiddenRows: {} };
             p.name = s.name; p.hidden = s.hidden;
             return p;
           });

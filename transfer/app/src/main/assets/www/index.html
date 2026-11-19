@@ -302,6 +302,7 @@ const CACHE_KEY='antalya-transfer-2026-cache-v1';
 const NB=window.AndroidBridge||null;
 
 const ICONS={
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   van:'<path d="M2 16V7.5A1.5 1.5 0 0 1 3.5 6H14l4 4h2.2A1.8 1.8 0 0 1 22 11.8V16h-2"/><path d="M2 16h2.5M9.5 16h5"/><circle cx="7" cy="16.5" r="2.2"/><circle cx="17.2" cy="16.5" r="2.2"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-.5A5.5 5.5 0 0 1 8 14h2a5.5 5.5 0 0 1 5.5 5.5v.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.3A5.5 5.5 0 0 1 21.5 19.5v.5"/>',
@@ -953,6 +954,7 @@ imp(s){
   const ch=s.ch;const groups=[['seferdegisti','Değişen araç seferleri'],['sefer','Yeni araç seferleri'],['seferkalkti','Excel’den kaldırılan seferler (iptal edilir)'],['yeni','Yeni kişiler'],['degisen','Değişen kayıtlar'],['bacakkalkti','Listeden çıkarılan transferler (iptal edilir)'],['yok','Yeni listede bulunmayan kişiler (katılmayacak yapılır)']];
   let h=head('Excel güncellemesi',esc(s.dosya))+`<div class="sheet-body">`;
   h+=`<div class="panel"><h3>Dosya tarandı</h3><div class="small">${s.parsed.satir} satır okundu · ${s.parsed.people.size} kişi · ${s.parsed.trips.length} araç işareti</div><div class="small muted">${s.sheets.map(x=>`${esc(x.name)}: ${x.cnt} kişi${x.hidden?' (gizli sayfa)':''}`).join(' · ')}</div><div class="small muted">Uygulamada şu an ${S.people.size} kişi ve ${[...S.trips.values()].filter(t=>t.durum!=='iptal').length} sefer var.</div></div>`;
+  if(S.people.size)h+=`<div class="panel"><h3 style="margin-bottom:6px">${ic('search')} Dosyada kişi ara</h3><p class="small muted" style="margin:0 0 8px">Bir kişinin Excel satırı nasıl okundu ve uygulamadaki kaydıyla farkı ne, burada görün.</p><input id="impq" type="search" placeholder="Ad yazın (örn. Okan)" autocomplete="off" value="${esc(s.q||'')}"><div id="impqr">${impLookup(s,s.q||'')}</div></div>`;
   if(!S.people.size){const nk=ch.filter(c=>c.kind==='yeni').length,nt=ch.filter(c=>c.kind==='sefer').length;h+=`<div class="panel"><h3>İlk aktarım</h3><p style="margin:0"><b>${nk} kişi</b> ve <b>${nt} araç seferi</b> eklenecek.</p></div>`;}
   for(const w of s.warnings)h+=`<div class="note warn">${ic('alert')} ${esc(w)}</div>`;
   if(!ch.length)h+=`<div class="panel"><h3 style="color:var(--ok)">${ic('check')} Fark yok</h3><p class="muted" style="margin:0">Dosyadaki kişiler, saatler, misafirler, notlar ve araç seferleri uygulamadakiyle aynı.</p></div>`;
@@ -1114,6 +1116,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sheet&&$('#dlg').
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='kq'){S.q=t.value;render();return;}
+  if(t.id==='impq'&&S.sheet&&S.sheet.type==='imp'){S.sheet.q=t.value;const r=$('#impqr');if(r)r.innerHTML=impLookup(S.sheet,t.value);return;}
   if(S.sheet&&S.sheet.type==='assign'&&$('#sheet').contains(t)){renderAssignPrev();return;}
   if(t.id==='b_on'||t.id==='b_lead'){const on=$('#b_on').checked,lead=+$('#b_lead').value||30;enqueue({op:'set',path:'meta/ayarlar',data:Object.assign({},S.meta,{bildirim:{on,lead}}),label:'Bildirim ayarı'});toast(on?`Uyarılar ${lead} dk önce gelecek`:'Uyarılar kapatıldı');return;}
   if($('#sheet').contains(t)&&S.sheet&&(S.sheet.type==='person'||S.sheet.type==='trip')){
@@ -1252,18 +1255,48 @@ const KW_IPTAL=/(^|[^A-Z])IPTAL([^A-Z]|$)/;
 function misafirOf(F){const m=/(\d+)\s*(?:KISI\s*)?MISAFIR|MISAFIR\s*[:\-]?\s*\+?(\d+)/.exec(F);return m?+(m[1]||m[2]):null;}
 function cDate(v,fb){
   if(typeof v==='number'&&v>20000){const dt=new Date(Date.UTC(1899,11,30)+Math.floor(v+1e-9)*86400000);return dt.toISOString().slice(0,10);}
-  const m=/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/.exec(clean(v));
+  const s=clean(v);let m=/(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if(m)return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  m=/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/.exec(s);
   if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${pad(+m[2])}-${pad(+m[1])}`;}
   return fb;
 }
+/* Saat hücresi: her yazım biçimi denenir. uyari → “Kontrol etmeniz gereken satırlar” listesine düşer */
+const fracT=f=>hhmm(Math.round(f*1440)%1440);
 function cTime(v){
   if(v==null||v==='')return{saat:'',txt:''};
-  if(typeof v==='number'){const f=v-Math.floor(v);if(f<1e-9&&v>=1)return{saat:'',txt:''};const mm=Math.round(f*1440)%1440;return{saat:hhmm(mm),txt:''};}
+  if(typeof v==='boolean')return{saat:'',txt:''};
+  if(typeof v==='number'){
+    if(!isFinite(v))return{saat:'',txt:''};
+    if(v>=0&&v<1)return{saat:fracT(v),txt:''};
+    if(v>=20000){const f=v-Math.floor(v);if(f>1e-6)return{saat:fracT(f),txt:''};
+      const ds=cDate(v,'');const M=+ds.slice(5,7),G=+ds.slice(8,10);
+      if(G<=23&&M<=12)return{saat:pad(G)+':'+pad(M),txt:'',uyari:`saat hücresinde tarih var (${trDate(ds)}); Excel “${pad(G)}.${pad(M)}” yazımını tarihe çevirmiş olabilir → ${pad(G)}:${pad(M)} alındı, kontrol edin`};
+      return{saat:'',txt:'',uyari:`saat yerine tarih yazılmış (${trDate(ds)}); saat okunamadı`};}
+    const h=Math.floor(v),fr=Math.round((v-h)*100);
+    if(v<24&&fr===0)return{saat:pad(h)+':00',txt:'',uyari:`saat “${h}” yazılmış → ${pad(h)}:00 alındı`};
+    if(v<24&&fr<60)return{saat:pad(h)+':'+pad(fr),txt:'',uyari:`saat sayı olarak yazılmış (${String(v).replace('.',',')}) → ${pad(h)}:${pad(fr)} alındı`};
+    if(Number.isInteger(v)&&v<2400&&v%100<60){const t=pad(Math.floor(v/100))+':'+pad(v%100);return{saat:t,txt:'',uyari:`saat “${v}” yazılmış → ${t} alındı`};}
+    return{saat:'',txt:'',uyari:`saat okunamadı: “${v}”`};
+  }
   const s=clean(v);
-  if(/^\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}$/.test(s))return{saat:'',txt:s,tarih:true};
-  const m=/(^|[^\d])(\d{1,2})[:.](\d{2})(?!\d)/.exec(s);
-  if(m&&+m[2]<24&&+m[3]<60){const rest=clean(s.replace(m[0].slice(m[1].length),' '));return{saat:pad(+m[2])+':'+m[3],txt:rest&&rest!=='-'?rest:''};}
-  return{saat:'',txt:s==='-'?'':s};
+  if(/^[-–—_.\s]*$/.test(s))return{saat:'',txt:''};
+  if(/^\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}$/.test(s)||/^\d{4}-\d{2}-\d{2}$/.test(s))return{saat:'',txt:s,tarih:true};
+  if(/^0?[.,]\d+$/.test(s)){const f=parseFloat(s.replace(',','.'));if(f>0&&f<1)return{saat:fracT(f),txt:''};}
+  const s2=s.replace(/\d{4}-\d{2}-\d{2}(T[\d:.]+)?/g,' ').replace(/(^|[^\d])\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}(?!\d)/g,'$1 ');
+  const re=/(^|[^\d])(\d{1,2})\s*[:.,;hH]\s*(\d{2})(?!\d)/g;let m;
+  while((m=re.exec(s2))){if(+m[2]<24&&+m[3]<60){const rest=clean(s2.slice(0,m.index+m[1].length)+' '+s2.slice(m.index+m[0].length)).replace(/^[-–\s]+$/,'');return{saat:pad(+m[2])+':'+m[3],txt:rest};}}
+  const t2=s2.trim();
+  if((m=/^(\d{1,2})\s+(\d{2})$/.exec(t2))&&+m[1]<24&&+m[2]<60)return{saat:pad(+m[1])+':'+m[2],txt:'',uyari:`saat “${s}” yazılmış → ${pad(+m[1])}:${m[2]} alındı`};
+  if((m=/^(\d{2})(\d{2})$/.exec(t2))&&+m[1]<24&&+m[2]<60)return{saat:m[1]+':'+m[2],txt:'',uyari:`saat “${s}” yazılmış → ${m[1]}:${m[2]} alındı`};
+  if((m=/^(?:SAAT\s*)?(\d{1,2})(?:\s*'?\s*(?:DE|DA|TE|TA|GİBİ|GIBI))?$/i.exec(t2))&&+m[1]<24)return{saat:pad(+m[1])+':00',txt:'',uyari:`saat “${s}” yazılmış → ${pad(+m[1])}:00 alındı`};
+  return{saat:'',txt:s};
+}
+/* Sadece saat içeren değer mi (yan sütuna yazılmış saat için) */
+const colLetter=c=>{let x='';c++;while(c>0){const k=(c-1)%26;x=String.fromCharCode(65+k)+x;c=Math.floor((c-1)/26);}return x;};
+function onlyTime(v){
+  if(typeof v==='number')return v>0&&v<1?fracT(v):'';
+  const m=/^(\d{1,2})[:.](\d{2})$/.exec(clean(v));return m&&+m[1]<24&&+m[2]<60?pad(+m[1])+':'+m[2]:'';
 }
 /* Araç yazımı: "VİTO+OTOBÜS", "2 VİTO", "2 ADET CRAFTER", "VİTO x2", "VİTO / CRAFTER", "1 VİTO 1 OTOBÜS" … */
 function parseArac(n){
@@ -1305,6 +1338,10 @@ function parseSheets(sheets){
       const gr=clean(C.gorev>=0?r[C.gorev]:'');const pm=PH.exec(gr);let gorev=gr,tel=C.tel>=0?clean(r[C.tel]):'';
       if(pm){tel=tel||clean(pm[1]);gorev=clean(gr.replace(pm[1],'').replace(/[\s-]+$/,''));}
       const tm=cTime(C.saat>=0?r[C.saat]:null);
+      if(!tm.saat&&C.tarih>=0){const dv=r[C.tarih];let ts='';
+        if(typeof dv==='number'&&dv>=20000){const f=dv-Math.floor(dv);if(f>1e-6)ts=fracT(f);}
+        else if(typeof dv==='string'){ts=cTime(dv).saat;}
+        if(ts){tm.saat=ts;tm.uyari=`saat, tarih sütununa yazılmış → ${ts} alındı`;}}
       let mis=C.mis>=0&&typeof r[C.mis]==='number'?Math.max(0,Math.round(r[C.mis])):0;
       const arac=[],notes=[];let katilmaz=false,iptal=false,kendi=false;
       const words=(n,fromMerge)=>{const N=fold(n);
@@ -1314,7 +1351,11 @@ function parseSheets(sheets){
         if(KW_IPTAL.test(N)){iptal=true;notes.push(n);return;}
         const av=parseArac(n);if(av){if(!fromMerge)arac.push(...av);return;}
         notes.push(n);};
-      for(const c of noteCols){const v=r[c];if(v==null||v==='')continue;if(c===C.mis&&typeof v==='number')continue;words(clean(v),!!(sh.merged&&sh.merged[i]&&sh.merged[i][c]));}
+      for(const c of noteCols){const v=r[c];if(v==null||v==='')continue;if(c===C.mis&&typeof v==='number')continue;
+        const ot=c!==C.mis?onlyTime(v):'';
+        if(ot&&!tm.saat){tm.saat=ot;tm.uyari=`saat, yandaki sütuna yazılmış (${H[c]?H[c]+' sütunu':colLetter(c)+' sütunu'}) → ${ot} alındı`;continue;}
+        words(ot||clean(v),!!(sh.merged&&sh.merged[i]&&sh.merged[i][c]));}
+      if(tm.uyari)out.supheli.push({where,ad,msg:tm.uyari});
       if(tm.txt){const n0=notes.length;words(tm.txt,true);if(!tm.saat&&!tm.tarih&&!kendi&&!katilmaz&&!iptal&&notes.length>n0)out.supheli.push({where,ad,msg:`saat okunamadı: “${tm.txt}”`});}
       if(isExp&&C.arac>=0){const a=up(r[C.arac]);if(CAP0[a]&&a!=='DİĞER'){const ss=C.sefer>=0?cTime(r[C.sefer]).saat:tm.saat;const key=[sd,y,ss,a].join('|');if(ss&&!seenTk.has(key)){seenTk.add(key);out.trips.push({tarih:cDate(C.tarih>=0?r[C.tarih]:null,sd),yon:y,saat:ss,arac:a,kapasite:capOf(a),kaynak:where});}}}
       const tarih=cDate(C.tarih>=0?r[C.tarih]:null,null)||sd;
@@ -1437,6 +1478,7 @@ document.getElementById('fileIn').addEventListener('change',async e=>{
     const parsed=parseSheets(await readWorkbookRows(buf));
     if(!parsed.people.size){toast('Dosyada transfer listesi bulunamadı. Sayfa adları “20.11.2026 HAVALİMANI-OTEL” gibi olmalı ve bir “PERSONEL İSMİ / AD SOYAD” sütunu bulunmalı.','bad',null,9000);return;}
     const d=diffImport(parsed);
+    clearTimeout(toastT);$('#toast').hidden=true;
     openSheet({type:'imp',dosya:f.name,parsed,ch:d.ch,supheli:parsed.supheli.concat(d.supheli),sheets:parsed.sheets,warnings:parsed.warnings},true);
   }catch(err){toast('Dosya okunamadı: '+(err&&err.message||''),'bad',null,7000);}
 });
@@ -1513,6 +1555,29 @@ function applyImport(){
   buildIndex();
   const aracsiz=legs().filter(x=>rides(x.p,x.L)&&x.L.saat&&!(x.L.seferId&&S.trips.has(x.L.seferId))).length;
   openSheet({type:'impres',dosya:s.dosya,n,cnt,moved,kalan:after.ch,supheli:s.supheli,aracsiz},true);
+}
+function impLookup(s,q){
+  const Q=nameKey(q||'');if(Q.length<2)return '';
+  const P=[...S.people.values()];const byKey=new Map(P.map(p=>[nameKey(p.ad),p]));
+  const hits=[...s.parsed.people.entries()].filter(([k])=>k.includes(Q)).slice(0,6);
+  const appOnly=P.filter(p=>nameKey(p.ad).includes(Q)&&!s.parsed.people.has(nameKey(p.ad))).slice(0,4);
+  if(!hits.length&&!appOnly.length)return `<p class="small" style="margin:8px 0 0;color:var(--bad)">“${esc(q)}” bu Excel dosyasında da uygulamada da bulunamadı.</p>`;
+  const legTxt=L=>L?`${trDate(L.tarih)} · <b>${L.saat||'saat yok'}</b>${misafir(L)?' · +'+misafir(L)+' misafir':''}${L.durum&&L.durum!=='bekliyor'?' · '+esc(L.durum==='iptal'?'İptal':L.durum==='kendi'?'Kendi imkânıyla':L.durum):''}${L.not?' · <i>'+esc(L.not)+'</i>':''}`:'<span class="muted">yok</span>';
+  const appLeg=(p,y)=>{const L=p&&p[y];if(!L)return '<span class="muted">yok</span>';const t=L.seferId&&S.trips.get(L.seferId);return `${trDate(L.tarih)} · <b>${L.saat||'saat yok'}</b>${misafir(L)?' · +'+misafir(L)+' misafir':''} · ${esc(durT(y,L.durum))}${t?' · '+esc(tripLabel(t)):' · araç yok'}`;};
+  let h='';
+  for(const [k,np] of hits){
+    const c=s.ch.find(c=>c.np===np||(c.pid&&byKey.get(k)&&c.pid===byKey.get(k).id&&c.kind==='degisen'))||s.ch.find(c=>c.text&&nameKey(c.text.split(' → ').pop())===k);
+    const p=byKey.get(k)||(c&&c.pid&&S.people.get(c.pid));
+    const sup=s.supheli.filter(x=>nameKey(x.ad)===k);
+    h+=`<div style="border-top:1px solid var(--line);padding:10px 0 2px"><b>${esc(np.ad)}</b> <span class="small muted">${esc(np.kurum||'')}</span>`;
+    for(const y of YON)h+=`<div class="small" style="margin-top:4px"><b>${YON_T[y]}</b> · Excel: ${legTxt(np[y])}${np[y]?` <span class="muted">(${esc(np[y].kaynak)})</span>`:''}<br><span class="muted">Uygulama:</span> ${p?appLeg(p,y):'<span class="muted">kayıt yok</span>'}</div>`;
+    if(np.katilim===false)h+=`<div class="small" style="color:var(--bad)">Excel’de katılmayacak yazıyor</div>`;
+    h+=c?`<div class="small" style="margin-top:4px;color:var(--warn)">${ic('alert')} Güncellemede: ${esc(c.sub)}${c.checked?'':' <b>(işaretli değil)</b>'}</div>`:`<div class="small" style="margin-top:4px;color:var(--ok)">${ic('check')} Uygulamadaki kayıtla aynı</div>`;
+    for(const x of sup)h+=`<div class="small" style="color:var(--warn)">• ${esc(x.msg)}</div>`;
+    h+=`</div>`;
+  }
+  for(const p of appOnly){const c=s.ch.find(c=>c.pid===p.id);h+=`<div style="border-top:1px solid var(--line);padding:10px 0 2px"><b>${esc(p.ad)}</b><div class="small" style="color:var(--bad)">Bu Excel dosyasında yok.${c?' Güncellemede: '+esc(c.sub):''}</div></div>`;}
+  return h;
 }
 function supheliHtml(list,open){
   if(!list.length)return '';
