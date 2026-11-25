@@ -36,6 +36,8 @@ import androidx.core.content.IntentCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -54,6 +56,10 @@ class MainActivity : ComponentActivity() {
     private var pendingSaveFile: File? = null
     private var bigFile: File? = null
     private var bigStream: FileOutputStream? = null
+    /** Son paylaşılan dosyanın bilgileri (mime, konu, metin, numara): yeniden paylaşmak için */
+    private var sonPaylas: Array<String>? = null
+    /** Son dosya hatası (gönderim bilgisi ve hata penceresi için) */
+    @Volatile private var sonHata = ""
     private var sharedUri: Uri? = null
     private var sharedName = "dosya"
     private var sharedMime = "application/octet-stream"
@@ -432,6 +438,7 @@ class MainActivity : ComponentActivity() {
         /** Büyük dosya (güncel tablo) parça parça yazılır: fileBegin → fileAppend… → fileFinish */
         @JavascriptInterface
         fun fileBegin(fileName: String): Boolean = try {
+            sonHata = ""
             bigStream?.close()
             val dir = File(cacheDir, "paylas")
             dir.mkdirs()
@@ -442,15 +449,66 @@ class MainActivity : ComponentActivity() {
             bigStream = FileOutputStream(f)
             true
         } catch (e: Exception) {
+            sonHata = hataYazi(e)
             false
         }
 
         @JavascriptInterface
         fun fileAppend(base64: String): Boolean = try {
             bigStream?.write(Base64.decode(base64, Base64.DEFAULT))
+            if (bigStream == null) sonHata = "Dosya açık değil"
             bigStream != null
         } catch (e: Exception) {
+            sonHata = hataYazi(e)
             false
+        }
+
+        @JavascriptInterface
+        fun sonHata(): String = sonHata
+
+        /** Son hazırlanan dosyayı yeniden paylaşır (tablo yeniden hazırlanmaz): "whatsapp:secici", "save" … */
+        @JavascriptInterface
+        fun sonDosyayiPaylas(target: String) {
+            val f = bigFile
+            val p = sonPaylas
+            if (f == null || p == null || !f.exists()) {
+                sonucBildir(target, false, "Hazır dosya yok; tabloyu yeniden gönderin")
+                return
+            }
+            runOnUiThread { paylas(f, target, p[0], p[1], p[2], p[3]) }
+        }
+
+        /** Telefondaki WhatsApp uygulamaları: [{paket, ad, surum, etkin}] */
+        @JavascriptInterface
+        fun whatsappUygulamalari(): String {
+            val a = JSONArray()
+            for (p in listOf("com.whatsapp", "com.whatsapp.w4b")) {
+                try {
+                    val info = packageManager.getPackageInfo(p, 0)
+                    val etkin = info.applicationInfo?.enabled ?: true
+                    a.put(JSONObject().put("paket", p).put("ad", waAd(p)).put("surum", info.versionName ?: "").put("etkin", etkin))
+                } catch (e: Exception) {
+                    // yüklü değil
+                }
+            }
+            return a.toString()
+        }
+
+        /** Gönderim bilgisi: Android, cihaz, WebView, boş alan */
+        @JavascriptInterface
+        fun cihazBilgisi(): String {
+            val wv = try {
+                WebViewCompat.getCurrentWebViewPackage(this@MainActivity)?.let { (it.packageName ?: "") + " " + (it.versionName ?: "") } ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+            return JSONObject()
+                .put("android", Build.VERSION.RELEASE ?: "")
+                .put("sdk", Build.VERSION.SDK_INT)
+                .put("cihaz", ((Build.MANUFACTURER ?: "") + " " + (Build.MODEL ?: "")).trim())
+                .put("webview", wv)
+                .put("bosMB", cacheDir.usableSpace / 1048576L)
+                .toString()
         }
 
         /** target: whatsapp | email | save | share | open */
@@ -459,31 +517,16 @@ class MainActivity : ComponentActivity() {
             try {
                 bigStream?.close()
             } catch (e: Exception) {
-                // yok say
+                sonHata = hataYazi(e)
             }
             bigStream = null
-            val f = bigFile ?: return
-            runOnUiThread {
-                try {
-                    when (target) {
-                        "save" -> {
-                            pendingSaveFile = f
-                            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = mimeType
-                                putExtra(Intent.EXTRA_TITLE, f.name)
-                            }
-                            createFileLauncher.launch(intent)
-                        }
-                        "whatsapp" -> shareToWhatsApp(f, mimeType, text, phone)
-                        "email" -> startShare(fileIntent(f, mimeType, subject, text))
-                        "open" -> openFile(f, mimeType)
-                        else -> startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
-                    }
-                } catch (e: Exception) {
-                    toast("Dosya paylaşılamadı")
-                }
+            val f = bigFile
+            if (f == null) {
+                sonucBildir(target, false, "Dosya bulunamadı" + if (sonHata.isNotEmpty()) " ($sonHata)" else "")
+                return
             }
+            sonPaylas = arrayOf(mimeType, subject, text, phone)
+            runOnUiThread { paylas(f, target, mimeType, subject, text, phone) }
         }
 
         /** Günlük hatırlatma: {on, saat, dakika, tatil:"yyyy-MM-dd,…", hergun} */
@@ -610,23 +653,83 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Dosyayı WhatsApp'ta açar; numara verilmişse doğrudan o sohbete gitmeyi dener */
-    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String) {
-        val pkg = installedPackage("com.whatsapp", "com.whatsapp.w4b")
+    /**
+     * Dosyayı hedefe verir ve sonucu sayfaya bildirir (window.onNativeShare).
+     * target: whatsapp | whatsapp:<paket> | whatsapp:secici | email | save | share | open
+     */
+    private fun paylas(f: File, target: String, mimeType: String, subject: String, text: String, phone: String) {
+        try {
+            val sonuc = when {
+                target == "save" -> {
+                    pendingSaveFile = f
+                    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = mimeType
+                        putExtra(Intent.EXTRA_TITLE, f.name)
+                    }
+                    createFileLauncher.launch(intent)
+                    "Kaydetme ekranı açıldı"
+                }
+                target == "whatsapp" || target.startsWith("whatsapp:") ->
+                    shareToWhatsApp(f, mimeType, text, phone, target.substringAfter(':', ""))
+                target == "email" -> {
+                    startShare(fileIntent(f, mimeType, subject, text))
+                    "E-posta açıldı"
+                }
+                target == "open" -> {
+                    openFile(f, mimeType)
+                    "Dosya açıldı"
+                }
+                else -> {
+                    startActivity(Intent.createChooser(fileIntent(f, mimeType, subject, text), "Paylaş"))
+                    "Paylaş menüsü açıldı"
+                }
+            }
+            sonucBildir(target, true, sonuc + " · " + String.format(java.util.Locale.ROOT, "%.1f MB", f.length() / 1048576.0))
+        } catch (e: Exception) {
+            sonucBildir(target, false, hataYazi(e))
+        }
+    }
+
+    private fun sonucBildir(target: String, ok: Boolean, mesaj: String) {
+        val js = "window.onNativeShare && window.onNativeShare(" +
+            JSONObject().put("target", target).put("ok", ok).put("mesaj", mesaj).toString() + ")"
+        runOnUiThread { if (pageReady) webView.evaluateJavascript(js, null) }
+    }
+
+    private fun hataYazi(e: Throwable): String = (e.javaClass.simpleName + ": " + (e.message ?: "")).take(300)
+
+    private fun waAd(pkg: String) = if (pkg == "com.whatsapp.w4b") "WhatsApp Business" else "WhatsApp"
+
+    /**
+     * Dosyayı WhatsApp'ta açar. tercih: "" (önce WhatsApp, yoksa Business) | paket adı | "secici" (paylaş menüsü).
+     * Numara verilmişse doğrudan o sohbete gitmeyi dener. Ne yapıldığını döndürür.
+     */
+    private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String, tercih: String): String {
         val send = fileIntent(file, mimeType, "", text)
+        if (tercih == "secici") {
+            startActivity(Intent.createChooser(send, "Tabloyu gönder"))
+            return "Paylaş menüsü açıldı"
+        }
+        val pkg = (if (tercih.isNotEmpty()) installedPackage(tercih) else null)
+            ?: installedPackage("com.whatsapp", "com.whatsapp.w4b")
         if (pkg == null) {
             startActivity(Intent.createChooser(send, "Paylaş"))
-            return
+            return "Telefonda WhatsApp bulunamadı; paylaş menüsü açıldı"
         }
         send.setPackage(pkg)
         var digits = phone.filter { it.isDigit() }
         if (digits.startsWith("00")) digits = digits.substring(2)
         if (digits.length == 11 && digits.startsWith("0")) digits = "9$digits"
         if (digits.length == 10 && digits.startsWith("5")) digits = "90$digits"
-        if (digits.length >= 11) send.putExtra("jid", "$digits@s.whatsapp.net")
-        try {
+        val numarali = digits.length >= 11
+        if (numarali) send.putExtra("jid", "$digits@s.whatsapp.net")
+        return try {
             startActivity(send)
+            waAd(pkg) + " açıldı" + if (numarali) " (numaranın sohbeti)" else " (sohbet listesi)"
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent.createChooser(send.setPackage(null), "Paylaş"))
+            waAd(pkg) + " açılamadı; paylaş menüsü açıldı"
         }
     }
 

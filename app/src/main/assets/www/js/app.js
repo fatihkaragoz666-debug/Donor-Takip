@@ -61,11 +61,22 @@
     var t = $('#toast'); t.textContent = msg; t.classList.add('on');
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('on'); }, 2600);
   }
-  function busy(on, msg) {
+  // sureli: geçen saniyeyi gösterir (uzun işlerde takıldı mı, sürüyor mu görünsün)
+  var busyT0 = 0, busyTick = null;
+  function busy(on, msg, sureli) {
     var b = $('#busy');
-    if (on) { if (!b) { b = document.createElement('div'); b.id = 'busy'; b.className = 'busy'; document.body.appendChild(b); } b.innerHTML = '<div><div class="spin"></div>' + h(msg || 'Lütfen bekleyin…') + '</div>'; }
-    else if (b) b.remove();
+    if (on) {
+      if (!b) { b = document.createElement('div'); b.id = 'busy'; b.className = 'busy'; document.body.appendChild(b); }
+      b.innerHTML = '<div><div class="spin"></div>' + h(msg || 'Lütfen bekleyin…') + '<div class="sure"></div></div>';
+      if (sureli && !busyTick) { busyT0 = Date.now(); busyTick = setInterval(busySure, 1000); }
+      busySure();
+    } else {
+      if (b) b.remove();
+      if (busyTick) { clearInterval(busyTick); busyTick = null; }
+      busyT0 = 0;
+    }
   }
+  function busySure() { var e = $('#busy .sure'); if (e && busyT0) e.textContent = Math.round((Date.now() - busyT0) / 1000) + ' sn'; }
   var sheetOnClose = null;
   function openSheet(html, onClose) {
     var s = $('#sheet');
@@ -2481,18 +2492,45 @@
     var html = satir(d.bildirim, 'Bildirim izni', d.bildirim ? '' : 'Kapalıysa hatırlatma görünmez', 'bildirim', 'Aç') +
       satir(d.tamAlarm, 'Tam saatinde çalışma', d.tamAlarm ? '' : 'İzin yoksa telefon hatırlatmayı geciktirebilir', 'alarm', 'İzin ver') +
       satir(d.pil, 'Pil kısıtlaması yok', d.pil ? '' : 'Pil tasarrufu uygulamayı uyutup saati kaçırabilir', 'pil', 'Kaldır');
+    var k = GL.oku();
     html += '<div class="calc small" style="margin-top:10px">' +
       '<div><b>Sonraki:</b> ' + (t.on && d.sonraki ? msYazi(d.sonraki) : 'kapalı') + '</div>' +
-      '<div><b>Son çalışma:</b> ' + (d.son ? msYazi(d.son) + (d.sonSonuc ? ' · ' + h(d.sonSonuc) : '') : 'henüz yok') + '</div></div>';
+      '<div><b>Son çalışma:</b> ' + (d.son ? msYazi(d.son) + (d.sonSonuc ? ' · ' + h(d.sonSonuc) : '') : 'henüz yok') + '</div>' +
+      (k ? '<div><b>Son gönderim:</b> ' + h(gonderimOzet(k)) + '</div>' : '') + '</div>';
     return html;
   }
+  function mbYazi(n) { return ((n || 0) / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
+  // Gönderim günlüğü: her adım saklanır; takılırsa ya da uygulama kapanırsa "Gönderim bilgisi"nde görünür
+  var GL = {
+    k: null,
+    bas: function (hedef) { GL.k = { t0: Date.now(), hedef: hedef, adim: [], bitti: false }; GL.yaz(); },
+    ekle: function (ad, ek) {
+      if (!GL.k || GL.k.bitti) return;
+      GL.k.adim.push([Date.now() - GL.k.t0, ad, ek == null ? '' : String(ek)]);
+      if (GL.k.adim.length > 40) GL.k.adim.splice(1, 1);
+      GL.yaz();
+    },
+    bitir: function (ok, mesaj) {
+      if (!GL.k || GL.k.bitti) return;
+      GL.k.bitti = true; GL.k.ok = !!ok; GL.k.sonuc = S(mesaj); GL.k.sure = Date.now() - GL.k.t0; GL.yaz();
+    },
+    yaz: function () { try { localStorage.setItem('dt_gonderim', JSON.stringify(GL.k)); } catch (e) { /* yer yok */ } },
+    oku: function () { if (GL.k) return GL.k; try { return JSON.parse(localStorage.getItem('dt_gonderim') || 'null'); } catch (e) { return null; } }
+  };
   function tabloGonder(target) {
-    busy(true, 'Güncel tablo hazırlanıyor…');
+    GL.bas(target);
+    busy(true, 'Güncel tablo hazırlanıyor…', true);
     setTimeout(function () {
+      var t1 = Date.now();
       IDB.get('sablon').then(function (t) {
         if (!t || !t.buf) throw new Error('SABLON_YOK');
-        return XLSXTablo.build(t.buf, state, D, pool, today).then(function (r) { r.name = XLSXTablo.fileName(t.ad, today); return r; });
+        GL.ekle('Şablon', S(t.ad) + ' · ' + mbYazi(t.buf.byteLength));
+        return XLSXTablo.build(t.buf, state, D, pool, today, function (ad, i, n, boyut) {
+          busy(true, 'Güncel tablo hazırlanıyor… ' + ad + ' (' + (i + 1) + '/' + n + ')');
+          GL.ekle('Sayfa: ' + ad, mbYazi(boyut));
+        }).then(function (r) { r.name = XLSXTablo.fileName(t.ad, today); return r; });
       }).then(function (r) {
+        GL.ekle('Tablo hazır', mbYazi(r.bytes.length) + ' · ' + ((Date.now() - t1) / 1000).toFixed(1).replace('.', ',') + ' sn');
         var act = D.filter(function (x) { return !x.stopped && x.d.top != null && x.d.top >= today; }).length;
         var bugun = DT.calendarTasks(pool, D, today, today + 1, '').length;
         var cap = 'Donör Takip · güncel tablo · ' + DT.fmt(today) + ' ' + gunAd(today) + '\n' + state.donors.length + ' donör · süreçte ' + act + ' · bugün ' + bugun + ' görev';
@@ -2501,31 +2539,88 @@
       }).catch(function (e) {
         busy(false);
         if (e && e.message === 'SABLON_YOK') {
+          GL.bitir(false, 'Excel şablonu yok');
           confirmSheet('Excel tablonuzu bir kez seçin', 'Güncel tablo, sizin Excel dosyanızın aynısı olarak hazırlanır. Telefondaki Donör Takip Excel’ini seçin; uygulamadaki veriler değişmez.', 'Excel’i seç', false, function () { pickFile('sablon'); });
           return;
         }
-        console.error(e); toast('Tablo hazırlanamadı: ' + (e && e.message));
+        console.error(e);
+        GL.bitir(false, 'Tablo hazırlanamadı: ' + (e && e.message));
+        gonderimHata('Tablo hazırlanamadı', e && e.message, false);
       });
     }, 60);
+  }
+  function nbHata() { try { var m = NB && NB.sonHata ? NB.sonHata() : ''; return m ? ' (' + m + ')' : ''; } catch (e) { return ''; } }
+  // Bir adım hata verince kalıcı pencere; dosya hazırsa paylaş menüsüyle ya da kaydederek gönderme
+  function gonderimHata(baslik, mesaj, dosyaHazir) {
+    openSheet('<h3>' + h(baslik) + '</h3><div class="sub">' + h(mesaj || 'Bilinmeyen hata') + '</div>' +
+      (dosyaHazir && NB && NB.sonDosyayiPaylas ? '<button class="btn wa block" data-act="gonPaylas" style="margin-top:12px">' + I.wa + 'Paylaş menüsüyle gönder</button>' +
+        '<button class="btn block" data-act="gonKaydet" style="margin-top:8px">' + I.down + 'Telefona kaydet</button>' : '') +
+      '<div class="btns" style="margin-top:8px"><button class="btn" data-act="gonBilgi">Gönderim bilgisi</button><button class="btn pri" data-act="closeSheet">Kapat</button></div>');
+  }
+  function waUygulamalari() { try { return NB && NB.whatsappUygulamalari ? JSON.parse(NB.whatsappUygulamalari()) : []; } catch (e) { return []; } }
+  function waTercihAd(app, apps) {
+    if (app === 'secici') return 'Paylaş menüsü';
+    if (app === 'com.whatsapp.w4b') return 'WhatsApp Business';
+    if (app === 'com.whatsapp') return 'WhatsApp';
+    apps = apps || waUygulamalari();
+    return apps.length ? apps[0].ad + ' (otomatik)' : 'Paylaş menüsü (WhatsApp yok)';
+  }
+  function gonderimOzet(k) {
+    if (!k) return '';
+    return msYazi(k.t0) + ' · ' + (k.bitti ? (k.ok ? '' : 'Hata: ') + k.sonuc : 'yarıda kaldı');
+  }
+  // Sorun olduğunda ekran görüntüsü alınacak sayfa: telefon, WebView, WhatsApp, şablon ve son gönderimin adımları
+  function gonderimBilgisi() {
+    var c = {}, apps = waUygulamalari(), k = GL.oku(), t = tabloAyar(), sb = state.settings.sablon;
+    try { c = NB && NB.cihazBilgisi ? JSON.parse(NB.cihazBilgisi()) : {}; } catch (e) { c = {}; }
+    var ua = navigator.userAgent, cr = /Chrome\/([\d.]+)/.exec(ua), ver = '';
+    try { ver = NB && NB.appVersion ? NB.appVersion() : ''; } catch (e) { ver = ''; }
+    var satir = function (a, b) { return '<tr><th>' + h(a) + '</th><td>' + h(b) + '</td></tr>'; };
+    var html = '<h3>Gönderim bilgisi</h3><div class="sub">Tablo gitmiyorsa bu ekranın görüntüsünü gönderin.</div>' +
+      '<table class="gbilgi"><tbody>' +
+      satir('Uygulama', 'Donör Takip ' + (ver || '?')) +
+      satir('Telefon', (c.cihaz || '?') + ' · Android ' + (c.android || '?') + (c.sdk ? ' (' + c.sdk + ')' : '')) +
+      satir('WebView', (cr ? 'Chrome ' + cr[1] : ua.slice(0, 80)) + (typeof DecompressionStream === 'undefined' ? ' · açma yok' : '') + (typeof CompressionStream === 'undefined' ? ' · sıkıştırma yok' : '')) +
+      satir('Boş alan', c.bosMB != null ? c.bosMB + ' MB' : '?') +
+      satir('WhatsApp', apps.length ? apps.map(function (a) { return a.ad + ' ' + S(a.surum) + (a.etkin === false ? ' (kapalı)' : ''); }).join(' · ') : 'yüklü görünmüyor') +
+      satir('Gönderim', waTercihAd(S(t.app), apps) + (S(t.tel).replace(/\D/g, '') ? ' · numaralı' : ' · numarasız')) +
+      satir('Şablon', sb ? S(sb.ad) + (sb.boyut ? ' · ' + mbYazi(sb.boyut) : '') : 'yok') +
+      '</tbody></table>';
+    if (k) {
+      html += '<div class="glbas">Son gönderim · ' + h(msYazi(k.t0)) + '</div><div class="glog">' +
+        k.adim.map(function (a) { return '<div><span>+' + (a[0] / 1000).toFixed(1).replace('.', ',') + ' sn</span>' + h(a[1]) + (a[2] ? ' · ' + h(a[2]) : '') + '</div>'; }).join('') +
+        '<div class="' + (k.bitti && k.ok ? 'ok' : 'no') + '">' + (k.bitti ? (k.ok ? 'Sonuç: ' : 'Hata: ') + h(k.sonuc) : 'Yarıda kaldı: uygulama bu adımda kapanmış ya da takılmış') + '</div></div>';
+    } else html += '<div class="hint" style="margin:12px 2px">Henüz gönderim denenmedi.</div>';
+    html += '<div class="btns" style="margin-top:12px"><button class="btn pri" data-act="closeSheet">Kapat</button></div>';
+    openSheet(html);
   }
   // Büyük dosya: Android'e parça parça aktarılır (WhatsApp, e-posta ya da kaydet)
   // opt: { label: 'Tablo' | 'Rapor', subject: e-posta konusu, phone: WhatsApp numarası (verilmezse tablo ayarındaki) }
   function sendBigFile(bytes, name, mime, target, text, opt) {
     opt = opt || {};
     var label = opt.label || 'Tablo';
+    // Bu telefonda seçilen WhatsApp (WhatsApp, WhatsApp Business ya da paylaş menüsü)
+    if (target === 'whatsapp' && S(tabloAyar().app)) target = 'whatsapp:' + S(tabloAyar().app);
     if (NB && NB.fileBegin) {
-      var CH = 3 * 256 * 1024, i = 0;
-      if (!NB.fileBegin(name)) { busy(false); toast('Dosya hazırlanamadı'); return; }
+      var CH = 3 * 256 * 1024, i = 0, t0 = Date.now();
+      var hata = function (msg) { busy(false); GL.bitir(false, msg); gonderimHata(label + ' telefona aktarılamadı', msg, false); };
+      try {
+        if (!NB.fileBegin(name)) { hata('Dosya oluşturulamadı' + nbHata()); return; }
+      } catch (e) { hata(e && e.message); return; }
+      GL.ekle('Aktarım', name);
       var step = function () {
-        if (i >= bytes.length) {
-          busy(false);
-          if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? label + ' kaydedildi' : label + ' kaydedilmedi'); };
-          NB.fileFinish(target, mime, opt.subject != null ? opt.subject : name.replace(/\.xlsx$/i, ''), text, opt.phone != null ? opt.phone : S(tabloAyar().tel));
-          return;
-        }
-        busy(true, label + ' hazırlanıyor… %' + Math.round(i * 100 / bytes.length));
-        if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { busy(false); toast('Dosya yazılamadı'); return; }
-        i += CH; setTimeout(step, 0);
+        try {
+          if (i >= bytes.length) {
+            busy(false);
+            GL.ekle('Aktarım bitti', ((Date.now() - t0) / 1000).toFixed(1).replace('.', ',') + ' sn · ' + target);
+            if (target === 'save') window.onNativeFileSaved = function (ok) { toast(ok ? label + ' kaydedildi' : label + ' kaydedilmedi'); };
+            NB.fileFinish(target, mime, opt.subject != null ? opt.subject : name.replace(/\.xlsx$/i, ''), text, opt.phone != null ? opt.phone : S(tabloAyar().tel));
+            return;
+          }
+          busy(true, label + ' telefona aktarılıyor… %' + Math.round(i * 100 / bytes.length));
+          if (!NB.fileAppend(b64(bytes.subarray(i, i + CH)))) { hata('Dosya yazılamadı' + nbHata()); return; }
+          i += CH; setTimeout(step, 0);
+        } catch (e) { hata((e && e.message) || String(e)); }
       };
       step();
       return;
@@ -2540,11 +2635,30 @@
     if (a === 'tabloGonder') tabloGonder('whatsapp');
   };
   window.onNativeResume = function () { var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml(); };
+  // Android dosyayı hedefe verdi mi: {target, ok, mesaj}
+  window.onNativeShare = function (r) {
+    r = r || {};
+    if (GL.k && !GL.k.bitti) { GL.ekle(r.ok ? 'Verildi' : 'Hata', r.mesaj); GL.bitir(!!r.ok, r.mesaj); }
+    if (!r.ok) gonderimHata('Dosya gönderilemedi', r.mesaj, true);
+    else if (/^whatsapp/.test(S(r.target))) toast(S(r.mesaj).split(' · ')[0]);
+    var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml();
+  };
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
+  // Telefonda hangi WhatsApp ile gönderileceği (her telefonda ayrı)
+  function waAppField(t) {
+    if (!NB || !NB.whatsappUygulamalari) return '';
+    var apps = waUygulamalari(), cur = S(t.app);
+    if (!cur && apps.length) cur = apps[0].paket;
+    var opts = apps.map(function (a) { return [a.paket, a.ad]; });
+    opts.push(['secici', 'Paylaş menüsü (uygulamayı her seferinde seçerim)']);
+    return '<div class="field" style="margin:6px 0 8px"><label>Gönderim uygulaması</label><select class="inp" id="tbApp">' +
+      opts.map(function (o) { return '<option value="' + h(o[0]) + '"' + (o[0] === cur ? ' selected' : '') + '>' + h(o[1]) + '</option>'; }).join('') + '</select></div>';
+  }
   function tabloAyarKaydet(sessiz) {
     var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
     if (!/^\d{1,2}:\d{2}$/.test(saat)) { toast('Saat seçin'); return false; }
-    state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun };
+    var appSel = $('#tbApp');
+    state.settings.tablo = { on: on, saat: saat, tel: tel, gun: gun, app: appSel ? appSel.value : S(tabloAyar().app) };
     save(); syncReminder();
     var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml();
     if (sessiz) return true;
@@ -2563,11 +2677,13 @@
       '<label class="opt" style="padding:6px 2px"><input type="checkbox" id="tbOn"' + (t.on ? ' checked' : '') + '><span>Günlük hatırlatma<div class="s">Seçtiğiniz saatte bildirim gelir; dokununca tablo hazırlanır ve WhatsApp sohbette açılır, Gönder’e siz basarsınız.</div></span></label>' +
       '<div class="row" style="gap:8px;margin:6px 0 10px"><div class="field grow" style="margin:0"><label>Günler</label><select class="inp" id="tbGun"><option value="haftaici"' + (t.gun !== 'hergun' ? ' selected' : '') + '>Hafta içi (tatiller hariç)</option><option value="hergun"' + (t.gun === 'hergun' ? ' selected' : '') + '>Her gün</option></select></div>' +
       '<div class="field" style="margin:0;width:132px"><label>Saat</label><input class="inp" type="time" id="tbSaat" value="' + h(t.saat || '08:30') + '"></div></div>' +
+      waAppField(t) +
       '<div class="field" style="margin:6px 0 4px"><label>WhatsApp numarası</label><input class="inp" type="tel" id="tbTel" value="' + h(t.tel || '') + '" placeholder="isteğe bağlı · 05xx…"></div>' +
-      '<div class="hint" style="margin:0 2px 10px">Numara yazarsanız WhatsApp doğrudan o kişinin sohbetinde açılır (kendi numaranız = kendinize mesaj). Boşsa sohbeti siz seçersiniz.</div>' +
+      '<div class="hint" style="margin:0 2px 10px">Numara yazarsanız WhatsApp doğrudan o kişinin sohbetinde açılır (kendi numaranız = kendinize mesaj). Boşsa sohbeti siz seçersiniz. Tablo gitmiyorsa ya da yanlış WhatsApp açılıyorsa “Gönderim uygulaması”ndan Paylaş menüsü’nü seçin.</div>' +
       '<button class="btn pri block" data-act="tabloKaydet" style="margin-bottom:10px">Kaydet</button>' +
       '<div id="tbDurum">' + tbDurumHtml() + '</div>' +
       (NB && NB.hatirlatmaDene ? '<button class="btn block" data-act="tabloDene" style="margin:10px 0 8px">Dene: 1 dakika sonra çalıştır</button>' : '') +
+      '<button class="btn ghost block" data-act="gonBilgi" style="margin:0 0 6px">Gönderim bilgisi</button>' +
       '<div class="btns"><button class="btn wa" data-act="tabloWa">' + I.wa + 'Şimdi gönder</button><button class="btn" data-act="tabloSave">' + I.down + 'Telefona kaydet</button></div></div>';
   }
   function replaceState(s, msg) {
@@ -2729,6 +2845,9 @@
       setTimeout(window.onNativeResume, 300);
     },
     tbAyar: function (el) { if (NB && NB.ayarAc) NB.ayarAc(el.dataset.ne); },
+    gonBilgi: function () { gonderimBilgisi(); },
+    gonPaylas: function () { closeSheet(); GL.bas('whatsapp:secici'); GL.ekle('Hazır dosya yeniden'); NB.sonDosyayiPaylas('whatsapp:secici'); },
+    gonKaydet: function () { closeSheet(); window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); }; NB.sonDosyayiPaylas('save'); },
     mailDurum: function () { mailPasteSheet(); },
     durumNew: function (el) { durumSheet({ id: el.dataset.id }); },
     importJson: function () { pickFile('json'); },

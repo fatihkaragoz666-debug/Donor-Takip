@@ -384,7 +384,8 @@
 
   /* ---------------- ana işlem ---------------- */
   // tpl: ArrayBuffer (şablon .xlsx) · state, D, pool: uygulamanın verisi · today: Excel tarih sayısı
-  T.build = function (tpl, state, D, pool, today) {
+  // onStep(ad, sıra, toplam, açık boyut): her sayfaya başlarken (ilerleme ve gönderim bilgisi için)
+  T.build = function (tpl, state, D, pool, today, onStep) {
     var u8 = new Uint8Array(tpl), list = readEntries(u8), byName = {};
     list.forEach(function (e) { byName[e.name] = e; });
     var ctx = { state: state, D: D, pool: pool, today: today, warn: [], report: {}, sst: [] };
@@ -433,10 +434,11 @@
           ['Dashboard', function (x, c) { return st.settings && typeof st.settings.esik === 'number' ? single(x, c, 'D164', num(st.settings.esik)) : new Changes(); }],
           ['Listeler', areaListeler]
         ];
-        return jobs.reduce(function (p, job) {
+        return jobs.reduce(function (p, job, ji) {
           return p.then(function () {
             var e = byName[sheets[job[0]]];
             if (!e) { if (job[0] === 'Donör Kayıt') throw new Error('Donör Kayıt sayfası okunamadı.'); return; }
+            if (onStep) onStep(job[0], ji, jobs.length, e.usize);
             return entryText(e).then(function (xml) {
               var chg = job[1](xml, ctx);
               if (!chg || !chg.n) return;

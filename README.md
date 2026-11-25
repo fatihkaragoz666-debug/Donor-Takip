@@ -88,6 +88,10 @@ listeler, kapanış tarihi ve süre eşiği. Excel dosyayı açınca formüller 
 Ayarlar › WhatsApp’ta güncel tablo: günlük hatırlatma (hafta içi tatiller hariç ya da her gün) tam saatinde çalışan alarmla
 bildirim gösterir (`Hatirlatma.kt`); dokununca tablo hazırlanır, WhatsApp (numara yazılmışsa o sohbette) açılır, Gönder’e kullanıcı basar.
 Durum satırları: bildirim izni, tam saat izni, pil kısıtlaması; sonraki ve son çalışma. “Dene: 1 dakika sonra çalıştır” bir kez dener.
+**Gönderim uygulaması** (her telefonda ayrı): WhatsApp, WhatsApp Business ya da Paylaş menüsü (uygulama ve sohbet her seferinde
+seçilir). Gönderimin her adımı (şablon, sayfalar, aktarım, Android’in WhatsApp’a verişi) kaydedilir; hata olursa kalıcı pencerede
+gösterilir ve hazır dosya paylaş menüsüyle gönderilebilir ya da kaydedilebilir. **Gönderim bilgisi**: telefon, Android, WebView,
+WhatsApp sürümleri, şablon ve son gönderimin adımları (takılırsa ya da uygulama kapanırsa hangi adımda kaldığı) — sorun bildirmek için.
 Gönder’e uygulamanın basması erişilebilirlik hizmeti gerektirir; Google Play Protect, internetten kurulan ve erişilebilirlik hizmeti
 içeren uygulamaların kurulumunu engellediği için uygulamada yoktur.
 
