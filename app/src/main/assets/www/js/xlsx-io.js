@@ -560,11 +560,11 @@
       sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
       '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
       '</Relationships>' });
-    // stiller: 0 normal · 1 tarih · 2 başlık satırı · 3 sayfa başlığı · 4 kaydırmalı metin · 5 gri (süreç durdu)
+    // stiller: 0 normal · 1 tarih · 2 başlık satırı · 3 sayfa başlığı · 4 kaydırmalı metin · 5 gri (süreç durdu) … 18 saat (0,00) · 19 kalın saat · 20 saat:dakika
     files.push({ name: 'xl/styles.xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<numFmts count="4"><numFmt numFmtId="164" formatCode="dd\\.mm\\.yyyy"/><numFmt numFmtId="165" formatCode="#,##0.00\\ &quot;₺&quot;"/>' +
-      '<numFmt numFmtId="166" formatCode="0.0%"/><numFmt numFmtId="167" formatCode="#,##0.0"/></numFmts>' +
+      '<numFmts count="6"><numFmt numFmtId="164" formatCode="dd\\.mm\\.yyyy"/><numFmt numFmtId="165" formatCode="#,##0.00\\ &quot;₺&quot;"/>' +
+      '<numFmt numFmtId="166" formatCode="0.0%"/><numFmt numFmtId="167" formatCode="#,##0.0"/><numFmt numFmtId="168" formatCode="#,##0.00"/><numFmt numFmtId="169" formatCode="[hh]:mm"/></numFmts>' +
       '<fonts count="7"><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="14"/><color rgb="FF0F4C5C"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF808080"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="12"/><color rgb="FF1F3A5F"/><name val="Calibri"/></font>' +
@@ -576,7 +576,7 @@
       '<border><left/><right/><top/><bottom style="thin"><color rgb="FFD9DEE3"/></bottom><diagonal/></border>' +
       '<border><left/><right/><top style="thin"><color rgb="FF7B8794"/></top><bottom/><diagonal/></border></borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="18">' +
+      '<cellXfs count="21">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>' +
       '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center"/></xf>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center" horizontal="center"/></xf>' +
@@ -596,6 +596,9 @@
       '<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
       '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
       '<xf numFmtId="167" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' +
+      '<xf numFmtId="168" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' +
+      '<xf numFmtId="168" fontId="4" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>' +
+      '<xf numFmtId="169" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
       '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' });
     sheets.forEach(function (s, si) {
       var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +

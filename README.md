@@ -44,8 +44,9 @@ Her yeni yüklemede sürüm numarası artar ve yeni APK eskisinin üzerine kurul
 
 ## Ana sayfa
 
-Dört bölüm: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV; günün görevleri, uyarılar, yeni donör), EŞLEŞME (eşleşme tablosu),
-MALİ İŞLER (donör harcaması, yemek kartı) ve DASHBOARD (istatistikler, iş yükü, taşıma, raporlar). Alt sekmeler de bu bölümlerdir.
+Beş bölüm: MİHMANDARLIK (PLANLAMA, TAKİP, DONÖR KAYIT VE ARŞİV; günün görevleri, uyarılar, yeni donör), EŞLEŞME (eşleşme tablosu),
+MALİ İŞLER (donör harcaması, yemek kartı), PERSONEL MESAİ (fazla mesai takibi) ve DASHBOARD (istatistikler, iş yükü, taşıma, raporlar).
+Alt sekmeler PERSONEL MESAİ dışındaki bölümlerdir.
 
 ## Eşleşme
 
@@ -56,6 +57,29 @@ Bekleyen Listesi (numune bekleyen, sonucu girilmemiş), Veri Kontrolü (istatist
 Hesaplar Excel’in formülleriyle aynıdır (COUNTIFS büyük/küçük harf ayırmaz, MATCH ayırır) ve Excel’in kayıtlı değerleriyle
 karşılaştırılarak doğrulandı. Kayıtlar telefonda IndexedDB’de durur, yedeğe girer; “Excel’e aktar” ANA TABLO ve İstatistikler
 sayfalarıyla .xlsx üretir.
+
+## Personel mesai
+
+PERSONEL MESAİ bölümü Personel_Mesai_Takip.xlsx’ten yapıldı (`js/mesai.js`). Sayfalar: Özet (bu ay ve bu hafta), Günlük giriş,
+Haftalık, Aylık fazla mesai (takvim ayı), Dönem özeti (ayın 20’si – ertesi ayın 19’u; gün Ayarlar’dan değişir), Görevlendirme,
+personelin ayı ve Ayarlar. Kayıt: `state.mesai.gun[tarih][PERSONEL] = { a: [[giriş, çıkış], …], iz, n }` (dakika).
+
+- Günlük giriş: günde 4 aralığa kadar giriş–çıkış (“0830”, “8.30”, “17:30” yazılabilir; 4 hane yazınca sonraki kutuya geçer),
+  tam gün ya da saatlik izin, not; saat yazıldıkça kaydedilir. “08:00–17:00” düğmesi standart mesaiyi yazar; girilmemiş herkese ya da
+  haftanın boş iş günlerine standart mesai tek dokunuşla yazılır.
+- Kurallar Excel’deki gibidir: aralık çıkışı girişten önceyse ertesi gün (00:00–00:00 = 24 saat); hafta içi mola 3,5 saatin altında yok,
+  3,5–7,5 saat 30 dk, daha uzunsa 1 saat; hafta sonu mola yok. Zorunlu: iş günü 8, arife 4 saat, izin düşülür. Fazla mesai =
+  en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı
+  görevde yok. 12 saat dinlenme, çakışan aralık ve haftalık 48 saat uyarısı. Takip başlangıcından önceki günler, ileri tarihler ve
+  henüz yazılmamış bugün zorunluya girmez.
+- Excel’den al: “Mesai Takip” sayfasındaki haftalık bloklar (Giriş/Çıkış başlıkları, eski tek aralık + ARA düzeni de) ve
+  “Görevlendirme” sayfası; yeni / değişecek / aynı sayıları önce gösterilir, dosyada olmayan günler korunur.
+- WhatsApp’tan al: grubun dışa aktarılan sohbeti (.txt ya da .zip; WhatsApp’ta Sohbeti dışa aktar › Donör Takip ile doğrudan da
+  gelir) ya da kopyalanan mesajlar. Gönderen personele, mesajdaki tarihe ve “08:00-17:00” aralıklarına göre günlere yazılır; çok günlük
+  kesintisiz görev, mazeret / izin satırları ve tanınmayan gönderenler ayrı gösterilir; neyin yazılacağı işaretlenerek seçilir.
+- Excel’e aktar: Mesai Takip (uygulamanın yeniden okuyabildiği düzende), Günlük, Aylık Fazla Mesai ve Görevlendirme sayfaları.
+- Dönem özeti’nden ve Raporlar’dan “Personel mesai raporu” (PDF / Excel): personel bazında net, zorunlu, fazla, eksik, resmi tatil,
+  yemek, hafta sonu, izin, görev; haftalara / aylara göre fazla mesai; görevlendirmeler; gün gün kayıtlar.
 
 ## Donör harcama
 
@@ -72,7 +96,8 @@ aşama ve donör elle değiştirilebilir. Tekrar yüklemede aynı satır iki kez
 
 ## Raporlar (PDF ve Excel)
 
-DASHBOARD › Raporlar: Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti.
+DASHBOARD › Raporlar: Donör raporu, Harcama raporu, İş yükü ve taşıma raporu, Dashboard özeti, Yemek kartı raporu,
+Personel mesai raporu.
 Tarih aralığı hazır seçeneklerle ya da başlangıç–bitiş tarihiyle seçilir; rapor sayfada önizlenir. PDF kütüphanesiz üretilir
 (`js/pdf-rapor.js`): A4, tablolar, grafikler, Türkçe karakterler için gömülü “DT Rapor” yazı tipi (Carlito’dan türetilmiş alt küme,
 SIL OFL; `tools/pdf-font.py`, lisans `fonts/OFL.txt`). Excel’de Özet sayfası ve uzun listeler (donörler, harcama satırları,
@@ -106,6 +131,7 @@ içeren uygulamaların kurulumunu engellediği için uygulamada yoktur.
     listeleri, Çalışma Programı metni, Dashboard)
   - `js/xlsx-io.js` — Excel dosyası okuma/yazma
   - `js/eslesme.js` — Eşleşme tablosu: içe aktarma, istatistikler, veri kontrolü, Excel’e aktarma
+  - `js/mesai.js` — Personel mesai: kurallar, haftalık / aylık / dönem hesapları, Excel ve WhatsApp’tan alma, Excel’e aktarma
   - `js/rapor.js` — Raporlar sayfasının raporları (model → önizleme, PDF, Excel)
   - `js/pdf-rapor.js`, `js/pdf-font.js` — PDF yazıcı ve gömülü yazı tipi
   - `js/app.js` — ekranlar

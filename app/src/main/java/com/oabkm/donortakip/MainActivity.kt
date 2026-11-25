@@ -199,7 +199,9 @@ class MainActivity : ComponentActivity() {
                             "application/pdf",
                             "application/json",
                             "application/octet-stream",
-                            "text/plain"
+                            "text/plain",
+                            "application/zip",
+                            "application/x-zip-compressed"
                         )
                     )
                 }

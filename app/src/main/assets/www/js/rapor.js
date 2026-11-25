@@ -14,17 +14,18 @@
     ['harcama', 'Harcama raporu', 'Dönemdeki harcamalar: kategori, harcama ve ulaşım türü, il, donör bazında'],
     ['isyuku', 'İş yükü ve taşıma raporu', 'Personel başına görevler, görev türleri ve ürün taşımaları'],
     ['ozet', 'Dashboard özeti', 'Dönemin sayıları ve grafikleri tek raporda: yöneticiye sunum için'],
-    ['yemek', 'Yemek kartı raporu', 'Yemek kartı yüklemeleri: sağlık kontrolü, aşı + toplama, toplama süreci ve donör bazında']
+    ['yemek', 'Yemek kartı raporu', 'Yemek kartı yüklemeleri: sağlık kontrolü, aşı + toplama, toplama süreci ve donör bazında'],
+    ['mesai', 'Personel mesai raporu', 'Fazla mesai, resmi tatil, hafta sonu, yemek hakkı, izin ve görevlendirme; personel bazında ve gün gün']
   ];
   RP.ad = function (tur) { for (var i = 0; i < RP.TURLER.length; i++) if (RP.TURLER[i][0] === tur) return RP.TURLER[i][1]; return 'Rapor'; };
-  var BASLIK = { donor: 'Donör Raporu', harcama: 'Harcama Raporu', isyuku: 'İş Yükü ve Taşıma Raporu', ozet: 'Dashboard Özeti', yemek: 'Yemek Kartı Raporu' };
-  var DOSYA = { donor: 'Donor_Raporu', harcama: 'Harcama_Raporu', isyuku: 'Is_Yuku_Tasima_Raporu', ozet: 'Dashboard_Ozeti', yemek: 'Yemek_Karti_Raporu' };
+  var BASLIK = { donor: 'Donör Raporu', harcama: 'Harcama Raporu', isyuku: 'İş Yükü ve Taşıma Raporu', ozet: 'Dashboard Özeti', yemek: 'Yemek Kartı Raporu', mesai: 'Personel Mesai Raporu' };
+  var DOSYA = { donor: 'Donor_Raporu', harcama: 'Harcama_Raporu', isyuku: 'Is_Yuku_Tasima_Raporu', ozet: 'Dashboard_Ozeti', yemek: 'Yemek_Karti_Raporu', mesai: 'Personel_Mesai_Raporu' };
 
   /* ---------------- biçimler ---------------- */
   var nf = function (v, d) { return (+v).toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d }); };
   RP.fmt = function (v, f) {
     var bos = v == null || v === '' || (typeof v === 'number' && isNaN(v));
-    if (f === 'intz' || f === 'tlz') { if (bos || v === 0) return '–'; f = f === 'intz' ? 'int' : 'tl'; }
+    if (f === 'intz' || f === 'tlz' || f === 'saz') { if (bos || v === 0) return '–'; f = f === 'intz' ? 'int' : f === 'tlz' ? 'tl' : 'sa'; }
     if (bos) return f && f !== 'txt' ? '–' : '';
     if (typeof v !== 'number') return S(v);
     switch (f) {
@@ -33,6 +34,7 @@
       case 'tl0': return nf(Math.round(v), 0) + ' ₺';
       case 'pct': return nf(Math.round(v * 1000) / 10, Math.round(v * 1000) % 10 ? 1 : 0) + '%';
       case 'dec1': return nf(Math.round(v * 10) / 10, Math.round(v * 10) % 10 ? 1 : 0);
+      case 'sa': return nf(v, 2);
       case 'date': return DT.fmt(v);
       case 'kisa': return v >= 1e6 ? nf(v / 1e6, 1).replace(/,0$/, '') + ' Mn' : v >= 1e3 ? nf(Math.round(v / 1e3), 0) + ' B' : nf(Math.round(v), 0);
       default: return S(v);
@@ -74,6 +76,7 @@
     (c.state.yemekKart || []).forEach(function (r) { f(r.tarih); });
     (c.state.gorevKayit || []).forEach(function (r) { f(r.tarih); });
     (c.state.tasimaKayit || []).forEach(function (r) { f(r.tarih); });
+    if (c.state.mesai) Object.keys(c.state.mesai.gun || {}).forEach(function (k) { f(+k); });
     if (mn == null) mn = mx = c.today;
     return { from: DT.serial(DT.year(mn), 1, 1), to: DT.serial(DT.year(Math.max(mx, c.today)), 12, 31) };
   }
@@ -501,6 +504,74 @@
       not: 'Sayılar sağlık kontrolü ve toplama tarihine göre döneme yazılır. Süreç durdu: açıklamasında iptal, erteleme, red, vazgeç ya da hasta ex geçen donörler (toplama sayılarına dahil değildir).' };
   }
 
+  /* ================= 6 · PERSONEL MESAİ ================= */
+  // süreler dakika tutulur, raporda saat (iki ondalık) yazılır
+  var sa = function (min) { return min == null ? null : Math.round(min / 60 * 100) / 100; };
+  function mesaiRaporu(c, o) {
+    var MS = root.MS, ctx = MS.ctx(c.state, c.today), m = ctx.m;
+    var R = MS.donem(ctx, o.from, o.to, { gunler: true }), Tt = MS.toplam(R), e = R.etkin, G = MS.gorevOzet(ctx, o.from, o.to);
+    var B = [], info = [];
+    if (e && (e.from !== o.from || e.to !== o.to)) info.push('Hesaplanan günler: ' + DT.fmt(e.from) + ' – ' + DT.fmt(e.to) + ' (takip başlangıcı ve bugünle sınırlı)');
+    if (!e) info.push('Bu dönemde hesaplanacak gün yok: takip başlangıcından önce ya da ileri tarihli.');
+    B.push({ type: 'kpis', items: [
+      { v: sa(Tt.fazla), f: 'sa', l: 'Fazla mesai (saat)', c: '#B4570B' }, { v: sa(Tt.netTatil), f: 'sa', l: 'Resmi tatilde çalışma (saat)', c: '#A3262A' },
+      { v: sa(Tt.eksik), f: 'sa', l: 'Eksik (saat)', c: '#8a8f98' }, { v: Tt.yemek, f: 'int', l: 'Yemek hakkı', c: '#2F6FB0' },
+      { v: Tt.cmt + Tt.paz, f: 'int', l: 'Hafta sonu çalışılan gün', c: '#5B3A8C' }, { v: Tt.dinlenme, f: 'int', l: '12 saat dinlenme ihlali', c: '#c62828' }] });
+    B.push(H('Personel bazında', e ? DT.fmt(e.from) + ' – ' + DT.fmt(e.to) : ''));
+    B.push(T({ cols: [col('Personel'), col('Net', 'sa'), col('Zorunlu', 'sa'), col('Fazla mesai', 'sa'), col('Eksik', 'saz'), col('Tatil mesaisi', 'saz'), col('Yemek', 'intz'), col('Cmt', 'intz'), col('Paz', 'intz'),
+      col('İzin günü', 'intz'), col('Görev günü', 'intz'), col('Girilmemiş', 'intz'), col('Dinlenme ihlali', 'intz')],
+      rows: R.map(function (r) { return [r.p, sa(r.net), sa(r.zor), sa(r.fazla), sa(r.eksik), sa(r.netTatil), r.yemek, r.cmt, r.paz, r.izinGun, r.gorevGun, r.girilmemis, r.dinlenme]; }),
+      tot: ['Toplam', sa(Tt.net), sa(Tt.zor), sa(Tt.fazla), sa(Tt.eksik), sa(Tt.netTatil), Tt.yemek, Tt.cmt, Tt.paz, Tt.izinGun, Tt.gorevGun, Tt.girilmemis, Tt.dinlenme], empty: 'Takip edilen personel yok' }));
+    if (Tt.fazla) B.push({ type: 'hbars', title: 'Fazla mesai (saat)', rows: R.map(function (r, i) { return [r.p, sa(r.fazla), PERS_RENK[i % PERS_RENK.length]]; }), f: 'sa', xlsx: false });
+    if (e) {
+      var dl = dilimler(e.from, e.to);
+      if (dl.length > 1) {
+        var Sx = dl.map(function (d) { return MS.donem(ctx, d.bas, d.son); });
+        B.push(H(dl.baslik + ' fazla mesai', 'saat'));
+        B.push(T({ cols: [col(dl.sutun)].concat(R.map(function (r) { return col(r.p, 'saz'); }), [col('Toplam', 'sa')]),
+          rows: dl.map(function (d, i) { return [d.uzun].concat(Sx[i].map(function (r) { return sa(r.fazla); }), [sa(MS.toplam(Sx[i]).fazla)]); }),
+          note: 'Her ' + { hafta: 'hafta', ay: 'ay', yil: 'yıl' }[dl.tur] + ' kendi zorunlu saatiyle hesaplanır; bu yüzden toplamları dönemin fazla mesaisinden farklı olabilir.' }));
+      }
+    }
+    var gl = m.gorev.filter(function (g) { return g.bas != null && g.bas >= o.from && g.bas <= o.to; }).sort(function (a, b) { return a.bas - b.bas; });
+    if (gl.length) {
+      B.push(H('Görevlendirme', gl.length + ' görev'));
+      B.push(T({ cols: [col('Personel'), col('Görev', 'intz'), col('Ürün taşıma', 'intz'), col('Kalmalı', 'intz'), col('Konaklama gecesi', 'intz'), col('Günübirlik', 'intz')],
+        rows: G.filter(function (r) { return r.n; }).map(function (r) { return [r.p, r.n, r.tasima, r.kalmali, r.gece, r.gunubirlik]; }),
+        tot: ['Toplam', gl.length, sum(G, function (r) { return r.tasima; }), sum(G, function (r) { return r.kalmali; }), sum(G, function (r) { return r.gece; }), sum(G, function (r) { return r.gunubirlik; })] }));
+      B.push(T({ sheet: 'Görevlendirme', cols: [col('Personel'), col('Başlangıç', 'date', { a: 'c' }), col('Bitiş', 'date', { a: 'c' }), col('Gün', 'int'), col('Görev türü'), col('Gidilen yer'), col('Not', 'txt', { wrap: 2 })],
+        xw: [14, 11, 11, 6, 18, 22, 40],
+        rows: gl.map(function (g) { var bit = g.bit != null && g.bit >= g.bas ? g.bit : g.bas; return [g.p, g.bas, bit, bit - g.bas + 1, g.tur, g.yer, g.not]; }) }));
+    }
+    // gün gün kayıtlar
+    var det = [], sira = function (p) { for (var i = 0; i < m.personel.length; i++) if (eqi(m.personel[i], p)) return i; return 99; };
+    R.forEach(function (r) {
+      r.gunler.forEach(function (g) {
+        var bos = !g.rec && g.zorTam > 0 && !g.gorev;
+        if (!g.rec && !g.gorev && !bos) return;
+        var ek = [];
+        if (g.izin) ek.push(root.MS.izinAd(g.izin.t) + (g.izin.s ? ' ' + String(g.izin.s).replace('.', ',') + ' sa' : ''));
+        if (g.gorev) ek.push('Görev' + (g.gorev.yer ? ': ' + g.gorev.yer : ''));
+        if (g.tatil) ek.push(g.tatil.ad);
+        var uy = [];
+        if (g.dinlenme != null) uy.push('dinlenme ' + fmt(sa(g.dinlenme), 'sa') + ' sa');
+        if (g.cakisma) uy.push('çakışan saat');
+        det.push({ v: [g.s, DT.gun(g.s), r.p, root.MS.aralikYazi(g.rec) || (bos ? 'girilmedi' : ''), g.brut ? sa(g.net) : null, sa(g.zor), g.tatil && g.tatil.tur === 'tam' ? sa(g.net) : sa(g.net - g.zor), g.yemek,
+          ek.join(' · '), [g.not].concat(uy).filter(Boolean).join(' · ')], muted: bos, k: sira(r.p) });
+      });
+    });
+    det.sort(function (a, b) { return a.v[0] - b.v[0] || a.k - b.k; });
+    B.push(Object.assign(H('Günlük kayıtlar', det.length + ' kişi-gün · tarihe göre'), { pdf: o.ayrinti, xlsx: false }));
+    B.push(T({ sheet: 'Günlük kayıtlar', cols: [col('Tarih', 'date', { a: 'c' }), col('Gün'), col('Personel'), col('Giriş – çıkış', 'txt', { wrap: 2 }), col('Net', 'saz'), col('Zorunlu', 'saz'), col('Fark', 'saz'),
+      col('Yemek', 'intz'), col('İzin · görev · tatil', 'txt', { wrap: 2 }), col('Not · uyarı', 'txt', { wrap: 2 })],
+      xw: [11, 10, 12, 26, 8, 8, 8, 7, 24, 44], rows: det, pdf: o.ayrinti, uzun: true, empty: 'Bu dönemde mesai kaydı yok' }));
+    return { landscape: true, info: info, blocks: B, ayrinti: { ad: 'Günlük kayıtlar', n: det.length },
+      ozet: 'Fazla mesai ' + fmt(sa(Tt.fazla), 'sa') + ' sa' + (Tt.netTatil ? ' (resmi tatil ' + fmt(sa(Tt.netTatil), 'sa') + ' sa dahil)' : '') + ' · ' + Tt.yemek + ' yemek hakkı · ' + (Tt.cmt + Tt.paz) + ' hafta sonu günü' + (Tt.girilmemis ? ' · ' + Tt.girilmemis + ' gün girilmemiş' : ''),
+      not: 'Net: giriş–çıkış aralıklarının toplamı; hafta içi 3,5 saatin altında mola yok, 3,5–7,5 saat 30 dakika, daha uzunsa 1 saat mola düşülür; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat; izin günleri düşülür. ' +
+        'Fazla mesai = en çok(0, resmi tatil dışındaki net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat ve üstü 1, 10 saat ve üstü 2; resmi tatilde ve şehir dışı görevde yok. ' +
+        'Dinlenme: önceki günün son çıkışı ile günün ilk girişi arası 12 saatten az. Girilmemiş: saat, izin ya da görev yazılmamış iş günü.' };
+  }
+
   /* ---------------- rapor modeli ---------------- */
   /** c: { state, D, pool, hrows, yrows, today } · o: { tur, from, to, ayrinti, filtre } */
   RP.build = function (c, o) {
@@ -508,7 +579,7 @@
     o.tumu = o.from == null || o.to == null;
     var period = RP.donemAd(o.from, o.to);
     if (o.tumu) { var k = kapsam(c); o.from = k.from; o.to = k.to; }
-    var fn = { donor: donorRaporu, harcama: harcamaRaporu, isyuku: isYukuRaporu, ozet: ozetRaporu, yemek: yemekRaporu }[o.tur] || donorRaporu;
+    var fn = { donor: donorRaporu, harcama: harcamaRaporu, isyuku: isYukuRaporu, ozet: ozetRaporu, yemek: yemekRaporu, mesai: mesaiRaporu }[o.tur] || donorRaporu;
     var m = fn(c, o);
     m.tur = o.tur; m.title = BASLIK[o.tur] || 'Rapor'; m.period = period;
     m.info = (o.tumu ? [] : [DT.fmt(o.from) + ' – ' + DT.fmt(o.to)]).concat(m.info || []);
@@ -524,8 +595,8 @@
   RP.toPdf = function (m) { return root.PDFR.build(m, fmt); };
 
   /* ---------------- Excel ---------------- */
-  // stiller (xlsx-io): 1 tarih · 2 başlık · 3 sayfa başlığı · 5 gri · 6 gri tarih · 7 ₺ · 8 % · 9 kalın toplam · 10 kalın ₺ · 11 bölüm · 12 sayı · 13 kalın sayı · 14 kalın % · 15 not · 16 alt başlık · 17 ondalık
-  var XS = { date: 1, tl: 7, tlz: 7, tl0: 7, pct: 8, int: 12, intz: 12, dec1: 17 }, XT = { date: 9, tl: 10, tlz: 10, tl0: 10, pct: 14, int: 13, intz: 13, dec1: 17, txt: 9 };
+  // stiller (xlsx-io): 1 tarih · 2 başlık · 3 sayfa başlığı · 5 gri · 6 gri tarih · 7 ₺ · 8 % · 9 kalın toplam · 10 kalın ₺ · 11 bölüm · 12 sayı · 13 kalın sayı · 14 kalın % · 15 not · 16 alt başlık · 17 ondalık · 18 saat · 19 kalın saat
+  var XS = { date: 1, tl: 7, tlz: 7, tl0: 7, pct: 8, int: 12, intz: 12, dec1: 17, sa: 18, saz: 18 }, XT = { date: 9, tl: 10, tlz: 10, tl0: 10, pct: 14, int: 13, intz: 13, dec1: 17, txt: 9, sa: 19, saz: 19 };
   function xcell(v, f, tot, muted) {
     if (v == null || v === '') return tot ? { v: '', s: 9 } : '';
     if (typeof v === 'number' && !isNaN(v)) {
