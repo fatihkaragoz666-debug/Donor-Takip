@@ -319,10 +319,45 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (waVerildi > 0L && waDurakladi == 0L) waDurakladi = System.currentTimeMillis()
+    }
+
     override fun onResume() {
         super.onResume()
+        // WhatsApp açılır açılmaz kapandıysa (tabloyu almadıysa) sayfaya bildir
+        if (waVerildi > 0L && waDurakladi > 0L && System.currentTimeMillis() - waDurakladi < 2500L) waKontrol(true)
         // Ayarlar'dan (bildirim, alarm, pil) dönünce durum satırları yenilenir
         if (pageReady) webView.evaluateJavascript("window.onNativeResume && window.onNativeResume()", null)
+    }
+
+    // WhatsApp gerçekten öne geldi mi: verildikten sonra ekranımız duraklamalı ve hemen geri gelmemeli.
+    // Bazı telefonlarda WhatsApp (özellikle numaranın sohbetine açarken) paylaşımı sessizce kapatıyor.
+    private var waVerildi = 0L
+    private var waDurakladi = 0L
+    private var waAciklama = ""
+    private val waKontrolR = Runnable { waKontrol(false) }
+
+    private fun waIzle(aciklama: String) {
+        waVerildi = System.currentTimeMillis()
+        waDurakladi = 0L
+        waAciklama = aciklama
+        webView.removeCallbacks(waKontrolR)
+        webView.postDelayed(waKontrolR, 3500L)
+    }
+
+    private fun waKontrol(dondu: Boolean) {
+        if (waVerildi == 0L) return
+        val tamam = !dondu && waDurakladi > 0L
+        val mesaj = when {
+            tamam -> "WhatsApp açıldı"
+            dondu -> "WhatsApp tabloyu almadan hemen kapandı"
+            else -> "WhatsApp öne gelmedi"
+        }
+        waVerildi = 0L
+        webView.removeCallbacks(waKontrolR)
+        sonucBildir("whatsappKontrol", tamam, "$mesaj · $waAciklama")
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -655,7 +690,7 @@ class MainActivity : ComponentActivity() {
     /** Dosyayı WhatsApp'ta açar; numara verilmişse doğrudan o sohbete gitmeyi dener */
     /**
      * Dosyayı hedefe verir ve sonucu sayfaya bildirir (window.onNativeShare).
-     * target: whatsapp | whatsapp:<paket> | whatsapp:secici | email | save | share | open
+     * target: whatsapp | whatsapp:<tercih> (paket, secici, numarasiz; "|" ile birleşebilir) | email | save | share | open
      */
     private fun paylas(f: File, target: String, mimeType: String, subject: String, text: String, phone: String) {
         try {
@@ -702,16 +737,20 @@ class MainActivity : ComponentActivity() {
     private fun waAd(pkg: String) = if (pkg == "com.whatsapp.w4b") "WhatsApp Business" else "WhatsApp"
 
     /**
-     * Dosyayı WhatsApp'ta açar. tercih: "" (önce WhatsApp, yoksa Business) | paket adı | "secici" (paylaş menüsü).
-     * Numara verilmişse doğrudan o sohbete gitmeyi dener. Ne yapıldığını döndürür.
+     * Dosyayı WhatsApp'ta açar. tercih ("|" ile birleşebilir): "" (önce WhatsApp, yoksa Business) | paket adı |
+     * "secici" (paylaş menüsü) | "numarasiz" (numara verilmiş olsa da sohbet listesiyle).
+     * Numara verilmişse doğrudan o sohbete gitmeyi dener; WhatsApp'ın öne gelip gelmediği ayrıca izlenir.
      */
     private fun shareToWhatsApp(file: File, mimeType: String, text: String, phone: String, tercih: String): String {
         val send = fileIntent(file, mimeType, "", text)
-        if (tercih == "secici") {
+        val parca = tercih.split('|')
+        if ("secici" in parca) {
             startActivity(Intent.createChooser(send, "Tabloyu gönder"))
             return "Paylaş menüsü açıldı"
         }
-        val pkg = (if (tercih.isNotEmpty()) installedPackage(tercih) else null)
+        val paket = parca.firstOrNull { it.startsWith("com.") } ?: ""
+        val numarasiz = "numarasiz" in parca
+        val pkg = (if (paket.isNotEmpty()) installedPackage(paket) else null)
             ?: installedPackage("com.whatsapp", "com.whatsapp.w4b")
         if (pkg == null) {
             startActivity(Intent.createChooser(send, "Paylaş"))
@@ -722,11 +761,13 @@ class MainActivity : ComponentActivity() {
         if (digits.startsWith("00")) digits = digits.substring(2)
         if (digits.length == 11 && digits.startsWith("0")) digits = "9$digits"
         if (digits.length == 10 && digits.startsWith("5")) digits = "90$digits"
-        val numarali = digits.length >= 11
+        val numarali = !numarasiz && digits.length >= 11
         if (numarali) send.putExtra("jid", "$digits@s.whatsapp.net")
+        val nasil = if (numarali) "numaranın sohbeti" else "sohbet listesi"
         return try {
             startActivity(send)
-            waAd(pkg) + " açıldı" + if (numarali) " (numaranın sohbeti)" else " (sohbet listesi)"
+            waIzle(waAd(pkg) + " · " + nasil)
+            waAd(pkg) + "’a verildi ($nasil)"
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent.createChooser(send.setPackage(null), "Paylaş"))
             waAd(pkg) + " açılamadı; paylaş menüsü açıldı"

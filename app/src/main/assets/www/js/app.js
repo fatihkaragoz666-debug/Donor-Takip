@@ -2636,13 +2636,37 @@
   };
   window.onNativeResume = function () { var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml(); };
   // Android dosyayı hedefe verdi mi: {target, ok, mesaj}
+  // WhatsApp hedefinde ikinci bildirim "whatsappKontrol": WhatsApp gerçekten öne geldi mi
   window.onNativeShare = function (r) {
     r = r || {};
-    if (GL.k && !GL.k.bitti) { GL.ekle(r.ok ? 'Verildi' : 'Hata', r.mesaj); GL.bitir(!!r.ok, r.mesaj); }
-    if (!r.ok) gonderimHata('Dosya gönderilemedi', r.mesaj, true);
-    else if (/^whatsapp/.test(S(r.target))) toast(S(r.mesaj).split(' · ')[0]);
+    if (r.target === 'whatsappKontrol') {
+      var k = GL.k;
+      if (k) {
+        k.adim.push([Date.now() - k.t0, r.ok ? 'WhatsApp öne geldi' : 'WhatsApp açılmadı', S(r.mesaj)]);
+        k.bitti = true; k.ok = !!r.ok; k.sonuc = S(r.mesaj); GL.yaz();
+      }
+      if (!r.ok) waAcilmadi(r.mesaj);
+    } else {
+      if (GL.k && !GL.k.bitti) { GL.ekle(r.ok ? 'Verildi' : 'Hata', r.mesaj); GL.bitir(!!r.ok, r.mesaj); }
+      if (!r.ok) gonderimHata('Dosya gönderilemedi', r.mesaj, true);
+      else if (/^whatsapp/.test(S(r.target)) && !/secici/.test(S(r.target))) toast('WhatsApp açılıyor…');
+    }
     var el = $('#tbDurum'); if (el) el.innerHTML = tbDurumHtml();
   };
+  // WhatsApp tabloyu almadıysa: sohbet listesiyle, paylaş menüsüyle ya da kaydederek gönderme
+  function waAcilmadi(mesaj) {
+    var ts = $('#toast'); if (ts) ts.classList.remove('on');
+    var numarali = !!S(tabloAyar().tel).replace(/\D/g, '');
+    openSheet('<h3>WhatsApp açılmadı</h3><div class="sub">' + h(mesaj || '') + '</div>' +
+      '<div class="hint" style="margin:8px 2px 0">' + (numarali
+        ? 'Bu telefondaki WhatsApp, tabloyu doğrudan numaranın sohbetinde açmayı kabul etmiyor. Sohbeti seçerek gönderin.'
+        : 'WhatsApp tabloyu almadı. Paylaş menüsüyle ya da telefona kaydedip WhatsApp’tan gönderin.') + '</div>' +
+      (numarali ? '<button class="btn wa block" data-act="gonListe" style="margin-top:12px">' + I.wa + 'WhatsApp’ta sohbeti seçerek gönder</button>' : '') +
+      '<button class="btn ' + (numarali ? '' : 'wa ') + 'block" data-act="gonPaylas" style="margin-top:8px">' + (numarali ? '' : I.wa) + 'Paylaş menüsüyle gönder</button>' +
+      '<button class="btn block" data-act="gonKaydet" style="margin-top:8px">' + I.down + 'Telefona kaydet</button>' +
+      (numarali ? '<button class="btn ghost block" data-act="gonNumaraSil" style="margin-top:4px">Bu telefonda numarayı kaldır (hep sohbet listesi)</button>' : '') +
+      '<div class="btns" style="margin-top:8px"><button class="btn" data-act="gonBilgi">Gönderim bilgisi</button><button class="btn pri" data-act="closeSheet">Kapat</button></div>');
+  }
   window.onNotifPermission = function (ok) { if (!ok) toast('Bildirim izni verilmedi; hatırlatma görünmez. Telefon ayarlarından Donör Takip’e bildirim izni verin.'); };
   // Telefonda hangi WhatsApp ile gönderileceği (her telefonda ayrı)
   function waAppField(t) {
@@ -2653,6 +2677,14 @@
     opts.push(['secici', 'Paylaş menüsü (uygulamayı her seferinde seçerim)']);
     return '<div class="field" style="margin:6px 0 8px"><label>Gönderim uygulaması</label><select class="inp" id="tbApp">' +
       opts.map(function (o) { return '<option value="' + h(o[0]) + '"' + (o[0] === cur ? ' selected' : '') + '>' + h(o[1]) + '</option>'; }).join('') + '</select></div>';
+  }
+  // Ayarlar kartında numara ya da gönderim uygulaması değiştirilip Kaydet'e basılmadıysa önce kaydet
+  function tabloKartKaydet() {
+    var tel = $('#tbTel'); if (!tel) return true;
+    var t = tabloAyar(), app = $('#tbApp'), apps = app ? waUygulamalari() : [];
+    var varsayilan = S(t.app) || (apps[0] ? apps[0].paket : 'secici');
+    if (tel.value.trim() === S(t.tel) && (!app || app.value === varsayilan)) return true;
+    return tabloAyarKaydet(true);
   }
   function tabloAyarKaydet(sessiz) {
     var on = $('#tbOn').checked, saat = $('#tbSaat').value || '08:30', tel = $('#tbTel').value.trim(), gun = $('#tbGun').value === 'hergun' ? 'hergun' : 'haftaici';
@@ -2823,7 +2855,7 @@
       // Kayıtlı Excel şablonu varsa onu kullan, yoksa dosya seçtir
       IDB.get('sablon').then(function (t) { if (t && t.buf) arsivYukle(t.buf, t.ad); else pickFile('arsiv'); }, function () { pickFile('arsiv'); });
     },
-    tabloWa: function () { tabloGonder('whatsapp'); },
+    tabloWa: function () { if (!tabloKartKaydet()) return; tabloGonder('whatsapp'); },
     rpTur: function (el) { ui.rpTur = el.dataset.v; render(true); },
     rpHz: function (el) { ui.rpHz = el.dataset.v; var r = RP.hazir(ui.rpHz, today); ui.rpBas = r.from; ui.rpBit = r.to; render(true); },
     rpAc: function (el) { ui.rpTur = el.dataset.v || ui.rpTur; go('/dash/raporlar'); },
@@ -2836,7 +2868,7 @@
       busy(true, 'Rapor hazırlanıyor…');
       setTimeout(function () { sendBigFile(r.bytes, r.name, r.mime, t, metin, { label: 'Rapor', subject: konu, phone: '' }); }, 30);
     },
-    tabloSave: function () { tabloGonder('save'); },
+    tabloSave: function () { if (!tabloKartKaydet()) return; tabloGonder('save'); },
     tabloKaydet: function () { tabloAyarKaydet(false); },
     tabloDene: function () {
       if (!tabloAyarKaydet(true)) return;
@@ -2847,6 +2879,17 @@
     tbAyar: function (el) { if (NB && NB.ayarAc) NB.ayarAc(el.dataset.ne); },
     gonBilgi: function () { gonderimBilgisi(); },
     gonPaylas: function () { closeSheet(); GL.bas('whatsapp:secici'); GL.ekle('Hazır dosya yeniden'); NB.sonDosyayiPaylas('whatsapp:secici'); },
+    gonListe: function () {
+      closeSheet();
+      var app = S(tabloAyar().app), hedef = 'whatsapp:' + (/^com\./.test(app) ? app + '|' : '') + 'numarasiz';
+      GL.bas(hedef); GL.ekle('Hazır dosya yeniden'); NB.sonDosyayiPaylas(hedef);
+    },
+    gonNumaraSil: function () {
+      closeSheet();
+      var t = tabloAyar(); t.tel = ''; state.settings.tablo = t; save(); syncReminder();
+      var el = $('#tbTel'); if (el) el.value = '';
+      toast('Numara bu telefonda kaldırıldı: WhatsApp sohbet listesiyle açılacak');
+    },
     gonKaydet: function () { closeSheet(); window.onNativeFileSaved = function (ok) { toast(ok ? 'Tablo kaydedildi' : 'Tablo kaydedilmedi'); }; NB.sonDosyayiPaylas('save'); },
     mailDurum: function () { mailPasteSheet(); },
     durumNew: function (el) { durumSheet({ id: el.dataset.id }); },

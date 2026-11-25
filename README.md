@@ -92,6 +92,10 @@ Durum satırları: bildirim izni, tam saat izni, pil kısıtlaması; sonraki ve 
 seçilir). Gönderimin her adımı (şablon, sayfalar, aktarım, Android’in WhatsApp’a verişi) kaydedilir; hata olursa kalıcı pencerede
 gösterilir ve hazır dosya paylaş menüsüyle gönderilebilir ya da kaydedilebilir. **Gönderim bilgisi**: telefon, Android, WebView,
 WhatsApp sürümleri, şablon ve son gönderimin adımları (takılırsa ya da uygulama kapanırsa hangi adımda kaldığı) — sorun bildirmek için.
+WhatsApp’a verildikten sonra WhatsApp’ın gerçekten öne gelip gelmediği izlenir (ekran duraklamazsa ya da 2,5 sn içinde geri gelirse
+“WhatsApp açılmadı” penceresi: sohbeti seçerek, paylaş menüsüyle ya da kaydederek gönderme; numarayı o telefonda kaldırma). Bazı
+telefonlardaki WhatsApp, numaranın sohbetine doğrudan açmayı sessizce reddediyor. Ayarlar kartında Kaydet’e basılmadan “Şimdi gönder”e
+basılırsa değişen numara / gönderim uygulaması önce kaydedilir.
 Gönder’e uygulamanın basması erişilebilirlik hizmeti gerektirir; Google Play Protect, internetten kurulan ve erişilebilirlik hizmeti
 içeren uygulamaların kurulumunu engellediği için uygulamada yoktur.
 
