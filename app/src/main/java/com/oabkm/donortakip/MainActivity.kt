@@ -8,6 +8,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Rect
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -30,6 +31,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
@@ -37,10 +39,16 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
+import com.google.android.gms.tasks.Tasks
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 
 /**
  * Donör Takip: uygulamanın tamamı assets/www içindeki HTML/JS dosyalarıdır.
@@ -64,6 +72,9 @@ class MainActivity : ComponentActivity() {
     private var sharedName = "dosya"
     private var sharedMime = "application/octet-stream"
     private var pendingJs: String? = null
+    /** Sayfa hazır olmadan gelen ekran görüntüsü okuma sonuçları */
+    private val bekleyenJs = ArrayList<String>()
+    private var ocrTanima: TextRecognizer? = null
     private var pageReady = false
     private var insetTop = 0
     private var insetBottom = 0
@@ -110,6 +121,12 @@ class MainActivity : ComponentActivity() {
             webView.evaluateJavascript("window.onNativeFileSaved && window.onNativeFileSaved($ok)", null)
         }
 
+    /** Ekran görüntüsü seçimi (galeri): mesai saatleri okunur */
+    private val ocrSecici =
+        registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+            if (uris.isNotEmpty()) ocrCalistir(uris)
+        }
+
     /** Android 13+ bildirim izni (hafta içi tablo hatırlatması için) */
     private val notifPermLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -118,6 +135,7 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        internetsizGuvence()
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
@@ -262,7 +280,17 @@ class MainActivity : ComponentActivity() {
                     sendText(intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: "", text)
                     return
                 }
+                // Ekran görüntüsü: yazısı telefonda okunur, mesai saatleri sayfaya verilir
+                if (gorselMi(intent.type, stream)) {
+                    ocrCalistir(listOf(stream))
+                    return
+                }
                 receiveFile(stream, intent.type)
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val list = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
+                val gorseller = list.filter { gorselMi(intent.type, it) }
+                if (gorseller.isNotEmpty()) ocrCalistir(gorseller.take(10))
             }
             Intent.ACTION_VIEW -> receiveFile(intent.data ?: return, intent.type)
         }
@@ -293,10 +321,109 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun deliverShared() {
+        if (!pageReady) return
         val js = pendingJs
-        if (!pageReady || js == null) return
-        pendingJs = null
-        webView.evaluateJavascript(js, null)
+        if (js != null) {
+            pendingJs = null
+            webView.evaluateJavascript(js, null)
+        }
+        if (bekleyenJs.isNotEmpty()) {
+            val liste = ArrayList(bekleyenJs)
+            bekleyenJs.clear()
+            liste.forEach { webView.evaluateJavascript(it, null) }
+        }
+    }
+
+    /** Sayfa hazırsa hemen, değilse yüklenince çalıştırılır (ana iş parçacığında çağrılır) */
+    private fun jsGonder(js: String) {
+        if (isDestroyed) return
+        if (pageReady) webView.evaluateJavascript(js, null) else bekleyenJs.add(js)
+    }
+
+    private fun gorselMi(type: String?, uri: Uri): Boolean {
+        val t = type ?: ""
+        if (t.startsWith("image/")) return true
+        if (t.isNotEmpty() && t != "*/*" && t != "application/octet-stream") return false
+        return (contentResolver.getType(uri) ?: "").startsWith("image/")
+    }
+
+    // ---------------- Ekran görüntüsünden yazı okuma (ML Kit, telefonda; internet gerekmez) ----------------
+    private fun tanima(): TextRecognizer =
+        ocrTanima ?: TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).also { ocrTanima = it }
+
+    /** Görselleri sırayla okur; sonuç: window.receiveOcr('[{ ad, zaman, w, h, satirlar: [{ t, x, y, w, h, e: [...] }] }]') */
+    private fun ocrCalistir(uris: List<Uri>) {
+        jsGonder("window.ocrBasladi && window.ocrBasladi(${uris.size})")
+        val tanima = tanima()
+        Thread {
+            val sonuc = JSONArray()
+            uris.forEachIndexed { i, uri ->
+                if (i > 0) runOnUiThread { jsGonder("window.ocrIlerleme && window.ocrIlerleme(${i + 1}, ${uris.size})") }
+                sonuc.put(ocrOku(tanima, uri))
+            }
+            val js = "window.receiveOcr && window.receiveOcr(" + JSONObject.quote(sonuc.toString()) + ")"
+            runOnUiThread { jsGonder(js) }
+        }.start()
+    }
+
+    private fun ocrOku(tanima: TextRecognizer, uri: Uri): JSONObject {
+        val o = JSONObject()
+        val bilgi = gorselBilgisi(uri)
+        o.put("ad", bilgi.first).put("zaman", bilgi.second)
+        try {
+            val image = InputImage.fromFilePath(this, uri)
+            val donuk = image.rotationDegrees == 90 || image.rotationDegrees == 270
+            o.put("w", if (donuk) image.height else image.width).put("h", if (donuk) image.width else image.height)
+            val text = Tasks.await(tanima.process(image), 60, TimeUnit.SECONDS)
+            val satirlar = JSONArray()
+            for (blok in text.textBlocks) {
+                for (satir in blok.lines) {
+                    val kutu = satir.boundingBox ?: continue
+                    val parcalar = JSONArray()
+                    for (el in satir.elements) {
+                        val k = el.boundingBox ?: continue
+                        parcalar.put(kutuJson(el.text, k))
+                    }
+                    satirlar.put(kutuJson(satir.text, kutu).put("e", parcalar))
+                }
+            }
+            o.put("satirlar", satirlar)
+        } catch (e: Exception) {
+            o.put("hata", hataYazi(e))
+        } catch (e: OutOfMemoryError) {
+            o.put("hata", "Görsel çok büyük")
+        }
+        return o
+    }
+
+    private fun kutuJson(t: String, r: Rect): JSONObject =
+        JSONObject().put("t", t).put("x", r.left).put("y", r.top).put("w", r.width()).put("h", r.height())
+
+    /** Görselin adı (Screenshot_20261126-184012…) ve çekildiği an (ms; bilinmiyorsa 0) */
+    private fun gorselBilgisi(uri: Uri): Pair<String, Long> {
+        var ad = "ekran görüntüsü"
+        var zaman = 0L
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (i >= 0 && !c.isNull(i)) ad = c.getString(i) ?: ad
+                    for (k in arrayOf("datetaken", "last_modified", "date_modified", "date_added")) {
+                        val j = c.getColumnIndex(k)
+                        if (j < 0 || c.isNull(j)) continue
+                        var v = c.getLong(j)
+                        if (v in 1L..99_999_999_999L) v *= 1000L
+                        if (v > 0L) {
+                            zaman = v
+                            break
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // ad ve zaman okunamazsa varsayılanlar kalır
+        }
+        return Pair(ad, zaman)
     }
 
     /** Sayfa paylaşılan dosyayı https://appassets.androidplatform.net/paylasilan/… adresinden okur */
@@ -370,6 +497,12 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         filePathCallback?.onReceiveValue(null)
         filePathCallback = null
+        try {
+            ocrTanima?.close()
+        } catch (e: Exception) {
+            // kapanırken hata önemsiz
+        }
+        ocrTanima = null
         webView.destroy()
         super.onDestroy()
     }
@@ -636,6 +769,19 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun appVersion(): String = BuildConfig.VERSION_NAME
+
+        /** Galeriden ekran görüntüsü seçtirip yazısını okur (sonuç: window.receiveOcr) */
+        @JavascriptInterface
+        fun ocrSec(): Boolean {
+            runOnUiThread {
+                try {
+                    ocrSecici.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                } catch (e: Exception) {
+                    this@MainActivity.toast("Galeri açılamadı")
+                }
+            }
+            return true
+        }
     }
 
     @SuppressLint("BatteryLife")
@@ -787,6 +933,29 @@ class MainActivity : ComponentActivity() {
             }
         }
         startActivity(Intent.createChooser(send, "E-posta ile gönder"))
+    }
+
+    /**
+     * Uygulamanın internet izni yok. Bir kütüphane arka planda yine de bağlanmaya çalışırsa Android
+     * "missing INTERNET permission" hatası verir; bu hata ana iş parçacığı dışındaysa uygulamayı kapatmasın.
+     */
+    private fun internetsizGuvence() {
+        val onceki = Thread.getDefaultUncaughtExceptionHandler()
+        if (onceki is InternetsizYakalayici) return
+        Thread.setDefaultUncaughtExceptionHandler(InternetsizYakalayici(onceki))
+    }
+
+    private class InternetsizYakalayici(private val onceki: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
+        override fun uncaughtException(t: Thread, e: Throwable) {
+            var x: Throwable? = e
+            var internet = false
+            while (x != null && !internet) {
+                internet = x is SecurityException && (x.message ?: "").contains("INTERNET")
+                x = x.cause
+            }
+            if (internet && t !== android.os.Looper.getMainLooper().thread) return
+            onceki?.uncaughtException(t, e)
+        }
     }
 
     companion object {

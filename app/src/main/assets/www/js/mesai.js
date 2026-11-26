@@ -43,6 +43,7 @@
     if (!m.donemGun) m.donemGun = 20;
     if (m.donemAd !== 'bit') m.donemAd = 'bas';
     if (!m.aylar || typeof m.aylar !== 'object' || Array.isArray(m.aylar)) m.aylar = {};
+    if (!m.harita || typeof m.harita !== 'object' || Array.isArray(m.harita)) m.harita = {};
     if (!m.ust) m.ust = 48;
     if (!m.gun || typeof m.gun !== 'object') m.gun = {};
     if (!Array.isArray(m.gorev)) m.gorev = [];
@@ -571,7 +572,7 @@
   MS.waKisi = function (kim, personel, harita) {
     if (harita && harita[kim] !== undefined) return harita[kim] || null;
     var parca = UPPER(kim).replace(/[^A-ZÇĞİÖŞÜ ]/g, ' ').split(/\s+/).filter(Boolean);
-    for (var i = 0; i < parca.length; i++) for (var j = 0; j < personel.length; j++) if (DT.eqi(parca[i], personel[j])) return personel[j];
+    for (var i = 0; i < parca.length; i++) for (var j = 0; j < personel.length; j++) if (DT.eqi(parca[i], personel[j]) || DT.normKey(parca[i]) === DT.normKey(personel[j])) return personel[j];
     return null;
   };
   var RE_COKGUN = /(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\s+(\d{1,2})[:.](\d{2})\s*[-–—]+\s*(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\s+(\d{1,2})[:.](\d{2})/;
@@ -579,8 +580,8 @@
   var RE_KISA_TARIH = /(^|[^\d:.])(\d{1,2})[./](\d{1,2})\s+(?=\d{1,2}[:.]\d{2}\s*[-–—])/;
   var RE_ARALIK = /(\d{1,2})[:.](\d{2})\s*[-–—]+\s*(\d{1,2})[:.](\d{2})/g;
   function gecerliSaat(h, m) { return h <= 24 && m <= 59 && !(h === 24 && m > 0); }
-  function tarihDuzelt(s, msgS, uyari, yazilan) {
-    if (Math.abs(s - msgS) <= 20) return s;
+  function tarihDuzelt(s, msgS, uyari, yazilan, kesin) {
+    if (kesin === false || Math.abs(s - msgS) <= 20) return s;
     var p = DT.parts(s), q = DT.parts(msgS), aday = DT.serial(q.y, q.m, p.d);
     if (aday > msgS) aday = DT.serial(q.y, q.m - 1, p.d);
     if (Math.abs(aday - msgS) <= 7) { uyari.push('tarih düzeltildi (yazılan ' + yazilan + ')'); return aday; }
@@ -614,11 +615,11 @@
       var kalan = satir, dm = RE_TARIH.exec(kalan);
       if (dm) {
         var yy = +dm[3]; if (yy < 100) yy += 2000;
-        curS = tarihDuzelt(DT.serial(yy, +dm[2], +dm[1]), msg.s, uy, dm[0]);
+        curS = tarihDuzelt(DT.serial(yy, +dm[2], +dm[1]), msg.s, uy, dm[0], msg.tarihKesin);
         kalan = kalan.replace(dm[0], ' ');
       } else {
         var km = RE_KISA_TARIH.exec(kalan);
-        if (km) { curS = tarihDuzelt(DT.serial(DT.parts(msg.s).y, +km[3], +km[2]), msg.s, uy, km[2] + '.' + km[3]); kalan = kalan.replace(km[0], km[1] + ' '); }
+        if (km) { curS = tarihDuzelt(DT.serial(DT.parts(msg.s).y, +km[3], +km[2]), msg.s, uy, km[2] + '.' + km[3], msg.tarihKesin); kalan = kalan.replace(km[0], km[1] + ' '); }
       }
       var a = [], m;
       RE_ARALIK.lastIndex = 0;
@@ -627,9 +628,9 @@
         a.push([+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]]);
       }
       if (!a.length) return;
-      var hedef = curS != null ? curS : msg.s;
-      if (izin) { ekle(hedef, [], { izinSatiri: DT.xtrim(satir), uyari: ['mazeret / izin saatleri mesai sayılmadı: ' + DT.xtrim(satir)] }); return; }
-      ekle(hedef, a, { uyari: uy });
+      var hedef = curS != null ? curS : msg.s, tahmin = curS == null && msg.tarihKesin === false ? { tahmin: true } : null;
+      if (izin) { ekle(hedef, [], Object.assign({ izinSatiri: DT.xtrim(satir), uyari: ['mazeret / izin saatleri mesai sayılmadı: ' + DT.xtrim(satir)] }, tahmin)); return; }
+      ekle(hedef, a, Object.assign({ uyari: uy }, tahmin));
     });
     return sira.map(function (s) { return gunler[s]; });
   };
@@ -639,8 +640,8 @@
    */
   MS.whatsapp = function (state, metin, opt) {
     opt = opt || {};
-    var m = MS.hazirla(state), personel = opt.personel || m.personel, harita = opt.harita || {};
-    var mesajlar = MS.waMesajlar(metin), bilinmeyen = {}, kayit = {}, sira = [];
+    var m = MS.hazirla(state), personel = opt.personel || m.personel, harita = Object.assign({}, m.harita, opt.harita || {});
+    var mesajlar = opt.mesajlar || MS.waMesajlar(metin), bilinmeyen = {}, kayit = {}, sira = [];
     mesajlar.forEach(function (msg) {
       var p = MS.waKisi(msg.kim, personel, harita);
       var gunler = MS.waAyikla(msg);
@@ -650,13 +651,16 @@
         if (opt.from != null && g.s < opt.from) return;
         if (opt.to != null && g.s > opt.to) return;
         var k = g.s + '|' + p, eski = kayit[k];
-        var kaynak = DT.xtrim(msg.govde.replace(/\n/g, ' · ')).slice(0, 140);
-        if (eski && eski.msgS === msg.s && eski.saat === msg.saat) {
+        var kaynak = DT.xtrim((msg.goster != null ? msg.goster : msg.govde).replace(/\n/g, ' · ')).slice(0, 140);
+        if (eski && eski.msgS === msg.s && eski.saat === msg.saat && !msg.ekran) {
           g.a.forEach(function (x) { if (!eski.a.some(function (y) { return y[0] === x[0] && y[1] === x[1]; })) eski.a.push(x); });
           return;
         }
+        // aynı saatler ikinci kez (üst üste binen ekran görüntüleri): uyarısız geç
+        if (eski && JSON.stringify(eski.a) === JSON.stringify(g.a) && (eski.izinSatiri || null) === (g.izinSatiri || null)) return;
         var r = { s: g.s, p: p, a: g.a.slice(), uyari: g.uyari.slice(), cokGun: g.cokGun, izinSatiri: g.izinSatiri || null, kaynak: kaynak,
-          msgS: msg.s, saat: msg.saat, kim: msg.kim };
+          msgS: msg.s, saat: msg.saat, kim: msg.kim, tahmin: !!g.tahmin, gi: msg.gi };
+        if (g.tahmin) r.uyari.push(msg.tarihElle ? 'tarih elle seçildi: ' + DT.fmt(g.s) : 'tarih mesajda ve ekranda görünmüyor: ' + DT.fmt(g.s) + ' alındı');
         if (eski) r.uyari.unshift('aynı gün için ' + (eski.tekrar ? eski.tekrar + 1 : 2) + '. mesaj; sonuncusu alındı'), r.tekrar = (eski.tekrar || 1) + 1;
         else sira.push(k);
         kayit[k] = r;
@@ -684,6 +688,261 @@
       return zip.text(ad);
     }
     return Promise.resolve(new TextDecoder('utf-8').decode(u8));
+  };
+
+  /* ================= Ekran görüntüsünden (telefonda metin okuma) =================
+   * Girdi: [{ ad, zaman (ms), w, h, satirlar: [{ t, x, y, w, h, e: [{ t, x, y, w, h }] }] }] — Android ML Kit satırları ve kelimeleri.
+   * WhatsApp ekranı: ortadaki tarih ayracı (Bugün, Dün, Salı, 25 Kasım 2026), balonun üstündeki gönderen adı, mesaj, sağ alttaki saat.
+   * Liste / tablo: satır personel adıyla başlıyorsa saatler o kişiye yazılır ("AHMET 08:00 17:00").
+   * Çıktı: MS.whatsapp için mesaj listesi { s, saat, kim, govde, tarihKesin, ekran }.
+   */
+  var GUN_ADI = { pazartesi: 1, sali: 2, carsamba: 3, persembe: 4, cuma: 5, cumartesi: 6, pazar: 7,
+    monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7 };
+  var AY_ADI = { ocak: 1, subat: 2, mart: 3, nisan: 4, mayis: 5, haziran: 6, temmuz: 7, agustos: 8, eylul: 9, ekim: 10, kasim: 11, aralik: 12,
+    january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+  MS.EKRAN_SIZ = 'Siz (kendi mesajınız)';
+  MS.EKRAN_YOK = '(gönderen görünmüyor)';
+  MS.ekranYok = function (k) { return S(k).indexOf(MS.EKRAN_YOK) === 0; };
+  function ascii(t) {
+    return fold(t).replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/[âà]/g, 'a').replace(/[îì]/g, 'i').replace(/û/g, 'u');
+  }
+  /** ekran görüntüsünün günü: dosya adından (Screenshot_20261126-184012…), yoksa dosya zamanından, yoksa bugün */
+  MS.ekranTarihi = function (ad, zaman, today) {
+    var m = /(20\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?!\d)/.exec(S(ad));
+    if (m) return { s: DT.serial(+m[1], +m[2], +m[3]), kaynak: 'ad' };
+    if (zaman > 0) { var d = new Date(zaman); return { s: DT.serial(d.getFullYear(), d.getMonth() + 1, d.getDate()), kaynak: 'zaman' }; }
+    return { s: today, kaynak: 'bugun' };
+  };
+  /** WhatsApp tarih ayracı → gün (ref: ekran görüntüsünün günü) */
+  MS.ayracTarihi = function (t, ref) {
+    var a = ascii(t).replace(/[^a-z0-9./ ]/g, ' ').replace(/\s+/g, ' ').trim(), m;
+    if (!a) return null;
+    if (a === 'bugun' || a === 'today') return ref;
+    if (a === 'dun' || a === 'yesterday') return ref - 1;
+    if (GUN_ADI[a]) { var fark = (DT.weekday(ref) - GUN_ADI[a] + 7) % 7; return ref - (fark || 7); }
+    if ((m = /^(\d{1,2}) ([a-z]+)(?: (\d{4}))?(?: [a-z]+)?$/.exec(a)) && AY_ADI[m[2]]) {
+      var y = m[3] ? +m[3] : DT.parts(ref).y, s = DT.serial(y, AY_ADI[m[2]], +m[1]);
+      if (!m[3] && s > ref) s = DT.serial(y - 1, AY_ADI[m[2]], +m[1]);
+      return s;
+    }
+    if ((m = /^([a-z]+) (\d{1,2}) (\d{4})$/.exec(a)) && AY_ADI[m[1]]) return DT.serial(+m[3], AY_ADI[m[1]], +m[2]);
+    if ((m = /^(\d{1,2})[./](\d{1,2})[./](\d{4}|\d{2})$/.exec(a))) { var yy = +m[3]; if (yy < 100) yy += 2000; return DT.serial(yy, +m[2], +m[1]); }
+    return null;
+  };
+  /** okuma hatalarını düzelt: tire çeşitleri, "08 : 00", "O8:00", "0800-1700" */
+  MS.ocrDuzelt = function (t) {
+    return S(t).replace(GORUNMEZ, '')
+      .replace(/[–—−‑‒﹣－]/g, '-')
+      .replace(/(\d)\s*[;：]\s*(\d)/g, '$1:$2')
+      .replace(/\b[Oo](\d)([:.]\d{2})/g, '0$1$2')
+      .replace(/(\d{1,2})([:.])[Oo](\d)/g, '$1$20$3')
+      .replace(/(\d{1,2})\s*:\s+(\d{2})(?!\d)/g, '$1:$2')
+      .replace(/(\d{1,2})\s+:\s*(\d{2})(?!\d)/g, '$1:$2')
+      .replace(/(^|[^\d:.])([01]\d|2[0-4])([0-5]\d)\s*-\s*([01]\d|2[0-4])([0-5]\d)(?![\d:.])/g, '$1$2:$3-$4:$5');
+  };
+  var RE_SAATK = /(^|[^\d.:])(\d{1,2})([:.])(\d{2})(?![\d:]|\.\d)/g;
+  function aralikVar(t) {
+    var m, v = false, x = MS.ocrDuzelt(t);
+    RE_ARALIK.lastIndex = 0;
+    while ((m = RE_ARALIK.exec(x))) if (gecerliSaat(+m[1], +m[2]) && gecerliSaat(+m[3], +m[4])) { v = true; break; }
+    RE_ARALIK.lastIndex = 0;
+    return v;
+  }
+  /** tire olmadan yazılmış iki saat ("08:00 17:00", "giriş 08.00 çıkış 17.00") → "08:00-17:00" */
+  function saatEsle(t) {
+    if (aralikVar(t)) return t;
+    var f = ascii(t), gc = /giris\D{0,12}?(\d{1,2})[:.](\d{2})[\s\S]{0,40}?cikis\D{0,12}?(\d{1,2})[:.](\d{2})/.exec(f);
+    if (gc) return t + '\n' + gc[1] + ':' + gc[2] + '-' + gc[3] + ':' + gc[4];
+    // tarihler çıkarılır; "08.10" gibi noktalı ve ay sanılabilecek (dakika 01–12) yazımlar sayılmaz
+    var z = [], m, tt = t.replace(/\d{1,2}[./]\d{1,2}[./]\d{2,4}/g, ' ');
+    RE_SAATK.lastIndex = 0;
+    while ((m = RE_SAATK.exec(tt))) {
+      if (!gecerliSaat(+m[2], +m[4])) continue;
+      if (m[3] === '.' && +m[4] >= 1 && +m[4] <= 12) continue;
+      z.push(m[2] + ':' + m[4]);
+    }
+    return z.length === 2 ? t + '\n' + z[0] + '-' + z[1] : t;
+  }
+  function saatMi(t) { return /^\d{1,2}[:.]\d{2}$/.test(t); }
+  // mesaj balonunun saati: tek başına satır ya da satırın sonundaki küçük saat (✓✓ okunabilir)
+  var RE_TIK = /[\s✓✔√vVwW/\\~ﾉ'"’`.,]+$/;
+  function damgaAyir(r, medH) {
+    var t = r.tt.replace(/\b(düzenlendi|duzenlendi|edited)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    var sade = t.replace(/\s*(öö|ös|oo|os|am|pm)\b/gi, '').replace(RE_TIK, '');
+    if (saatMi(sade)) return { yalniz: true, damga: sade.replace('.', ':') };
+    var e = (r.e || []).filter(function (x) { return S(x.t).trim(); });
+    while (e.length > 1 && !/\d/.test(e[e.length - 1].t) && S(e[e.length - 1].t).replace(RE_TIK, '') === '') e = e.slice(0, -1);
+    if (e.length < 2) return { t: t };
+    var son = e[e.length - 1], st = S(son.t).replace(RE_TIK, '');
+    if (!saatMi(st)) return { t: t };
+    var onceki = S(e[e.length - 2].t);
+    if (/[-–—]$/.test(onceki)) return { t: t };                                  // aralığın bitişi
+    // boy karşılaştırması rakamlı parçalarla (harflerin çıkıntıları kutuyu büyütür); rakam yoksa bütün parçalarla
+    var ref = e.slice(0, -1).filter(function (x) { return /\d/.test(x.t); });
+    if (!ref.length) ref = e.slice(0, -1);
+    var hs = ref.map(function (x) { return x.h; }).sort(function (a, b) { return a - b; }), mh = hs[Math.floor(hs.length / 2)] || medH;
+    var kucuk = son.h < 0.84 * mh, once = e[e.length - 2], bosluk = son.x - (once.x + once.w);
+    var aralikOnce = aralikVar(e.slice(0, -1).map(function (x) { return x.t; }).join(' ')) && bosluk >= 0.8 * son.h;
+    if (!kucuk && !aralikOnce) return { t: t };
+    var i = t.lastIndexOf(son.t);
+    return { t: (i > 0 ? t.slice(0, i) : t).trim(), damga: st.replace('.', ':') };
+  }
+  /** satır gönderen adı mı: 'kesin' (personel adı, telefon), 'aday' (Başlık Biçimi kısa satır) ya da null */
+  function isimTuru(t, P) {
+    var tt = S(t).trim();
+    if (!tt || /\d{1,2}[:.]\d{2}/.test(tt)) return null;
+    if (/^\+?\d[\d\s()-]{8,}\d(\s*~.*)?$/.test(tt) || /^~\s*\S/.test(tt)) return 'kesin';
+    if (/[,;:!?@#%]/.test(tt) || /\d/.test(tt)) return null;
+    var kel = tt.split(/\s+/);
+    if (kel.length > 4) return null;
+    if (/^(siz|you)$/i.test(tt)) return 'kesin';
+    if (kel.length <= 3 && kel.some(function (k) { return P[DT.normKey(k.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, ''))]; })) return 'kesin';
+    return kel.every(function (k) { return /^[A-ZÇĞİÖŞÜ][a-zçğıöşü.'’-]*$|^[A-ZÇĞİÖŞÜ]{2,}$/.test(k); }) ? 'aday' : null;
+  }
+  /** OCR satırlarını görünür satırlara birleştir (aynı yükseklikteki parçalar soldan sağa) */
+  function ekranSatirlari(img) {
+    var L = (img.satirlar || []).filter(function (l) { return S(l.t).trim(); }).map(function (l) {
+      var e = l.e && l.e.length ? l.e : [{ t: l.t, x: l.x, y: l.y, w: l.w, h: l.h }];
+      return { t: S(l.t), x: +l.x || 0, y: +l.y || 0, w: +l.w || 0, h: +l.h || 1, e: e };
+    });
+    L.sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2); });
+    var rows = [];
+    L.forEach(function (l) {
+      var cy = l.y + l.h / 2, hedef = null;
+      for (var i = rows.length - 1; i >= 0 && i >= rows.length - 4; i--) {
+        var r = rows[i];
+        if (Math.abs(r.cy - cy) < 0.5 * Math.min(r.h, l.h) && !r.p.some(function (q) { return q.x < l.x + l.w && l.x < q.x + q.w; })) { hedef = r; break; }
+      }
+      if (hedef) { hedef.p.push(l); hedef.x = Math.min(hedef.x, l.x); hedef.r = Math.max(hedef.r, l.x + l.w); hedef.h = Math.max(hedef.h, l.h); }
+      else rows.push({ cy: cy, h: l.h, x: l.x, r: l.x + l.w, y: l.y, p: [l] });
+    });
+    rows.forEach(function (r) {
+      r.p.sort(function (a, b) { return a.x - b.x; });
+      r.e = [].concat.apply([], r.p.map(function (q) { return q.e; }));
+      r.tt = DT.xtrim(r.p.map(function (q) { return q.t; }).join(' ').replace(GORUNMEZ, ''));
+    });
+    return rows;
+  }
+  MS.ekran = function (goruntuler, state, opt) {
+    opt = opt || {};
+    var m = MS.hazirla(state), today = opt.today != null ? opt.today : DT.today(), P = {};
+    m.personel.forEach(function (p) { P[DT.normKey(p)] = p; });
+    var mesajlar = [], okunan = [], varsayilan = {}, cok = (goruntuler || []).length > 1;
+    // görüntünün en üstünde adı kesilmiş gönderen; birden çok görüntüde her görüntü ayrı (farklı kişiler olabilir)
+    var yokAd = function (gi) { return cok ? MS.EKRAN_YOK + ' · ' + (gi + 1) + '. görüntü' : MS.EKRAN_YOK; };
+    (goruntuler || []).forEach(function (img, gi) {
+      if (!img || img.hata) { okunan.push('— ' + S(img && img.ad) + ': ' + S(img && img.hata || 'okunamadı')); return; }
+      var W = +img.w || 1080, H = +img.h || 0, ref = MS.ekranTarihi(img.ad, img.zaman, today).s, rows = ekranSatirlari(img);
+      if (!W || W < 50) W = Math.max.apply(null, rows.map(function (r) { return r.r; }).concat([1080]));
+      okunan.push('— ' + S(img.ad || 'ekran görüntüsü ' + (gi + 1)) + ' · ' + DT.fmt(ref));
+      var hs = rows.map(function (r) { return r.h; }).sort(function (a, b) { return a - b; }), medH = hs[Math.floor(hs.length / 2)] || 30;
+      rows.forEach(function (r) {
+        var cx = (r.x + r.r) / 2;
+        r.orta = Math.abs(cx - W / 2) < 0.07 * W && r.r - r.x < 0.62 * W && r.x > 0.15 * W;
+        r.ayrac = r.orta ? MS.ayracTarihi(r.tt, ref) : null;
+        r.sistem = r.orta && r.ayrac == null && !aralikVar(r.tt);
+      });
+      var ilk = rows.filter(function (r) { return r.ayrac != null; })[0];
+      // ilk ayracın üstündeki mesajlar: ayraçtan önceki gün (tahmin); ayraç yoksa ekran görüntüsünün günü (tahmin)
+      varsayilan[gi] = ilk ? ilk.ayrac - 1 : ref;
+      var tarih = null, cur = null, sonAd = null, sonAdX = null, bu = [], oncekiAlt = null, ust = true;
+      var yeni = function (kim, own, adX) {
+        if (kim || own) ust = false;
+        cur = { kim: kim, own: own, satir: [], s: tarih, saat: null, bitti: false, adX: adX, gi: gi, ust: ust && !kim && !own };
+        bu.push(cur);
+      };
+      rows.forEach(function (r, i) {
+        okunan.push(r.tt);
+        if (H && r.y + r.h < 0.045 * H && !aralikVar(r.tt)) return;          // telefonun durum çubuğu (saat, pil)
+        if (r.ayrac != null) { tarih = r.ayrac; cur = null; sonAd = null; sonAdX = null; ust = false; return; }
+        if (r.sistem) { cur = null; ust = false; return; }
+        // satırlar arasında büyük boşluk: yeni balon (ör. grup başlığı ile ilk mesaj arası)
+        if (cur && oncekiAlt != null && r.y - oncekiAlt > 1.3 * medH) cur.bitti = true;
+        oncekiAlt = r.y + r.h;
+        if (/^(iletildi|forwarded)$/.test(ascii(r.tt).replace(/[^a-z]/g, ''))) return;
+        var d = damgaAyir(r, medH);
+        if (d.yalniz) { if (cur) { cur.bitti = true; cur.saat = cur.saat || d.damga; } return; }
+        var t = d.t;
+        if (!t) return;
+        var ad = isimTuru(t, P);
+        if (ad === 'aday') {
+          var sn = rows[i + 1];
+          ad = sn && !sn.ayrac && (aralikVar(sn.tt) || RE_TARIH.test(sn.tt) || saatEsle(sn.tt) !== sn.tt) ? 'kesin' : null;
+        }
+        if (ad) {
+          // gönderen adının hemen altında ikinci bir ad: yanıtlanan mesajın (alıntı) başlığı
+          if (cur && !cur.own && !cur.satir.length && !cur.bitti && cur.adX != null) { cur.alinti = true; return; }
+          yeni(t, false, r.x); sonAd = t; sonAdX = r.x;
+          return;
+        }
+        if (cur && cur.alinti) { if (r.x > cur.adX + 0.015 * W) return; cur.alinti = false; }
+        var own = sonAdX != null ? (r.x > sonAdX + 0.12 * W || (r.x > 0.25 * W && r.r > 0.9 * W)) : r.x > 0.3 * W;
+        if (!cur || cur.bitti || cur.own !== own) yeni(own ? MS.EKRAN_SIZ : cur && !cur.own ? cur.kim : null, own, null);
+        cur.satir.push(t);
+        if (d.damga) { cur.bitti = true; cur.saat = d.damga; }
+      });
+      bu.forEach(function (c) {
+        if (!c.satir.length) return;
+        var govde = [];
+        c.satir.forEach(function (t0) {
+          var t = MS.ocrDuzelt(t0);
+          // satır personel adıyla başlıyorsa (liste / tablo) saatler o kişinin
+          var mm = /^\s*(?:[-•*·]|\d{1,2}[.)])?\s*([A-Za-zÇĞİÖŞÜçğıöşü]+)(?![A-Za-zÇĞİÖŞÜçğıöşü])[\s:;.,-]*(.*)$/.exec(t), p = mm && P[DT.normKey(mm[1])];
+          if (p) {
+            var gv = saatEsle(mm[2]);
+            if (aralikVar(gv) || /mazeret|izin|rapor/.test(ascii(gv))) {
+              mesajlar.push({ s: c.s, saat: c.saat || '00:00', kim: p, govde: gv, goster: mm[2], ekran: true, gi: c.gi, sira: mesajlar.length });
+              return;
+            }
+          }
+          govde.push(t);
+        });
+        if (!govde.length) return;
+        var g = c.kim ? saatEsle(govde.join('\n')) : govde.join('\n');     // göndereni belli olmayan metinde (başlık, giriş kutusu) tiresiz saat eşlenmez
+        mesajlar.push({ s: c.s, saat: c.saat || '00:00', kim: c.kim || yokAd(c.gi), govde: g, goster: govde.join('\n'), ekran: true, gi: c.gi, ust: c.ust, sira: mesajlar.length });
+      });
+    });
+    // kaydırarak alınmış, üst üste binen görüntüler: aynı mesaj (aynı balon saati ve metin) başka görüntüde
+    // tarihli ya da göndereni belli görünüyorsa tarih / gönderen oradan alınır
+    var anahtar = function (x) { return x.saat !== '00:00' ? x.saat + '|' + ascii(x.govde).replace(/[^a-z0-9]/g, '') : null; };
+    var esler = {}, bulunanGun = {}, bulunanKim = {};
+    mesajlar.forEach(function (x) { var k = anahtar(x); if (k) (esler[k] = esler[k] || []).push(x); });
+    mesajlar.forEach(function (x) {
+      var k = anahtar(x), es = k ? esler[k].filter(function (y) { return y.gi !== x.gi && (MS.ekranYok(x.kim) || MS.ekranYok(y.kim) || x.kim === y.kim); }) : [];
+      if (!es.length) return;
+      if (x.s == null) {
+        var d = es.filter(function (y) { return y.s != null; })[0];
+        if (d) { x.s = d.s; x.eslesti = true; if (bulunanGun[x.gi] == null) bulunanGun[x.gi] = d.s; }
+      }
+      if (x.ust && MS.ekranYok(x.kim)) {
+        var b = es.filter(function (y) { return !MS.ekranYok(y.kim); })[0];
+        if (b && bulunanKim[x.gi] == null) bulunanKim[x.gi] = b.kim;
+      }
+    });
+    // tarihi görünmeyenler (görüntüde ilk ayracın üstündekiler; aralarında gün değişmez):
+    // içlerinden biri başka görüntüde tarihli görünüyorsa hepsi o gün (kesin); yoksa elle seçilen gün ya da tahmin
+    var elle = function (gi) { var t = opt.tarih; return t == null ? null : typeof t === 'object' ? (t[gi] != null ? t[gi] : null) : t; };
+    var tahminler = {};
+    mesajlar.forEach(function (x) {
+      if (x.s != null) x.tarihKesin = true;
+      else if (bulunanGun[x.gi] != null) { x.s = bulunanGun[x.gi]; x.tarihKesin = true; }
+      else {
+        var u = elle(x.gi);
+        x.s = u != null ? u : varsayilan[x.gi];
+        x.tarihKesin = false;
+        if (u != null) x.tarihElle = true;
+        if (tahminler[x.gi] == null) tahminler[x.gi] = x.s;
+      }
+      if (x.ust && bulunanKim[x.gi] && MS.ekranYok(x.kim)) x.kim = bulunanKim[x.gi];
+    });
+    // zaman sırası (görüntüler hangi sırayla verilirse verilsin): gün, sonra balon saati; saati okunamayan
+    // mesaj aynı görüntüde kendinden önceki mesajın saatini alır. Aynı kişi-gün için sonuncu mesaj geçerli olur.
+    var dk = function (t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); }, onceki = {};
+    mesajlar.forEach(function (x) { var sa = x.saat !== '00:00' ? dk(x.saat) : onceki[x.gi] != null ? onceki[x.gi] : 0; onceki[x.gi] = sa; x.anah = x.s * 1440 + sa; });
+    mesajlar.sort(function (a, b) { return a.anah - b.anah || a.gi - b.gi || a.sira - b.sira; });
+    mesajlar.forEach(function (x) { delete x.anah; delete x.sira; delete x.ust; });
+    var ilkTahmin = Object.keys(tahminler).map(Number).sort(function (a, b) { return a - b; })[0];
+    return { mesajlar: mesajlar, okunan: okunan.join('\n'), tahminGun: ilkTahmin != null ? tahminler[ilkTahmin] : null, tahminler: tahminler };
   };
 
   /* ================= Excel'e aktarma ================= */

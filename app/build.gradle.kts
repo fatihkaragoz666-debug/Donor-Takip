@@ -16,6 +16,10 @@ android {
         targetSdk = 35
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        // Ekran görüntüsü okuma (ML Kit, modeli uygulamanın içinde): yalnızca telefon işlemcileri
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Sabit imza anahtarı: güncellemeler eski sürümün üzerine kurulabilsin diye her derlemede aynı anahtar kullanılır.
@@ -59,4 +63,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.webkit:webkit:1.12.1")
+    // Ekran görüntüsündeki yazıyı telefonda okur (internet gerekmez; model uygulamanın içinde)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }

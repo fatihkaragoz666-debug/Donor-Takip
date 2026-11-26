@@ -82,6 +82,15 @@ Kayıt: `state.mesai.gun[tarih][PERSONEL] = { a: [[giriş, çıkış], …], iz,
 - WhatsApp’tan al: grubun dışa aktarılan sohbeti (.txt ya da .zip; WhatsApp’ta Sohbeti dışa aktar › Donör Takip ile doğrudan da
   gelir) ya da kopyalanan mesajlar. Gönderen personele, mesajdaki tarihe ve “08:00-17:00” aralıklarına göre günlere yazılır; çok günlük
   kesintisiz görev, mazeret / izin satırları ve tanınmayan gönderenler ayrı gösterilir; neyin yazılacağı işaretlenerek seçilir.
+  Tanınmayan gönderen için seçilen personel kaydedilir (`mesai.harita`), sonraki alımlarda sorulmaz; Mesai Ayarları’ndan kaldırılır.
+- Ekran görüntüsünden al: WhatsApp ekran görüntüsü Paylaş › Donör Takip ile gönderilir (bir ya da birden çok) ya da Mesai Ayarları /
+  Özet’teki düğmeyle galeriden seçilir. Yazı telefonda okunur (Google ML Kit, model uygulamanın içinde; internet izni yok,
+  görüntü saklanmaz). Okunan satırlardan gün ayracı (Bugün, Dün, Salı, 25 Kasım 2026), gönderen adı (balonun üstü), mesaj ve
+  balon saati çıkarılır; alıntılar, iletilenler, sistem satırları ve durum çubuğu atlanır; kendi mesajlarınız “Siz” olur.
+  “AHMET 08:00 17:00” gibi satırlar (liste / tablo) o kişiye yazılır; tiresiz iki saat aralık sayılır. Üstünde gün ayracı
+  görünmeyen mesajların günü ayraçtan ya da ekran görüntüsünün tarihinden (dosya adı) tahmin edilir ve önizlemede görüntü başına
+  düzeltilir. Kaydırarak alınmış üst üste binen görüntülerde aynı mesaj bir kez sayılır, günü / göndereni diğer görüntüden alınır;
+  aynı kişi-gün için balon saatine göre sonraki mesaj geçerlidir. Sonra WhatsApp’tan al ile aynı önizleme (okunan yazı da görülür).
 - Excel’e aktar: Mesai Takip (uygulamanın yeniden okuyabildiği düzende), Günlük, Aylık Fazla Mesai ve Görevlendirme sayfaları.
 - Dönem özeti’nden ve Raporlar’dan “Personel mesai raporu” (PDF / Excel): personel bazında net, zorunlu, fazla, eksik, resmi tatil,
   yemek, hafta sonu, izin, görev; haftalara / aylara göre fazla mesai; görevlendirmeler; gün gün kayıtlar.

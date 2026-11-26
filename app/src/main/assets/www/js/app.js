@@ -54,7 +54,8 @@
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5"/><path d="M8.5 17v-3M12 17v-5M15.5 17v-2"/></svg>',
     open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>'
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>',
+    img: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'
   };
 
   var toastTimer;
@@ -1194,7 +1195,9 @@
     ['Yemek kartı', 'MALİ İŞLER › Yemek Kartı’nda “Excel’den al” ile MetropolCard’ın Yükleme Detay Raporu Excel’ini seçin (Outlook’tan Paylaş › Donör Takip ile de olur). Her yükleme ad soyaddan (bulunamazsa telefondan) donöre bağlanır ve tarihine göre ayrılır: sağlık kontrolü tarihinden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerindeyse “Toplama süreci”; uymayanlar “Diğer”. Sayfada toplam yükleme, aşamalara göre tutarlar ve her aşamanın altında donörler görünür. Yanlış aşamayı ya da donörü Yüklemeler’de yüklemeye dokunarak değiştirin. Aynı rapor ya da çakışan dönem tekrar yüklenirse aynı yükleme iki kez girmez. TC kimlik no ve kart numarası saklanmaz (kartın son 4 hanesi hariç). Donör sayfasında da o donörün yemek kartı yüklemeleri görünür; Raporlar’da Yemek kartı raporu vardır.'],
     ['Personel Mesai', 'Ana Sayfa › PERSONEL MESAİ. Personel_Mesai_Takip.xlsx’in uygulamadaki hâli. Günlük giriş: her personelin giriş–çıkış saatleri (günde 4 aralığa kadar; “0830” ya da “8.30” yazılabilir), izin (tam gün ya da saatlik) ve not; saat yazıldıkça kaydedilir. ' +
       'Kurallar Excel’deki gibidir: hafta içi mola 3,5 saatin altında yok, 3,5–7,5 saat 30 dk, daha uzunsa 1 saat; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat. Fazla mesai = en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı görevde yok. 12 saat dinlenme ve haftalık 48 saat kontrol edilir. ' +
-      'Haftalık, Aylık fazla mesai ve Dönem özeti sayfaları vardır. Aylık hesap sizin belirlediğiniz tarihlerle yapılır: Aylık fazla mesai › Ay tarihleri’nden kural (ayın 20’si – ertesi ayın 19’u gibi ya da takvim ayı) seçilir, istenen ayın tarihleri ayrıca değiştirilir. Bitmemiş ayda zorunlu saat, saat girilen son güne kadar sayılır. Dönem özeti’nden bir ay ya da istenen tarih aralığı için PDF / Excel rapor alınır. Mesai Ayarları’ndan Excel tablosu ya da WhatsApp grubunun dışa aktarılan sohbeti (“08:00-17:00” gibi mesajlar) alınır; ne yazılacağı önce gösterilir. Excel’e aktar ile alınan dosya uygulamaya yeniden alınabilir.'],
+      'Haftalık, Aylık fazla mesai ve Dönem özeti sayfaları vardır. Aylık hesap sizin belirlediğiniz tarihlerle yapılır: Aylık fazla mesai › Ay tarihleri’nden kural (ayın 20’si – ertesi ayın 19’u gibi ya da takvim ayı) seçilir, istenen ayın tarihleri ayrıca değiştirilir. Bitmemiş ayda zorunlu saat, saat girilen son güne kadar sayılır. Dönem özeti’nden bir ay ya da istenen tarih aralığı için PDF / Excel rapor alınır. Mesai Ayarları’ndan Excel tablosu ya da WhatsApp grubunun dışa aktarılan sohbeti (“08:00-17:00” gibi mesajlar) alınır; ne yazılacağı önce gösterilir. ' +
+      'Ekran görüntüsünden: WhatsApp grubunun ekran görüntüsünü alıp Paylaş › Donör Takip’e gönderin (birkaç görüntü birden de olur) ya da Mesai sayfasındaki “Ekran görüntüsü” düğmesiyle galeriden seçin. Yazı telefonda okunur, internet gerekmez. Gönderenin adı, gün ayracı (Bugün, Dün, tarih) ve “08:00-17:00” gibi saatler bulunur, önizleme açılır; günü görünmeyen mesajların günü ve tanınmayan gönderenin kim olduğu orada düzeltilir, “Seçilen … kişi-günü yaz” ile kaydedilir. Seçilen gönderen eşleşmesi sonraki alımlarda hatırlanır. ' +
+      'Excel’e aktar ile alınan dosya uygulamaya yeniden alınabilir.'],
     ['Raporlar', 'DASHBOARD › Raporlar (Donör Raporu, Harcama Dashboard ve Yemek Kartı sayfalarından da açılır). Raporlar: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için), Yemek kartı raporu (yüklemeler aşamalara ve donörlere göre) ve Personel mesai raporu (fazla mesai, resmi tatil, hafta sonu, yemek hakkı, izin, görevlendirme ve gün gün kayıtlar). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları, mesai kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
     ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
@@ -2171,6 +2174,7 @@
   function msBosVeri() {
     return '<div class="card pad"><h2>Mesai kayıtlarını getirin</h2><div class="small muted" style="margin-bottom:12px">Personel_Mesai_Takip.xlsx dosyanızdaki saatleri ve görevlendirmeleri alabilir, WhatsApp grubundaki “08:00-17:00” gibi mesai mesajlarını okutabilir ya da saatleri buradan girebilirsiniz. Veriler yalnızca bu telefonda saklanır.</div>' +
       '<div class="btns"><button class="btn pri" data-act="msExcelSec">' + I.up + 'Excel’den al</button><button class="btn" data-act="msWaSec">' + I.wa + 'WhatsApp’tan al</button></div>' +
+      '<button class="btn block" data-act="msEkranSec" style="margin-top:8px">' + I.img + 'Ekran görüntüsünden al</button>' +
       '<button class="btn block" data-act="goto" data-h="/mesai/gun" style="margin-top:8px">' + I.plus + 'Saatleri elle gir</button></div>';
   }
   // Ana sayfa düğmesindeki canlı satır
@@ -2202,7 +2206,8 @@
         msTile(num(T.girilmemis), 'Girilmemiş iş günü', T.girilmemis ? 'Bu ay, kişi-gün' : 'Bu ayın günleri tam', '/mesai/gun', T.girilmemis ? 'warn' : 'ok') +
         msTile(num(uy), 'Bu haftanın uyarıları', uy ? 'Dinlenme, çakışan saat, ' + m.ust + ' saat' : 'Sorun yok', '/mesai/hafta', uy ? 'warn' : 'ok') + '</div>' +
         '<div class="small muted mssongiris">' + h(msSonYazi(c)) + (c.son != null ? ' · bitmemiş ayda zorunlu saat bu güne kadar sayılır' : '') + '</div>' +
-        '<button class="btn msana block" data-act="goto" data-h="/mesai/gun" style="margin-bottom:10px">' + I.clock + 'BUGÜNÜN SAATLERİ · ' + h(DT.fmt(today)) + '</button>';
+        '<button class="btn msana block" data-act="goto" data-h="/mesai/gun" style="margin-bottom:8px">' + I.clock + 'BUGÜNÜN SAATLERİ · ' + h(DT.fmt(today)) + '</button>' +
+        '<div class="btns" style="margin-bottom:10px"><button class="btn" data-act="msEkranSec">' + I.img + 'Ekran görüntüsü</button><button class="btn" data-act="msWaSec">' + I.wa + 'WhatsApp dosyası</button></div>';
       html += '<div class="sec-title">' + h(a.ad + ' · ' + msAyAralik(a)) + ' · personel</div><div class="card list">' + R.map(function (r, i) {
         var ek = [];
         if (r.netTatil) ek.push('<span class="pillx p-or">Resmi tatil ' + msSa(r.netTatil) + ' sa</span>');
@@ -2556,10 +2561,15 @@
       'Fazla mesai: en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saat. Bitmemiş ayda zorunlu saat, saat girilen son güne kadar sayılır. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı görevde yok. 12 saat dinlenme: önceki günün son çıkışı ile günün ilk girişi arası. Resmi tatiller ve arifeler Listeler’den gelir.</div></div>';
     html += '<div class="card pad"><h2>Veri</h2><div class="small muted" style="margin-bottom:10px">' + num(kayit) + ' kişi-gün kaydı · ' + num(m.gorev.length) + ' görevlendirme</div>' +
       '<button class="btn pri block" data-act="msExcelSec" style="margin-bottom:8px">' + I.up + 'Excel’den al (Personel_Mesai_Takip.xlsx)</button>' +
+      '<button class="btn block" data-act="msEkranSec" style="margin-bottom:8px">' + I.img + 'Ekran görüntüsünden al</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="msWaSec">' + I.wa + 'WhatsApp dosyası</button><button class="btn" data-act="msWaYapistir">' + I.copy + 'Mesajları yapıştır</button></div>' +
       '<button class="btn block" data-act="msExcel" style="margin-bottom:8px">' + I.down + 'Excel’e aktar</button>' +
       (msVar() ? '<button class="btn danger block" data-act="msSil">Mesai kayıtlarını sil</button>' : '') +
-      '<div class="hint" style="margin-top:8px">WhatsApp’ta grubu açın › ⋮ › Diğer › Sohbeti dışa aktar › Medya olmadan › Donör Takip (ya da dosyayı kaydedip buradan seçin). Gönderen personelin adı ve mesajdaki “08:00-17:00” gibi saatler güne yazılır; neyin alınacağı önce gösterilir.</div></div>';
+      '<div class="hint" style="margin-top:8px">Ekran görüntüsü: WhatsApp’ta mesajların ekran görüntüsünü alın › Paylaş › Donör Takip (birden çok görüntü de olur) ya da buradan seçin; yazı telefonda okunur, internet gerekmez. ' +
+      'WhatsApp dosyası: grubu açın › ⋮ › Diğer › Sohbeti dışa aktar › Medya olmadan › Donör Takip. Gönderen personelin adı ve mesajdaki “08:00-17:00” gibi saatler güne yazılır; neyin alınacağı önce gösterilir.</div></div>';
+    var hk = Object.keys(m.harita || {}).filter(function (k) { return m.harita[k]; });
+    if (hk.length) html += '<div class="card pad"><h2>Eşleştirilen gönderenler</h2><div class="small muted" style="margin-bottom:6px">WhatsApp’ta adı personel adıyla başlamayan kişiler; bir kez seçildi, sonraki alımlarda kendiliğinden kullanılır.</div>' +
+      hk.map(function (k) { return '<div class="row" style="gap:8px;padding:4px 0"><span class="grow small">' + h(k) + ' → <b>' + h(m.harita[k]) + '</b></span><button class="btn sm ghost" data-act="msHaritaSil" data-k="' + h(k) + '">Kaldır</button></div>'; }).join('') + '</div>';
     return msSayfa('/mesai/ayar', 'Mesai Ayarları', html);
   }
 
@@ -2595,23 +2605,42 @@
     if (route()[0] === 'mesai' && route()[1] === 'wa') render(); else go('/mesai/wa');
   }
   function msWaOn(W, x) { if (x.durum === 'ayni') return false; var k = x.s + '|' + x.p; return W.sec[k] !== undefined ? W.sec[k] : x.durum === 'yeni'; }
+  // WhatsApp metni ya da ekran görüntüsü (okunan satırlar) → kişi-gün kayıtları
+  function msWaSonuc(W) {
+    if (W.kaynak !== 'ekran') return MS.whatsapp(state, W.metin, { harita: W.harita });
+    var E = MS.ekran(W.goruntuler, state, { today: today, tarih: W.tarih }), r = MS.whatsapp(state, null, { mesajlar: E.mesajlar, harita: W.harita });
+    r.ekran = E;
+    return r;
+  }
   function scrMsWa() {
     var W = ui.msWa;
-    if (!W) return msSayfa('/mesai/ayar', 'WhatsApp’tan Al', '<div class="card">' + emptyBox('Okunacak yazışma yok', 'Mesai Ayarları’ndan WhatsApp dışa aktarma dosyasını seçin ya da mesajları yapıştırın.') + '</div>', { back: true });
-    var r = MS.whatsapp(state, W.metin, { harita: W.harita }), c = msCtx();
+    if (!W) return msSayfa('/mesai/ayar', 'WhatsApp’tan Al', '<div class="card">' + emptyBox('Okunacak yazışma yok', 'Mesai Ayarları’ndan WhatsApp dışa aktarma dosyasını, ekran görüntüsünü seçin ya da mesajları yapıştırın.') + '</div>', { back: true });
+    var r = msWaSonuc(W), c = msCtx(), ekran = W.kaynak === 'ekran';
     var n = { yeni: 0, farkli: 0, ayni: 0 }; r.satirlar.forEach(function (x) { n[x.durum]++; });
     var sec = r.satirlar.filter(function (x) { return msWaOn(W, x); });
-    var html = '<div class="card pad"><h2>' + h(W.ad) + '</h2><div class="small muted">' + num(r.mesaj) + ' mesaj · ' + num(r.satirlar.length) + ' kişi-gün: ' + n.yeni + ' yeni, ' + n.farkli + ' farklı, ' + n.ayni + ' aynı. ' +
-      'Farklı olanlar (uygulamada başka saat yazılı) siz işaretlerseniz değişir.</div>' +
+    var html = '<div class="card pad"><h2>' + h(W.ad) + '</h2><div class="small muted">' + (ekran ? num(r.mesaj) + ' mesaj okundu' : num(r.mesaj) + ' mesaj') + ' · ' + num(r.satirlar.length) + ' kişi-gün: ' + n.yeni + ' yeni, ' + n.farkli + ' farklı, ' + n.ayni + ' aynı. ' +
+      'Farklı olanlar (uygulamada başka saat yazılı) siz işaretlerseniz değişir.' + (ekran ? ' Okunan saatleri yazmadan önce bir göz atın.' : '') + '</div>' +
       (n.farkli ? '<button class="btn sm" data-act="msWaFarkli" style="margin-top:8px">' + (r.satirlar.some(function (x) { return x.durum === 'farkli' && msWaOn(W, x); }) ? 'Farklıların işaretini kaldır' : 'Farklıları da işaretle') + '</button>' : '') + '</div>';
+    if (ekran) {
+      // görüntü başına: üstünde gün ayracı görünmeyen mesajların günü
+      var tg = {};
+      r.satirlar.forEach(function (x) { if (x.tahmin && x.gi != null && tg[x.gi] == null) tg[x.gi] = x.s; });
+      var tk = Object.keys(tg);
+      if (tk.length) html += '<div class="card pad msekrantarih"><h2>Günü görünmeyen mesajlar</h2><div class="small muted" style="margin-bottom:6px">Bu mesajların üstünde gün ayracı (Bugün, Dün, tarih) görünmüyor; gün tahmin edildi. Yanlışsa düzeltin.</div>' +
+        tk.map(function (gi) {
+          return '<div class="row msayr"><span class="small grow">' + (W.goruntuler.length > 1 ? (+gi + 1) + '. görüntü' : 'Mesajların günü') + '</span><input type="date" class="inp" style="width:170px;flex:none" data-act-change="msWaTarih" data-gi="' + gi + '" value="' + DT.iso(tg[gi]) + '"></div>';
+        }).join('') + '</div>';
+    }
     var bil = Object.keys(r.bilinmeyen);
-    if (bil.length) html += '<div class="card pad"><h2>Tanınmayan gönderenler</h2><div class="small muted" style="margin-bottom:8px">Saat yazan ama adı takip edilen personelle eşleşmeyen kişiler; doğru personeli seçin.</div>' + bil.map(function (k) {
-      return '<div class="row" style="gap:8px;margin-bottom:6px"><span class="grow small">' + h(k) + ' <span class="muted">(' + r.bilinmeyen[k] + ' mesaj)</span></span><select class="inp" style="width:150px;flex:none" data-act-change="msWaHarita" data-k="' + h(k) + '"><option value="">— alma —</option>' +
+    Object.keys(W.harita).forEach(function (k) { if (W.harita[k] && bil.indexOf(k) < 0) bil.push(k); });   // seçim yapılınca listeden düşmesin
+    if (bil.length) html += '<div class="card pad"><h2>Tanınmayan gönderenler</h2><div class="small muted" style="margin-bottom:8px">Saat yazan ama adı takip edilen personelle eşleşmeyen kişiler; doğru personeli seçin. Seçtiğiniz eşleşme sonraki alımlarda da kullanılır.</div>' + bil.map(function (k) {
+      return '<div class="row" style="gap:8px;margin-bottom:6px"><span class="grow small">' + h(k) + (r.bilinmeyen[k] ? ' <span class="muted">(' + r.bilinmeyen[k] + ' mesaj)</span>' : '') + '</span><select class="inp" style="width:150px;flex:none" data-act-change="msWaHarita" data-k="' + h(k) + '"><option value="">— alma —</option>' +
         c.m.personel.map(function (p) { return '<option' + (W.harita[k] && eqi(W.harita[k], p) ? ' selected' : '') + '>' + h(p) + '</option>'; }).join('') + '</select></div>';
     }).join('') + '</div>';
     var son = null, gor = r.satirlar.filter(function (x) { return W.ayniGoster || x.durum !== 'ayni'; });
     if (n.ayni) html += '<button class="btn ghost block" data-act="msWaAyni" style="margin:-2px 0 8px">' + (W.ayniGoster ? 'Uygulamadakiyle aynı olan ' + n.ayni + ' kişi-günü gizle' : 'Uygulamadakiyle aynı olan ' + n.ayni + ' kişi-günü de göster') + '</button>';
     if (!gor.length && r.satirlar.length) html += '<div class="card">' + emptyBox('Yeni ya da farklı gün yok', 'Mesajlardaki saatlerin hepsi uygulamada zaten aynı.') + '</div>';
+    if (ekran && !r.satirlar.length && !bil.length) html += '<div class="card">' + emptyBox('Saat bulunamadı', 'Ekran görüntüsünde “08:00-17:00” gibi giriş–çıkış saati okunamadı. Aşağıda okunan yazı var.') + '</div>';
     if (gor.length) html += '<div class="card list">' + gor.map(function (x) {
       var k = x.s + '|' + x.p, on = msWaOn(W, x);
       var bas = x.s !== son ? '<div class="msgrp">' + DT.fmt(x.s) + ' · ' + h(gunAd(x.s)) + '</div>' : ''; son = x.s;
@@ -2621,8 +2650,9 @@
         '<div class="t2"><b>' + h(yeniYazi) + '</b>' + (x.durum === 'farkli' ? ' <span class="muted">· uygulamada: ' + h(MS.aralikYazi(x.mevcut) || msIzinYazi(x.mevcut.iz) || '—') + '</span>' : '') + '</div>' +
         '<div class="t2 muted ellipsis">' + h(x.kim) + ': ' + h(x.kaynak) + '</div>' + (x.uyari.length ? '<div class="t2 msuyari">' + h(x.uyari.join(' · ')) + '</div>' : '') + '</label>';
     }).join('') + '</div>';
+    if (ekran) html += '<details class="card pad msokunan"><summary>Okunan yazı</summary><pre>' + h(r.ekran.okunan) + '</pre></details>';
     html += '<div class="mswabar"><button class="btn" data-act="msWaIptal">Vazgeç</button><button class="btn pri grow" data-act="msWaUygula"' + (sec.length ? '' : ' disabled') + '>Seçilen ' + sec.length + ' kişi-günü yaz</button></div>';
-    return msSayfa('/mesai/ayar', 'WhatsApp’tan Al', html, { back: true });
+    return msSayfa('/mesai/ayar', ekran ? 'Ekran Görüntüsünden Al' : 'WhatsApp’tan Al', html, { back: true });
   }
   function msWaYapistirSheet() {
     openSheet('<h3>WhatsApp mesajlarını yapıştırın</h3><div class="sub">WhatsApp’ta mesajları basılı tutup seçin › ⋮ › Kopyala; sonra buraya yapıştırın. Tarih, saat ve gönderen adı da kopyalanır.</div>' +
@@ -2653,6 +2683,11 @@
   var MS_ACT = {
     msExcelSec: function () { pickFile('mesai'); },
     msWaSec: function () { pickFile('mesaiWa'); },
+    msEkranSec: function () {
+      if (NB && NB.ocrSec) { try { NB.ocrSec(); } catch (e) { toast('Galeri açılamadı'); } return; }
+      toast('Ekran görüntüsü okuma bu sürümde yok; uygulamayı güncelleyin');
+    },
+    msHaritaSil: function (el) { var m = MS.hazirla(state); delete m.harita[el.dataset.k]; save(); render(true); toast('Eşleştirme kaldırıldı'); },
     msWaYapistir: function () { msWaYapistirSheet(); },
     msGunGit: function (el) { var s = (ui.msGun != null ? ui.msGun : today) + (+el.dataset.v); go('/mesai/gun/' + DT.iso(s), true); },
     msHaftaGit: function (el) { var s = (ui.msHafta != null ? ui.msHafta : DT.weekStart(today)) + (+el.dataset.v); go('/mesai/hafta/' + DT.iso(s), true); },
@@ -2742,7 +2777,7 @@
     },
     msWaFarkli: function () {
       var W = ui.msWa; if (!W) return;
-      var r = MS.whatsapp(state, W.metin, { harita: W.harita }), fk = r.satirlar.filter(function (x) { return x.durum === 'farkli'; });
+      var r = msWaSonuc(W), fk = r.satirlar.filter(function (x) { return x.durum === 'farkli'; });
       var acik = fk.some(function (x) { return msWaOn(W, x); });
       fk.forEach(function (x) { W.sec[x.s + '|' + x.p] = !acik; });
       render(true);
@@ -2751,8 +2786,11 @@
     msWaAyni: function () { if (ui.msWa) { ui.msWa.ayniGoster = !ui.msWa.ayniGoster; render(true); } },
     msWaUygula: function () {
       var W = ui.msWa; if (!W) return;
-      var r = MS.whatsapp(state, W.metin, { harita: W.harita }), sec = r.satirlar.filter(function (x) { return msWaOn(W, x); });
+      var r = msWaSonuc(W), sec = r.satirlar.filter(function (x) { return msWaOn(W, x); });
       if (!sec.length) return;
+      // tanınmayan gönderen için yapılan seçim kalıcı (ekranda görünmeyen gönderen hariç)
+      var mh = MS.hazirla(state).harita;
+      Object.keys(W.harita || {}).forEach(function (k) { if (W.harita[k] && !MS.ekranYok(k)) mh[k] = W.harita[k]; });
       sec.forEach(function (x) {
         var eski = x.mevcut || {}, yeniA = x.rec.a && x.rec.a.length;
         MS.yaz(state, x.s, x.p, { a: yeniA ? x.rec.a : eski.a || [], ara: yeniA ? null : eski.ara, iz: x.rec.iz || eski.iz || null, n: x.rec.n || eski.n || '' });
@@ -2811,7 +2849,8 @@
       }
       case 'msUst': { var u = parseInt(el.value, 10); if (u >= 30 && u <= 80) { m.ust = u; save(); } else el.value = m.ust; return true; }
       case 'msWaHarita': if (ui.msWa) { ui.msWa.harita[el.dataset.k] = el.value || null; render(true); } return true;
-      case 'msWaSec': if (ui.msWa) { ui.msWa.sec[el.dataset.k] = el.checked; var b = $('[data-act=msWaUygula]'); if (b) { var r = MS.whatsapp(state, ui.msWa.metin, { harita: ui.msWa.harita }), n = r.satirlar.filter(function (x) { return msWaOn(ui.msWa, x); }).length; b.textContent = 'Seçilen ' + n + ' kişi-günü yaz'; b.disabled = !n; } } return true;
+      case 'msWaSec': if (ui.msWa) { ui.msWa.sec[el.dataset.k] = el.checked; var b = $('[data-act=msWaUygula]'); if (b) { var r = msWaSonuc(ui.msWa), n = r.satirlar.filter(function (x) { return msWaOn(ui.msWa, x); }).length; b.textContent = 'Seçilen ' + n + ' kişi-günü yaz'; b.disabled = !n; } } return true;
+      case 'msWaTarih': if (ui.msWa) { var tv = DT.fromIso(el.value); if (tv != null) { ui.msWa.tarih = ui.msWa.tarih || {}; ui.msWa.tarih[el.dataset.gi || 0] = tv; render(true); } } return true;
     }
     return false;
   }
@@ -3089,6 +3128,20 @@
     })();
   }
   // Outlook vb. uygulamalardan "Paylaş" ile gelen dosya (Android tarafı /paylasilan/ adresinden sunar)
+  // Ekran görüntüsü okuma (Android ML Kit): başladı, ilerleme, sonuç
+  window.ocrBasladi = function (n) { busy(true, n > 1 ? n + ' ekran görüntüsü okunuyor…' : 'Ekran görüntüsü okunuyor…', true); };
+  window.ocrIlerleme = function (i, n) { busy(true, 'Ekran görüntüsü okunuyor… ' + i + '/' + n, true); };
+  window.receiveOcr = function (json) {
+    busy(false);
+    var G = null;
+    try { G = JSON.parse(json); } catch (e) { G = null; }
+    if (!G || !G.length) { toast('Ekran görüntüsü okunamadı'); return; }
+    var iyi = G.filter(function (g) { return !g.hata; });
+    if (!iyi.length) { toast('Okunamadı: ' + S(G[0].hata).slice(0, 120)); return; }
+    MS.hazirla(state);
+    ui.msWa = { kaynak: 'ekran', goruntuler: G, ad: G.length > 1 ? G.length + ' ekran görüntüsü' : 'Ekran görüntüsü', harita: {}, sec: {}, tarih: {} };
+    if (route()[0] === 'mesai' && route()[1] === 'wa') render(); else go('/mesai/wa');
+  };
   window.receiveSharedFile = function (name, mime) {
     busy(true, 'Dosya alınıyor…');
     fetch('/paylasilan/' + encodeURIComponent(name || 'dosya')).then(function (r) {
