@@ -511,8 +511,8 @@
     var MS = root.MS, ctx = MS.ctx(c.state, c.today), m = ctx.m;
     var R = MS.donem(ctx, o.from, o.to, { gunler: true }), Tt = MS.toplam(R), e = R.etkin, G = MS.gorevOzet(ctx, o.from, o.to);
     var B = [], info = [];
-    if (e && (e.from !== o.from || e.to !== o.to)) info.push('Hesaplanan günler: ' + DT.fmt(e.from) + ' – ' + DT.fmt(e.to) + ' (takip başlangıcı ve bugünle sınırlı)');
-    if (!e) info.push('Bu dönemde hesaplanacak gün yok: takip başlangıcından önce ya da ileri tarihli.');
+    if (e && (e.from !== o.from || e.to !== o.to)) info.push('Hesaplanan günler: ' + DT.fmt(e.from) + ' – ' + DT.fmt(e.to) + ' (takip başlangıcı ve saat girilen son günle sınırlı)');
+    if (!e) info.push('Bu dönemde hesaplanacak gün yok: takip başlangıcından önce ya da saat girilen son günden sonra.');
     B.push({ type: 'kpis', items: [
       { v: sa(Tt.fazla), f: 'sa', l: 'Fazla mesai (saat)', c: '#B4570B' }, { v: sa(Tt.netTatil), f: 'sa', l: 'Resmi tatilde çalışma (saat)', c: '#A3262A' },
       { v: sa(Tt.eksik), f: 'sa', l: 'Eksik (saat)', c: '#8a8f98' }, { v: Tt.yemek, f: 'int', l: 'Yemek hakkı', c: '#2F6FB0' },
@@ -524,7 +524,9 @@
       tot: ['Toplam', sa(Tt.net), sa(Tt.zor), sa(Tt.fazla), sa(Tt.eksik), sa(Tt.netTatil), Tt.yemek, Tt.cmt, Tt.paz, Tt.izinGun, Tt.gorevGun, Tt.girilmemis, Tt.dinlenme], empty: 'Takip edilen personel yok' }));
     if (Tt.fazla) B.push({ type: 'hbars', title: 'Fazla mesai (saat)', rows: R.map(function (r, i) { return [r.p, sa(r.fazla), PERS_RENK[i % PERS_RENK.length]]; }), f: 'sa', xlsx: false });
     if (e) {
-      var dl = dilimler(e.from, e.to);
+      // 45 günden uzunsa kullanıcının ay dönemlerine (Ay tarihleri), kısaysa haftalara göre
+      var dl = e.to - e.from + 1 > 45 ? MS.aylarArasi(m, e.from, e.to).map(function (a) { return { bas: a.from, son: a.to, uzun: a.ad + ' · ' + DT.fmtShort(a.from) + '–' + DT.fmtShort(a.to) }; }) : dilimler(e.from, e.to);
+      if (e.to - e.from + 1 > 45) { dl.tur = 'ay'; dl.baslik = 'Aylara göre'; dl.sutun = 'Ay'; }
       if (dl.length > 1) {
         var Sx = dl.map(function (d) { return MS.donem(ctx, d.bas, d.son); });
         B.push(H(dl.baslik + ' fazla mesai', 'saat'));
@@ -567,7 +569,8 @@
       xw: [11, 10, 12, 26, 8, 8, 8, 7, 24, 44], rows: det, pdf: o.ayrinti, uzun: true, empty: 'Bu dönemde mesai kaydı yok' }));
     return { landscape: true, info: info, blocks: B, ayrinti: { ad: 'Günlük kayıtlar', n: det.length },
       ozet: 'Fazla mesai ' + fmt(sa(Tt.fazla), 'sa') + ' sa' + (Tt.netTatil ? ' (resmi tatil ' + fmt(sa(Tt.netTatil), 'sa') + ' sa dahil)' : '') + ' · ' + Tt.yemek + ' yemek hakkı · ' + (Tt.cmt + Tt.paz) + ' hafta sonu günü' + (Tt.girilmemis ? ' · ' + Tt.girilmemis + ' gün girilmemiş' : ''),
-      not: 'Net: giriş–çıkış aralıklarının toplamı; hafta içi 3,5 saatin altında mola yok, 3,5–7,5 saat 30 dakika, daha uzunsa 1 saat mola düşülür; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat; izin günleri düşülür. ' +
+      not: 'Net: giriş–çıkış aralıklarının toplamı; hafta içi 3,5 saatin altında mola yok, 3,5–7,5 saat 30 dakika, daha uzunsa 1 saat mola düşülür; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat; izin günleri düşülür; bitmemiş dönemde saat girilen son güne kadar sayılır. ' +
+        'Ay dönemi: ' + MS.kuralYazi(m) + (Object.keys(m.aylar || {}).length ? ' (bazı ayların tarihleri elle girildi)' : '') + '. ' +
         'Fazla mesai = en çok(0, resmi tatil dışındaki net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat ve üstü 1, 10 saat ve üstü 2; resmi tatilde ve şehir dışı görevde yok. ' +
         'Dinlenme: önceki günün son çıkışı ile günün ilk girişi arası 12 saatten az. Girilmemiş: saat, izin ya da görev yazılmamış iş günü.' };
   }

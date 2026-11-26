@@ -496,3 +496,18 @@ td.msdur { color: var(--red); }
 .mswabar { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 10px 0 6px; background: linear-gradient(rgba(236,235,232,0), var(--paper) 35%); z-index: 2; }
 .mswabar .btn.grow { flex: 1; }
 .mswabar .btn[disabled] { opacity: .5; }
+.mssongiris { margin: -2px 4px 10px; }
+.msaykural b { font-size: 15px; }
+.msaykural .btn svg { width: 16px; height: 16px; }
+table.msaylik th.msayth { cursor: pointer; text-align: center; line-height: 1.25; }
+table.msaylik th.msayth small { display: block; font-size: 9.5px; font-weight: 500; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+table.msaylik th.msayth.cur { color: #B4570B; }
+.msayuy { border-left: 4px solid var(--orange); }
+.msayts { margin: 4px 0 6px; }
+.msayt { display: grid; grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; padding: 3px 0; }
+.msayt.bas { padding: 0 0 2px; }
+.msayt .ayad { font-weight: 700; font-size: 13px; }
+.msayt .ayad i { font-style: normal; color: var(--orange); visibility: hidden; margin-left: 3px; }
+.msayt[data-ozel="1"] .ayad i { visibility: visible; }
+.msayt .inp { min-height: 38px; padding: 6px 6px; font-size: 13.5px; min-width: 0; width: 100%; }
+.msayt .btn { min-width: 32px; padding: 6px 0; font-size: 16px; }

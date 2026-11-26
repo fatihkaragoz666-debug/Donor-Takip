@@ -9,8 +9,10 @@
  *  - Yemek: günlük net (hafta sonu toplam süre) 3,5 saat ve üstü 1, 10 saat ve üstü 2; resmi tatilde ve şehir dışı
  *    görevlendirmede 0.
  *  - 12 saat dinlenme: günün ilk girişi ile önceki günün son çıkışı arası. Haftalık 48 saat sınırı.
- *  - Takip başlangıcından önceki ve bugünden sonraki günler zorunlu saate girmez (içinde bulunulan ay bugüne kadar);
- *    bugün henüz yazılmadıysa bugün de girmez.
+ *  - Takip başlangıcından önceki günler ve saat girilen son günden sonrası zorunlu saate girmez (Excel'deki Ms_SonGiris);
+ *    bugün kendisi için henüz yazılmadıysa bugün de girmez.
+ *  - Aylık hesap kullanıcının ay dönemleriyle yapılır: kural (donemGun: 1 = takvim ayı, 20 = ayın 20'si – ertesi ayın 19'u;
+ *    donemAd: ay adını dönemin başladığı 'bas' ya da bittiği 'bit' ay verir) ve aya özel tarihler (aylar['2026-11'] = {bas, bit}).
  */
 (function (root) {
   'use strict';
@@ -30,7 +32,7 @@
     var L = (lists && lists.personel) || [];
     var p = MS.VARSAYILAN_PERSONEL.filter(function (n) { return L.some(function (x) { return DT.eqi(x, n); }); });
     if (!p.length) p = L.slice(0, 6);
-    return { v: 1, personel: p, bas: null, std: [480, 1020], donemGun: 20, ust: 48, gun: {}, gorev: [] };
+    return { v: 1, personel: p, bas: null, std: [480, 1020], donemGun: 20, donemAd: 'bas', aylar: {}, ust: 48, gun: {}, gorev: [] };
   };
   MS.hazirla = function (state) {
     var m = state.mesai;
@@ -39,6 +41,8 @@
     if (!Array.isArray(m.personel)) m.personel = y.personel;
     if (!Array.isArray(m.std) || m.std.length !== 2) m.std = y.std;
     if (!m.donemGun) m.donemGun = 20;
+    if (m.donemAd !== 'bit') m.donemAd = 'bas';
+    if (!m.aylar || typeof m.aylar !== 'object' || Array.isArray(m.aylar)) m.aylar = {};
     if (!m.ust) m.ust = 48;
     if (!m.gun || typeof m.gun !== 'object') m.gun = {};
     if (!Array.isArray(m.gorev)) m.gorev = [];
@@ -81,9 +85,14 @@
         var k = DT.fold(DT.xtrim(g.p)).toUpperCase(); (gorev[s] = gorev[s] || {})[k] = g;
       }
     });
-    var bas = m.bas;
-    if (bas == null) Object.keys(m.gun).forEach(function (k) { var s = +k; if (MS.dolu(m.gun[k]) && (bas == null || s < bas)) bas = s; });
-    return { m: m, hol: hol, gorev: gorev, bas: bas, today: today != null ? today : DT.today(), L: state.lists };
+    var bas = m.bas, t = today != null ? today : DT.today(), son = null;
+    Object.keys(m.gun).forEach(function (k) {
+      var s = +k, g = m.gun[k];
+      if (m.bas == null && MS.dolu(g) && (bas == null || s < bas)) bas = s;
+      // saat girilen son gün (bugünle sınırlı): bitmemiş ay / dönemde zorunlu saat bu güne kadar sayılır
+      if (s <= t && (son == null || s > son)) for (var p in g) if (g[p] && g[p].a && g[p].a.length) { son = s; break; }
+    });
+    return { m: m, hol: hol, gorev: gorev, bas: bas, son: son, today: t, L: state.lists };
   };
   MS.dolu = function (gunObj) { for (var p in gunObj) if (MS.kayitDolu(gunObj[p])) return true; return false; };
   MS.kayitDolu = function (r) { return !!r && ((r.a && r.a.length) || r.iz || S(r.n).trim() !== '' || r.ara); };
@@ -153,9 +162,10 @@
   };
 
   /* ---------------- dönem özeti ---------------- */
-  // Etkin aralık: takip başlangıcı ile bugün arasına kırpılır
+  // Etkin aralık: takip başlangıcı ile saat girilen son gün (en çok bugün) arasına kırpılır
   MS.etkin = function (ctx, from, to) {
     var a = from, b = Math.min(to, ctx.today);
+    if (ctx.son !== undefined) b = ctx.son == null ? -Infinity : Math.min(b, ctx.son);
     if (ctx.bas != null) a = Math.max(a, ctx.bas);
     return a <= b ? { from: a, to: b } : null;
   };
@@ -239,25 +249,82 @@
 
   /* ---------------- ay ve yıl ---------------- */
   MS.ayAraligi = function (y, m) { return { from: DT.serial(y, m, 1), to: DT.serial(y, m + 1, 1) - 1 }; };
-  /** Aylık Fazla Mesai: personel × 12 ay (takvim ayı); etkin olmayan ay null */
+  // sayıya iyelik eki: 1'i, 2'si, 3'ü, 6'sı, 9'u, 10'u, 20'si …
+  var EK = ['i', 'si', 'ü', 'ü', 'i', 'sı', 'si', 'i', 'u'];
+  MS.ek = function (n) { n = +n; return n % 10 ? EK[n % 10 - 1] : ({ 10: 'u', 20: 'si', 30: 'u' })[n] || 'ı'; };
+  MS.gunEk = function (n) { return n + '’' + MS.ek(n); };
+  /** kurala göre ay dönemi (aya özel tarih hariç) */
+  MS.ayKurali = function (m, y, mo) {
+    var g = m.donemGun > 1 ? Math.min(28, m.donemGun) : 1;
+    if (g === 1) return { from: DT.serial(y, mo, 1), to: DT.serial(y, mo + 1, 1) - 1 };
+    if (m.donemAd === 'bit') return { from: DT.serial(y, mo - 1, g), to: DT.serial(y, mo, g) - 1 };
+    return { from: DT.serial(y, mo, g), to: DT.serial(y, mo + 1, g) - 1 };
+  };
+  /** kullanıcının ay dönemi: aya özel tarih (m.aylar['y-ay']) varsa o, yoksa kural */
+  MS.ayDonemi = function (m, y, mo) {
+    while (mo < 1) { mo += 12; y--; }
+    while (mo > 12) { mo -= 12; y++; }
+    var k = y + '-' + mo, o = m.aylar && m.aylar[k], r = MS.ayKurali(m, y, mo);
+    var ozel = !!(o && o.bas != null && o.bit != null && o.bas <= o.bit);
+    return { y: y, m: mo, k: k, from: ozel ? o.bas : r.from, to: ozel ? o.bit : r.to, ozel: ozel, ayAd: DT.AYLAR[mo - 1], ad: DT.AYLAR[mo - 1] + ' ' + y };
+  };
+  /** s gününü içeren ay dönemi (aya özel tarihler dahil); boşluktaki gün için sonraki dönem */
+  MS.ayBul = function (m, s) {
+    var p = DT.parts(s), best = null, a, d;
+    for (d = -2; d <= 2; d++) {
+      a = MS.ayDonemi(m, p.y, p.m + d);
+      if (a.from <= s && s <= a.to && (!best || (a.ozel && !best.ozel))) best = a;
+    }
+    if (best) return best;
+    for (d = -2; d <= 3; d++) { a = MS.ayDonemi(m, p.y, p.m + d); if (a.from > s && (!best || a.from < best.from)) best = a; }
+    return best || MS.ayDonemi(m, p.y, p.m);
+  };
+  /** [from, to] ile kesişen ay dönemleri, aralığa kırpılmış */
+  MS.aylarArasi = function (m, from, to) {
+    var out = [], a = MS.ayBul(m, from), n = 0;
+    while (a.from <= to && n++ < 600) {
+      if (a.to >= from) out.push(Object.assign({}, a, { from: Math.max(a.from, from), to: Math.min(a.to, to), tamFrom: a.from, tamTo: a.to }));
+      a = MS.ayDonemi(m, a.y, a.m + 1);
+    }
+    return out;
+  };
+  /** yılın ay dönemleri arasında boşluk / çakışma uyarıları */
+  MS.ayKontrol = function (m, y) {
+    var uy = [];
+    for (var mo = 0; mo <= 12; mo++) {
+      var a = MS.ayDonemi(m, y, mo), b = MS.ayDonemi(m, y, mo + 1);
+      if (!a.ozel && !b.ozel) continue;
+      var f = b.from - a.to - 1;
+      if (f > 0) uy.push(a.ayAd + ' ile ' + b.ayAd + ' arasında ' + f + ' gün hesaba girmiyor');
+      else if (f < 0) uy.push(a.ayAd + ' ile ' + b.ayAd + ' ' + (-f) + ' gün çakışıyor');
+    }
+    return uy;
+  };
+  /** kuralın yazısı: "Ayın 20’si – ertesi ayın 19’u" */
+  MS.kuralYazi = function (m) {
+    var g = m.donemGun > 1 ? Math.min(28, m.donemGun) : 1;
+    return g === 1 ? 'Takvim ayı (1’i – ay sonu)' : 'Ayın ' + MS.gunEk(g) + ' – ertesi ayın ' + MS.gunEk(g - 1);
+  };
+  /** Aylık Fazla Mesai: personel × 12 ay (kullanıcının ay dönemleri); etkin olmayan ay null */
   MS.aylik = function (ctx, y) {
-    var aylar = [];
-    for (var m = 1; m <= 12; m++) { var a = MS.ayAraligi(y, m); aylar.push(MS.etkin(ctx, a.from, a.to) ? MS.donem(ctx, a.from, a.to) : null); }
-    return ctx.m.personel.map(function (p, i) {
+    var aylar = [], donemler = [];
+    for (var m = 1; m <= 12; m++) {
+      var a = MS.ayDonemi(ctx.m, y, m);
+      donemler.push(a);
+      aylar.push(MS.etkin(ctx, a.from, a.to) ? MS.donem(ctx, a.from, a.to) : null);
+    }
+    var out = ctx.m.personel.map(function (p, i) {
       var v = aylar.map(function (ay) { return ay ? ay[i].fazla : null; });
       return { p: p, ay: v, yil: v.reduce(function (t, x) { return t + (x || 0); }, 0), tatil: aylar.reduce(function (t, ay) { return t + (ay ? ay[i].netTatil : 0); }, 0) };
     });
+    out.donemler = donemler;
+    out.etkin = aylar.map(function (ay) { return ay ? ay.etkin : null; });
+    return out;
   };
-  /** 20'si – ertesi ayın 19'u gibi dönem: bugünü içeren dönem (k: 0 bu dönem, -1 önceki) */
+  /** bugünü (base) içeren ay dönemi; k: 0 bu ay, -1 önceki ay … */
   MS.donemAraligi = function (ctx, base, k) {
-    var g = ctx.m.donemGun || 20, p = DT.parts(base);
-    var y = p.y, m = p.m;
-    if (g > 1 && p.d < g) { m--; if (m < 1) { m = 12; y--; } }
-    m += k || 0;
-    while (m < 1) { m += 12; y--; }
-    while (m > 12) { m -= 12; y++; }
-    var from = DT.serial(y, m, g > 1 ? g : 1), to = g > 1 ? DT.serial(y, m + 1, g) - 1 : DT.serial(y, m + 1, 1) - 1;
-    return { from: from, to: to };
+    var a = MS.ayBul(ctx.m, base);
+    return k ? MS.ayDonemi(ctx.m, a.y, a.m + k) : a;
   };
 
   /* ---------------- görevlendirme ---------------- */
@@ -703,13 +770,15 @@
       gl = gl.slice(0, 4).concat(bl);
     }
     // 3 · Aylık Fazla Mesai
-    var ay = [[{ v: 'Aylık fazla mesai (saat)', s: 3 }], [{ v: 'Takvim ayı · içinde bulunulan ay bugüne kadar · fazla = en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saat', s: 16 }], []];
+    var ay = [[{ v: 'Aylık fazla mesai (saat)', s: 3 }], [{ v: 'Ay dönemi: ' + MS.kuralYazi(m) + (m.donemGun > 1 ? ', ay adı dönemin ' + (m.donemAd === 'bit' ? 'bittiği' : 'başladığı') + ' ay' : '') +
+      ' · içinde bulunulan ay saat girilen son güne kadar' + (ctx.son != null ? ' (' + DT.fmt(ctx.son) + ')' : '') + ' · fazla = en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saat', s: 16 }], []];
     var AY3 = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
     if (gunler.length) {
-      for (var y = DT.year(gunler[0]); y <= DT.year(Math.max(t0, gunler[gunler.length - 1])); y++) {
+      for (var y = MS.ayBul(m, gunler[0]).y; y <= MS.ayBul(m, Math.max(t0, gunler[gunler.length - 1])).y; y++) {
         var A = MS.aylik(ctx, y);
         ay.push([{ v: String(y), s: 11 }]);
         ay.push([{ v: 'Personel', s: 2 }].concat(AY3.map(function (x) { return { v: x, s: 2 }; }), [{ v: 'Yıl', s: 2 }, { v: 'Tatil mesaisi', s: 2 }]));
+        ay.push([{ v: 'Tarihler', s: 16 }].concat(A.donemler.map(function (a) { return { v: DT.fmtShort(a.from) + '–' + DT.fmtShort(a.to) + (a.ozel ? ' •' : ''), s: 16 }; })));
         A.forEach(function (r) { ay.push([r.p].concat(r.ay.map(function (v) { return v == null ? '' : { v: sa2(v), s: 18 }; }), [{ v: sa2(r.yil), s: 18 }, r.tatil ? { v: sa2(r.tatil), s: 18 } : ''])); });
         ay.push([{ v: 'Toplam', s: 9 }].concat(AY3.map(function (x, i) { return A.some(function (r) { return r.ay[i] != null; }) ? { v: sa2(A.reduce(function (t2, r) { return t2 + (r.ay[i] || 0); }, 0)), s: 19 } : { v: '', s: 9 }; }),
           [{ v: sa2(A.reduce(function (t2, r) { return t2 + r.yil; }, 0)), s: 19 }, { v: sa2(A.reduce(function (t2, r) { return t2 + r.tatil; }, 0)), s: 19 }]));
@@ -727,7 +796,7 @@
     return X.buildXlsx([
       { name: 'Mesai Takip', rows: rows, cols: cols },
       { name: 'Günlük', rows: gl, cols: [11, 10, 12, 12, 24, 9, 8, 9, 9, 9, 10, 7, 14, 18, 10, 40], freezeRow: 4, filterRow: gl.length > 4 ? 4 : null, heights: heights },
-      { name: 'Aylık Fazla Mesai', rows: ay, cols: [14, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 12] },
+      { name: 'Aylık Fazla Mesai', rows: ay, cols: [14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 9, 12] },
       { name: 'Görevlendirme', rows: gv, cols: [14, 12, 12, 18, 22, 30, 6, 6], freezeRow: 4, filterRow: gv.length > 4 ? 4 : null, heights: heights }
     ]);
   };

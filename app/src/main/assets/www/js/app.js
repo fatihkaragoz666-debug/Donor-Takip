@@ -1194,7 +1194,7 @@
     ['Yemek kartı', 'MALİ İŞLER › Yemek Kartı’nda “Excel’den al” ile MetropolCard’ın Yükleme Detay Raporu Excel’ini seçin (Outlook’tan Paylaş › Donör Takip ile de olur). Her yükleme ad soyaddan (bulunamazsa telefondan) donöre bağlanır ve tarihine göre ayrılır: sağlık kontrolü tarihinden 3 gün önce – 2 gün sonra “Sağlık kontrolü”; aşı başlangıcından (kemik iliğinde toplamadan) 3 gün önce – toplamadan 3 gün sonra toplama dönemi. Toplama döneminde aşı günlerinde de yükleme varsa “Aşı + toplama”, yalnızca toplama günlerindeyse “Toplama süreci”; uymayanlar “Diğer”. Sayfada toplam yükleme, aşamalara göre tutarlar ve her aşamanın altında donörler görünür. Yanlış aşamayı ya da donörü Yüklemeler’de yüklemeye dokunarak değiştirin. Aynı rapor ya da çakışan dönem tekrar yüklenirse aynı yükleme iki kez girmez. TC kimlik no ve kart numarası saklanmaz (kartın son 4 hanesi hariç). Donör sayfasında da o donörün yemek kartı yüklemeleri görünür; Raporlar’da Yemek kartı raporu vardır.'],
     ['Personel Mesai', 'Ana Sayfa › PERSONEL MESAİ. Personel_Mesai_Takip.xlsx’in uygulamadaki hâli. Günlük giriş: her personelin giriş–çıkış saatleri (günde 4 aralığa kadar; “0830” ya da “8.30” yazılabilir), izin (tam gün ya da saatlik) ve not; saat yazıldıkça kaydedilir. ' +
       'Kurallar Excel’deki gibidir: hafta içi mola 3,5 saatin altında yok, 3,5–7,5 saat 30 dk, daha uzunsa 1 saat; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat. Fazla mesai = en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı görevde yok. 12 saat dinlenme ve haftalık 48 saat kontrol edilir. ' +
-      'Haftalık, Aylık fazla mesai (takvim ayı) ve Dönem özeti (ayın 20’si – ertesi ayın 19’u) sayfaları vardır; Dönem özeti’nden PDF / Excel rapor alınır. Mesai Ayarları’ndan Excel tablosu ya da WhatsApp grubunun dışa aktarılan sohbeti (“08:00-17:00” gibi mesajlar) alınır; ne yazılacağı önce gösterilir. Excel’e aktar ile alınan dosya uygulamaya yeniden alınabilir.'],
+      'Haftalık, Aylık fazla mesai ve Dönem özeti sayfaları vardır. Aylık hesap sizin belirlediğiniz tarihlerle yapılır: Aylık fazla mesai › Ay tarihleri’nden kural (ayın 20’si – ertesi ayın 19’u gibi ya da takvim ayı) seçilir, istenen ayın tarihleri ayrıca değiştirilir. Bitmemiş ayda zorunlu saat, saat girilen son güne kadar sayılır. Dönem özeti’nden bir ay ya da istenen tarih aralığı için PDF / Excel rapor alınır. Mesai Ayarları’ndan Excel tablosu ya da WhatsApp grubunun dışa aktarılan sohbeti (“08:00-17:00” gibi mesajlar) alınır; ne yazılacağı önce gösterilir. Excel’e aktar ile alınan dosya uygulamaya yeniden alınabilir.'],
     ['Raporlar', 'DASHBOARD › Raporlar (Donör Raporu, Harcama Dashboard ve Yemek Kartı sayfalarından da açılır). Raporlar: Donör raporu (dönemdeki donörler; durum, hastane, yöntem süzgeci ve donör listesi), Harcama raporu (kategori, harcama ve ulaşım türü, il, donör bazında; harcama satırları), İş yükü ve taşıma raporu (personel görevleri, görev türleri, ürün taşımaları) Dashboard özeti (dönemin sayıları ve grafikleri, yöneticiye sunum için), Yemek kartı raporu (yüklemeler aşamalara ve donörlere göre) ve Personel mesai raporu (fazla mesai, resmi tatil, hafta sonu, yemek hakkı, izin, görevlendirme ve gün gün kayıtlar). Tarih aralığını Bu ay, Geçen ay, Son 3 ay, Bu yıl, Geçen yıl, Tümü ile ya da başlangıç ve bitiş tarihi yazarak seçin; rapor aşağıda önizlenir. “PDF oluştur” tablolu ve grafikli A4 rapor, “Excel oluştur” aynı tabloları (ve tüm listeleri ayrı sayfalarda) verir. Hazır olunca Aç, Telefona kaydet, Outlook ile gönder, WhatsApp’ta gönder ya da başka uygulamayla paylaş seçilir. Uzun listeler (donör listesi, harcama satırları, görev kayıtları, mesai kayıtları) isterseniz PDF’e de eklenir; Excel’de her zaman vardır.'],
     ['Listeler', 'Personel, hastane (ve programdaki adı), yöntem, ulaşım, konaklama, sabah-akşam aşı hastaneleri, resmi tatiller, nakil merkezi anahtar kelimeleri ve programdaki yazılışlar buradan değiştirilir.'],
     ['Haftalık Plan', 'Defter görünümü: her günün görevleri şu sırayla yazılır: kök hücre toplama, kemik iliği toplama, hastane yatış, aşı, sağlık kontrolü, ürün taşıma, kargo. Personel düğmesinden atama yapılır. “Not ekle” ile o güne not yazın; not o günün Çalışma Programı’na (personel seçilirse onun altına, seçilmezse NOTLAR bölümüne) girer.'],
@@ -2174,10 +2174,15 @@
       '<button class="btn block" data-act="goto" data-h="/mesai/gun" style="margin-top:8px">' + I.plus + 'Saatleri elle gir</button></div>';
   }
   // Ana sayfa düğmesindeki canlı satır
+  function msAyAralik(a) { return DT.fmtShort(a.from) + '–' + DT.fmtShort(a.to); }
+  function msAyBaslik(c, a) { return a.ayAd + (c.m.donemGun > 1 || a.ozel ? ' (' + msAyAralik(a) + ')' : ''); }
+  // gösterilecek ay: bugünü içeren ay; o ayda henüz saat yoksa saat girilen son günün ayı
+  function msGuncelAy(c) { var a = MS.donemAraligi(c, today, 0); return c.son != null && c.son < a.from ? MS.ayBul(c.m, c.son) : a; }
+  function msSonYazi(c) { return c.son != null ? 'Saat girilen son gün: ' + DT.fmt(c.son) + ' ' + gunAd(c.son) : 'Henüz saat girilmedi'; }
   function msCanli() {
     if (!msVar()) return 'Excel ya da WhatsApp’tan alın, saatleri girin';
-    var c = msCtx(), p = DT.parts(today), a = MS.ayAraligi(p.y, p.m), T = MS.toplam(MS.donem(c, a.from, a.to));
-    return DT.AYLAR[p.m - 1] + ': ' + msSa(T.fazla, '0') + ' sa fazla mesai' + (T.girilmemis ? ' · ' + T.girilmemis + ' giriş eksik' : '');
+    var c = msCtx(), a = msGuncelAy(c), T = MS.toplam(MS.donem(c, a.from, a.to));
+    return msAyBaslik(c, a) + ': ' + msSa(T.fazla, '0') + ' sa fazla mesai' + (T.girilmemis ? ' · ' + T.girilmemis + ' giriş eksik' : '');
   }
   function msIzinYazi(iz) { return iz ? MS.izinAd(iz.t) + (iz.s ? ' ' + String(iz.s).replace('.', ',') + ' sa' : '') : ''; }
 
@@ -2188,16 +2193,17 @@
     if (!m.personel.length) html += '<div class="card pad"><b>Takip edilen personel yok.</b><div class="small muted" style="margin:6px 0 10px">Mesai Ayarları’ndan mesaisi tutulacak personeli seçin.</div><button class="btn pri block" data-act="goto" data-h="/mesai/ayar">Mesai Ayarları</button></div>';
     else if (!msVar()) html += msBosVeri();
     else {
-      var p = DT.parts(today), a = MS.ayAraligi(p.y, p.m), R = MS.donem(c, a.from, a.to), T = MS.toplam(R);
+      var a = msGuncelAy(c), R = MS.donem(c, a.from, a.to), T = MS.toplam(R);
       var ws = DT.weekStart(today), W = MS.hafta(c, ws), wf = W.reduce(function (t, r) { return t + r.fazla; }, 0);
       var uy = W.reduce(function (t, r) { return t + r.dinlenme + r.cakisma + (r.asim ? 1 : 0); }, 0);
       html += '<div class="tiles">' +
-        msTile(msSa(T.fazla, '0') + ' sa', DT.AYLAR[p.m - 1] + ' · fazla mesai', T.netTatil ? 'Resmi tatil ' + msSa(T.netTatil) + ' sa dahil' : 'Ayın başından bugüne', '/mesai/aylik', T.fazla ? 'warnor' : '') +
+        msTile(msSa(T.fazla, '0') + ' sa', a.ayAd + ' · fazla mesai', msAyAralik(a) + (T.netTatil ? ' · tatil ' + msSa(T.netTatil) + ' sa dahil' : ''), '/mesai/aylik', T.fazla ? 'warnor' : '') +
         msTile(msSa(wf, '0') + ' sa', 'Bu hafta · fazla mesai', DT.fmtShort(ws) + ' – ' + DT.fmtShort(ws + 6), '/mesai/hafta') +
         msTile(num(T.girilmemis), 'Girilmemiş iş günü', T.girilmemis ? 'Bu ay, kişi-gün' : 'Bu ayın günleri tam', '/mesai/gun', T.girilmemis ? 'warn' : 'ok') +
         msTile(num(uy), 'Bu haftanın uyarıları', uy ? 'Dinlenme, çakışan saat, ' + m.ust + ' saat' : 'Sorun yok', '/mesai/hafta', uy ? 'warn' : 'ok') + '</div>' +
+        '<div class="small muted mssongiris">' + h(msSonYazi(c)) + (c.son != null ? ' · bitmemiş ayda zorunlu saat bu güne kadar sayılır' : '') + '</div>' +
         '<button class="btn msana block" data-act="goto" data-h="/mesai/gun" style="margin-bottom:10px">' + I.clock + 'BUGÜNÜN SAATLERİ · ' + h(DT.fmt(today)) + '</button>';
-      html += '<div class="sec-title">' + h(DT.AYLAR[p.m - 1] + ' ' + p.y) + ' · personel</div><div class="card list">' + R.map(function (r, i) {
+      html += '<div class="sec-title">' + h(a.ad + ' · ' + msAyAralik(a)) + ' · personel</div><div class="card list">' + R.map(function (r, i) {
         var ek = [];
         if (r.netTatil) ek.push('<span class="pillx p-or">Resmi tatil ' + msSa(r.netTatil) + ' sa</span>');
         if (r.girilmemis) ek.push('<span class="pillx p-red">' + r.girilmemis + ' gün girilmemiş</span>');
@@ -2333,41 +2339,121 @@
     return msSayfa('/mesai/hafta', 'Haftalık', html);
   }
 
-  /* ---- Aylık fazla mesai ---- */
+  /* ---- Aylık fazla mesai: kullanıcının ay dönemleri (kural + aya özel tarihler) ---- */
   function scrMsAylik() {
-    var c = msCtx(), y = +ui.msYil || DT.year(today), A = MS.aylik(c, y), AY3 = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-    var y0 = c.bas != null ? Math.min(DT.year(c.bas), DT.year(today)) : DT.year(today), yo = '';
-    for (var yy = DT.year(today); yy >= y0; yy--) yo += '<option' + (yy === y ? ' selected' : '') + '>' + yy + '</option>';
-    var html = '<div class="toolbar"><span class="grow small muted">Takvim ayı · içinde bulunulan ay bugüne kadar</span><select class="inp" style="flex:none;width:100px" data-ui="msYil">' + yo + '</select></div>';
-    var aktif = AY3.map(function (a, i) { return A.some(function (r) { return r.ay[i] != null; }); });
-    var tot = AY3.map(function (a, i) { return aktif[i] ? A.reduce(function (t, r) { return t + (r.ay[i] || 0); }, 0) : null; });
-    html += '<div class="card pad"><h2>Aylık fazla mesai (saat) · ' + y + '</h2><div class="tscroll"><table class="t tsticky msaylik"><tr><th>Personel</th>' + AY3.map(function (a) { return '<th>' + a + '</th>'; }).join('') + '<th>Yıl</th></tr>' +
+    var c = msCtx(), m = c.m, cur = MS.donemAraligi(c, today, 0), y = +ui.msYil || cur.y, A = MS.aylik(c, y), D = A.donemler;
+    var AY3 = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    var y0 = c.bas != null ? Math.min(MS.ayBul(m, c.bas).y, cur.y) : cur.y, yo = '';
+    for (var yy = Math.max(cur.y, y); yy >= Math.min(y0, y); yy--) yo += '<option' + (yy === y ? ' selected' : '') + '>' + yy + '</option>';
+    var ozelVar = D.some(function (a) { return a.ozel; });
+    var html = '<div class="card pad msaykural"><div class="row" style="gap:10px"><div class="grow"><div class="small muted">Ay dönemi</div><b>' + h(MS.kuralYazi(m)) + '</b>' +
+      (m.donemGun > 1 ? '<div class="small muted">Ay adı dönemin ' + (m.donemAd === 'bit' ? 'bittiği' : 'başladığı') + ' ay</div>' : '') +
+      (ozelVar ? '<div class="small muted">• tarihi elle değiştirilen ay</div>' : '') + '</div>' +
+      '<button class="btn sm" data-act="msAyTarih" data-y="' + y + '" style="flex:none">' + I.cal + 'Ay tarihleri</button></div></div>';
+    html += '<div class="toolbar"><span class="grow small muted">' + h(msSonYazi(c)) + '</span><select class="inp" style="flex:none;width:100px" data-ui="msYil">' + yo + '</select></div>';
+    var aktif = D.map(function (a, i) { return A.some(function (r) { return r.ay[i] != null; }); });
+    var tot = D.map(function (a, i) { return aktif[i] ? A.reduce(function (t, r) { return t + (r.ay[i] || 0); }, 0) : null; });
+    // sütunlar: saat girilen ilk aydan bu aya kadar (önceki yıllarda yıl sonuna kadar)
+    var ilk = aktif.indexOf(true), son = y === cur.y ? cur.m - 1 : y < cur.y ? 11 : -1, idx = [];
+    for (var ii = 0; ii < 12; ii++) if (ilk >= 0 && ii >= ilk && ii <= Math.max(son, aktif.lastIndexOf(true))) idx.push(ii);
+    if (!idx.length) html += '<div class="card">' + emptyBox(y + ' yılında hesaplanan ay yok', 'Bu yılın aylarında saat girilmemiş ya da takip başlangıcından önce. Ay tarihlerini yine de “Ay tarihleri”nden ayarlayabilirsiniz.') + '</div>';
+    else html += '<div class="card pad"><h2>Aylık fazla mesai (saat) · ' + y + '</h2><div class="tscroll"><table class="t tsticky msaylik"><tr><th>Personel</th>' +
+      idx.map(function (i) { var a = D[i]; return '<th class="msayth' + (a.k === cur.k ? ' cur' : '') + '" data-act="msAyTarih" data-y="' + y + '">' + AY3[i] + (a.ozel ? ' •' : '') + '<small>' + msAyAralik(a) + '</small></th>'; }).join('') + '<th>Yıl</th></tr>' +
       A.map(function (r, pi) {
-        return '<tr><td><b>' + h(r.p) + '</b></td>' + r.ay.map(function (v, i) { return '<td class="msc' + (v ? ' msfzc' : '') + '"' + (v == null ? '' : ' data-act="goto" data-h="/mesai/kisi/' + pi + '/' + y + '-' + (i + 1) + '"') + '>' + (v == null ? '' : msSa(v, '0')) + '</td>'; }).join('') + '<td><b>' + msSa(r.yil, '0') + '</b></td></tr>';
-      }).join('') + '<tr class="tot"><td>Toplam</td>' + tot.map(function (v) { return '<td>' + (v == null ? '' : msSa(v, '0')) + '</td>'; }).join('') + '<td>' + msSa(A.reduce(function (t, r) { return t + r.yil; }, 0), '0') + '</td></tr></table></div>' +
-      '<div class="note">Fazla mesai = en çok(0, resmi tatil dışındaki net − ayın zorunlu saati) + resmi tatilde çalışılan saatin tamamı. Zorunlu: iş günü 8, arife 4 saat; izin günleri düşülür. ' + (c.bas != null ? 'Takip ' + DT.fmt(c.bas) + '’de başlıyor; öncesi hesaba girmez. ' : '') + 'Hücreye dokununca personelin o ayı açılır.</div></div>';
+        return '<tr><td><b>' + h(r.p) + '</b></td>' + idx.map(function (i) { var v = r.ay[i]; return '<td class="msc' + (v ? ' msfzc' : '') + '"' + (v == null ? '' : ' data-act="goto" data-h="/mesai/kisi/' + pi + '/' + y + '-' + (i + 1) + '"') + '>' + (v == null ? '' : msSa(v, '0')) + '</td>'; }).join('') + '<td><b>' + msSa(r.yil, '0') + '</b></td></tr>';
+      }).join('') + '<tr class="tot"><td>Toplam</td>' + idx.map(function (i) { var v = tot[i]; return '<td>' + (v == null ? '' : msSa(v, '0')) + '</td>'; }).join('') + '<td>' + msSa(A.reduce(function (t, r) { return t + r.yil; }, 0), '0') + '</td></tr></table></div>' +
+      '<div class="note">Her ay, başlığında yazan tarihler arasında hesaplanır; başlığa dokununca tarihler değiştirilir. Fazla mesai = en çok(0, resmi tatil dışındaki net − o ayın zorunlu saati) + resmi tatilde çalışılan saatin tamamı. ' +
+      'Zorunlu: iş günü 8, arife 4 saat; izin günleri düşülür. İçinde bulunulan ay, saat girilen son güne kadar hesaplanır. ' + (c.bas != null ? 'Takip ' + DT.fmt(c.bas) + '’de başlıyor; öncesi hesaba girmez. ' : '') + 'Hücreye dokununca personelin o ayı açılır.</div></div>';
+    var uyari = MS.ayKontrol(m, y);
+    if (uyari.length) html += '<div class="card pad msayuy"><b>Ay tarihlerinde boşluk / çakışma</b><div class="small" style="margin-top:4px">' + uyari.map(h).join('<br>') + '</div></div>';
     var tt = A.filter(function (r) { return r.tatil; });
     if (tt.length) html += '<div class="card pad"><h2>Resmi tatilde çalışılan saat · ' + y + '</h2>' + tt.map(function (r) { return '<div class="row" style="padding:4px 0"><span class="grow">' + h(r.p) + '</span><b>' + msSa(r.tatil) + ' sa</b></div>'; }).join('') + '<div class="note">Bu saatler yukarıdaki fazla mesaiye dahildir.</div></div>';
     return msSayfa('/mesai/aylik', 'Aylık Fazla Mesai', html);
   }
+  // Ay tarihleri: kural (ayın kaçı, ay adı) ve her ayın başlangıç–bitiş tarihi
+  function msAyAdOps(g, sec) {
+    var o1 = g > 1 ? ': ' + g + ' Kasım – ' + (g - 1) + ' Aralık = Kasım' : '', o2 = g > 1 ? ': ' + g + ' Ekim – ' + (g - 1) + ' Kasım = Kasım' : '';
+    return '<option value="bas"' + (sec !== 'bit' ? ' selected' : '') + '>Başladığı ay' + o1 + '</option><option value="bit"' + (sec === 'bit' ? ' selected' : '') + '>Bittiği ay' + o2 + '</option>';
+  }
+  function msAyTarihSheet(y) {
+    var m = MS.hazirla(state), g0 = m.donemGun > 1 ? Math.min(28, m.donemGun) : 1, gunOps = '';
+    y = +y || MS.donemAraligi(msCtx(), today, 0).y;
+    for (var g = 1; g <= 28; g++) gunOps += '<option value="' + g + '"' + (g === g0 ? ' selected' : '') + '>' + h(MS.kuralYazi({ donemGun: g })) + '</option>';
+    var satir = '';
+    for (var mo = 1; mo <= 12; mo++) {
+      var a = MS.ayDonemi(m, y, mo);
+      satir += '<div class="msayt" data-mo="' + mo + '" data-ozel="' + (a.ozel ? 1 : 0) + '"><span class="ayad">' + DT.AYLAR[mo - 1] + '<i>•</i></span>' +
+        '<input class="inp" type="date" data-k="bas" value="' + DT.iso(a.from) + '"><input class="inp" type="date" data-k="bit" value="' + DT.iso(a.to) + '">' +
+        '<button class="btn sm ghost" data-r="1" title="Kurala döndür" aria-label="Kurala döndür">↺</button></div>';
+    }
+    openSheet('<h3>Ay tarihleri · ' + y + '</h3><div class="sub">Aylık fazla mesai her ayın bu tarihleri arasında hesaplanır. Kuralı seçin; kuraldan farklı olan ayın tarihlerini ayrıca değiştirin.</div>' +
+      '<div class="field"><label>Kural</label><select class="inp" id="msAyGun">' + gunOps + '</select></div>' +
+      '<div class="field" id="msAyAdF"' + (g0 > 1 ? '' : ' hidden') + '><label>Ay adı</label><select class="inp" id="msAyAd">' + msAyAdOps(g0, m.donemAd) + '</select></div>' +
+      '<div class="msayts"><div class="msayt bas"><span></span><span class="small muted">Başlangıç</span><span class="small muted">Bitiş (dahil)</span><span></span></div>' + satir + '</div>' +
+      '<div class="note">• tarihi elle değiştirilen ay; ↺ kurala döndürür. Bitiş günü hesaba dahildir.</div>' +
+      '<div class="btns"><button class="btn" data-act="closeSheet">Vazgeç</button><button class="btn pri" id="msAyKaydet">Kaydet</button></div>');
+    var sh = $('#sheet');
+    var kural = function () { return Object.assign({}, m, { donemGun: +$('#msAyGun').value, donemAd: $('#msAyAd').value, aylar: {} }); };
+    var doldur = function (r) { var a = MS.ayDonemi(kural(), y, +r.dataset.mo); r.querySelector('[data-k=bas]').value = DT.iso(a.from); r.querySelector('[data-k=bit]').value = DT.iso(a.to); r.dataset.ozel = '0'; };
+    var isaretle = function (r) { var a = MS.ayDonemi(kural(), y, +r.dataset.mo); r.dataset.ozel = r.querySelector('[data-k=bas]').value !== DT.iso(a.from) || r.querySelector('[data-k=bit]').value !== DT.iso(a.to) ? '1' : '0'; };
+    $('#msAyGun').onchange = function () {
+      var g2 = +$('#msAyGun').value;
+      $('#msAyAdF').hidden = g2 <= 1; $('#msAyAd').innerHTML = msAyAdOps(g2, $('#msAyAd').value);
+      sh.querySelectorAll('.msayt[data-mo]').forEach(function (r) { if (r.dataset.ozel !== '1') doldur(r); });
+    };
+    $('#msAyAd').onchange = function () { sh.querySelectorAll('.msayt[data-mo]').forEach(function (r) { if (r.dataset.ozel !== '1') doldur(r); }); };
+    sh.querySelectorAll('.msayt[data-mo] input').forEach(function (inp) { inp.onchange = function () { isaretle(inp.closest('.msayt')); }; });
+    sh.querySelectorAll('.msayt [data-r]').forEach(function (b) { b.onclick = function () { doldur(b.closest('.msayt')); }; });
+    $('#msAyKaydet').onclick = function () {
+      var yeni = {}, hata = null;
+      sh.querySelectorAll('.msayt[data-mo]').forEach(function (r) {
+        isaretle(r);
+        if (hata || r.dataset.ozel !== '1') return;
+        var mo2 = +r.dataset.mo, b = DT.fromIso(r.querySelector('[data-k=bas]').value), e = DT.fromIso(r.querySelector('[data-k=bit]').value);
+        if (b == null || e == null) return;
+        if (e < b) { hata = DT.AYLAR[mo2 - 1] + ': bitiş başlangıçtan önce'; return; }
+        if (e - b > 62) { hata = DT.AYLAR[mo2 - 1] + ': bir ay en çok 63 gün olabilir'; return; }
+        yeni[y + '-' + mo2] = { bas: b, bit: e };
+      });
+      if (hata) { toast(hata); return; }
+      m.donemGun = +$('#msAyGun').value; m.donemAd = $('#msAyAd').value;
+      for (var k = 1; k <= 12; k++) delete m.aylar[y + '-' + k];
+      Object.assign(m.aylar, yeni);
+      save(); closeSheet(); render(true);
+      var uy = MS.ayKontrol(m, y);
+      toast(uy.length ? 'Kaydedildi · ' + uy[0] : 'Ay tarihleri kaydedildi');
+    };
+  }
 
   /* ---- Dönem özeti (Excel'deki Aylık özet: ayın 20'si – ertesi ayın 19'u) ---- */
+  // Dönem özeti: kullanıcının ayları (bu ay = bugünü içeren ay dönemi) ya da seçilen tarih aralığı
   function msDonemSec(c) {
-    var hz = ui.msDhz || 'donem', p = DT.parts(today);
-    if (hz === 'buay') return MS.ayAraligi(p.y, p.m);
-    if (hz === 'gecenay') return MS.ayAraligi(p.m === 1 ? p.y - 1 : p.y, p.m === 1 ? 12 : p.m - 1);
+    var hz = ui.msDhz || 'donem';
+    if (hz === 'ozel') { var d0 = MS.donemAraligi(c, today, 0), a = ui.msDBas != null ? ui.msDBas : d0.from, b = ui.msDBit != null ? ui.msDBit : d0.to; return a <= b ? { from: a, to: b, aralik: true } : { from: b, to: a, aralik: true }; }
+    var q = /^(\d{4})-(\d{1,2})$/.exec(hz);
+    if (q) return MS.ayDonemi(c.m, +q[1], +q[2]);
     if (hz === 'onceki') return MS.donemAraligi(c, today, -1);
-    if (hz === 'buyil') return { from: DT.serial(p.y, 1, 1), to: DT.serial(p.y, 12, 31) };
-    if (hz === 'ozel') { var d0 = MS.donemAraligi(c, today, 0), a = ui.msDBas != null ? ui.msDBas : d0.from, b = ui.msDBit != null ? ui.msDBit : d0.to; return a <= b ? { from: a, to: b } : { from: b, to: a }; }
-    return MS.donemAraligi(c, today, 0);
+    return msGuncelAy(c);
+  }
+  function msEtkinYazi(c, R, a) {
+    if (!R.etkin) return c.son == null ? 'Henüz saat girilmedi' : 'Bu tarihlerde hesaplanacak gün yok (takip başlangıcından önce ya da saat girilen son günden sonra)';
+    var t = 'Hesaplanan: ' + DT.fmt(R.etkin.from) + ' – ' + DT.fmt(R.etkin.to), n = [];
+    if (R.etkin.from > a.from) n.push('takip başlangıcı');
+    if (R.etkin.to < a.to) n.push('saat girilen son gün');
+    return t + (n.length ? ' (' + n.join(' ve ') + ')' : '');
   }
   function scrMsDonem() {
-    var c = msCtx(), a = msDonemSec(c), R = MS.donem(c, a.from, a.to), T = MS.toplam(R), G = MS.gorevOzet(c, a.from, a.to), gd = c.m.donemGun || 20;
-    var HZ = [['donem', gd > 1 ? 'Bu dönem (' + gd + '’si)' : 'Bu dönem'], ['onceki', 'Önceki dönem'], ['buay', 'Bu ay'], ['gecenay', 'Geçen ay'], ['buyil', 'Bu yıl'], ['ozel', 'Tarih seç']];
-    var html = '<div class="card pad"><div class="chips">' + HZ.map(function (z) { return '<button class="chip' + ((ui.msDhz || 'donem') === z[0] ? ' on' : '') + '" data-act="msDhz" data-v="' + z[0] + '">' + h(z[1]) + '</button>'; }).join('') + '</div>' +
-      '<div class="grid2" style="margin-top:10px"><div class="field" style="margin:0"><label>Başlangıç</label><input type="date" class="inp" data-act-change="msDBas" value="' + DT.iso(a.from) + '"></div>' +
+    var c = msCtx(), a = msDonemSec(c), R = MS.donem(c, a.from, a.to), T = MS.toplam(R), G = MS.gorevOzet(c, a.from, a.to);
+    var cur = MS.donemAraligi(c, today, 0), ilk = c.bas != null ? MS.ayBul(c.m, c.bas) : cur, ops = [], x = cur;
+    for (var n = 0; n < 36; n++) { ops.push(x); if (x.y < ilk.y || (x.y === ilk.y && x.m <= ilk.m)) break; x = MS.ayDonemi(c.m, x.y, x.m - 1); }
+    if (!a.aralik && !ops.some(function (o) { return o.k === a.k; })) ops.unshift(a);
+    var secili = a.aralik ? 'ozel' : a.y + '-' + a.m;
+    var html = '<div class="card pad"><div class="field" style="margin:0 0 10px"><label>Ay</label><select class="inp" data-act-change="msDAy">' +
+      ops.map(function (o) { var v = o.y + '-' + o.m; return '<option value="' + v + '"' + (v === secili ? ' selected' : '') + '>' + h(o.ad + ' · ' + msAyAralik(o) + (o.k === cur.k ? ' · bu ay' : '')) + '</option>'; }).join('') +
+      '<option value="ozel"' + (secili === 'ozel' ? ' selected' : '') + '>Tarih seç</option></select></div>' +
+      '<div class="grid2"><div class="field" style="margin:0"><label>Başlangıç</label><input type="date" class="inp" data-act-change="msDBas" value="' + DT.iso(a.from) + '"></div>' +
       '<div class="field" style="margin:0"><label>Bitiş</label><input type="date" class="inp" data-act-change="msDBit" value="' + DT.iso(a.to) + '"></div></div>' +
-      '<div class="small muted" style="margin-top:8px">' + (R.etkin ? 'Hesaplanan: ' + DT.fmt(R.etkin.from) + ' – ' + DT.fmt(R.etkin.to) + (R.etkin.from !== a.from || R.etkin.to !== a.to ? ' (takip başlangıcı ve bugünle sınırlı)' : '') : 'Bu dönemde hesaplanacak gün yok') + '</div></div>';
+      '<div class="small muted" style="margin-top:8px">' + h(msEtkinYazi(c, R, a)) + '</div></div>';
     html += '<div class="kpis">' +
       '<div class="kpi"><div class="n msfzt">' + msSa(T.fazla, '0') + '</div><div class="l">Fazla mesai (saat)</div></div>' +
       '<div class="kpi"><div class="n">' + msSa(T.netTatil, '0') + '</div><div class="l">Resmi tatilde çalışma (saat)</div></div>' +
@@ -2395,16 +2481,16 @@
   function scrMsKisi(i, ym) {
     var c = msCtx(), p = c.m.personel[+i];
     if (!p) return msSayfa('/mesai', 'Personel', '<div class="card pad">Personel bulunamadı.</div>', { back: true });
-    var y, mo, mm = /^(\d{4})-(\d{1,2})$/.exec(ym || '');
-    if (mm) { y = +mm[1]; mo = +mm[2]; } else { var pt = DT.parts(today); y = pt.y; mo = pt.m; }
-    var a = MS.ayAraligi(y, mo), E = MS.donem(c, a.from, a.to, { personel: [p], gunler: true })[0];
+    var mm = /^(\d{4})-(\d{1,2})$/.exec(ym || ''), a = mm ? MS.ayDonemi(c.m, +mm[1], +mm[2]) : MS.donemAraligi(c, today, 0), y = a.y, mo = a.m;
+    var E = MS.donem(c, a.from, a.to, { personel: [p], gunler: true })[0];
     var onceki = mo === 1 ? (y - 1) + '-12' : y + '-' + (mo - 1), sonraki = mo === 12 ? (y + 1) + '-1' : y + '-' + (mo + 1);
-    var html = '<div class="calhead"><button class="icon" data-act="goto" data-replace="1" data-h="/mesai/kisi/' + i + '/' + onceki + '" aria-label="Önceki ay">' + I.left + '</button><div class="m">' + h(p) + '<div class="small muted" style="font-weight:500">' + DT.AYLAR[mo - 1] + ' ' + y + '</div></div>' +
+    var html = '<div class="calhead"><button class="icon" data-act="goto" data-replace="1" data-h="/mesai/kisi/' + i + '/' + onceki + '" aria-label="Önceki ay">' + I.left + '</button><div class="m">' + h(p) + '<div class="small muted" style="font-weight:500">' + h(a.ad + ' · ' + msAyAralik(a)) + '</div></div>' +
       '<button class="icon" data-act="goto" data-replace="1" data-h="/mesai/kisi/' + i + '/' + sonraki + '" aria-label="Sonraki ay">' + I.right + '</button></div>';
     html += '<div class="kpis"><div class="kpi"><div class="n msfzt">' + msSa(E.fazla, '0') + '</div><div class="l">Fazla mesai (saat)</div></div><div class="kpi"><div class="n">' + msSa(E.net, '0') + '</div><div class="l">Net · zorunlu ' + msSa(E.zor, '0') + '</div></div>' +
       '<div class="kpi"><div class="n' + (E.eksik ? ' red' : '') + '">' + msSa(E.eksik, '0') + '</div><div class="l">Eksik (saat)</div></div><div class="kpi"><div class="n">' + num(E.yemek) + '</div><div class="l">Yemek hakkı</div></div>' +
       '<div class="kpi"><div class="n">' + msSa(E.netTatil, '0') + '</div><div class="l">Resmi tatil (saat)</div></div><div class="kpi"><div class="n">' + num(E.cmt + E.paz) + '</div><div class="l">Hafta sonu günü</div></div></div>';
-    if (!E.gunler.length) html += '<div class="card">' + emptyBox('Bu ayda hesaplanan gün yok', 'Takip başlangıcından önce ya da ileri tarihli bir ay.') + '</div>';
+    if (!E.gunler.length) html += '<div class="card">' + emptyBox('Bu ayda hesaplanan gün yok', 'Takip başlangıcından önce, saat girilen son günden sonra ya da ileri tarihli bir ay.') + '</div>';
+    else if (E.gunler[E.gunler.length - 1].s < Math.min(a.to, today)) html += '<div class="small muted" style="margin:-2px 4px 8px">' + h(msSonYazi(c)) + '; sonraki günler hesaba girmedi.</div>';
     else html += '<div class="card list">' + E.gunler.slice().reverse().map(function (g) {
       var t = g.tatil, uy = [];
       if (t) uy.push('<span class="pillx ' + (t.tur === 'tam' ? 'p-or' : 'p-asi') + '">' + h(t.ad) + '</span>');
@@ -2412,13 +2498,13 @@
       if (g.gorev) uy.push('<span class="pillx p-sk">Görev' + (g.gorev.yer ? ': ' + h(g.gorev.yer) : '') + '</span>');
       if (g.cakisma) uy.push('<span class="pillx p-red">çakışan saat</span>');
       if (g.dinlenme != null) uy.push('<span class="pillx p-red">dinlenme ' + msSa(g.dinlenme) + ' sa</span>');
-      var bos = !g.rec && g.zorTam && !g.gorev;
+      var bos = !g.rec && g.zorTam && !g.gorev && g.s !== today;
       return '<a class="item msgs' + (g.hs ? ' hs' : '') + '" data-act="goto" data-h="/mesai/gun/' + DT.iso(g.s) + '"><div class="t1"><span class="name">' + DT.fmtShort(g.s) + ' <span class="muted" style="font-weight:500">' + MS.GUN3[DT.weekday(g.s) - 1] + '</span></span>' +
         '<span>' + (g.brut ? '<b>' + msSa(g.net) + ' sa</b>' : bos ? '<span class="mseks">girilmedi</span>' : '') + '</span></div>' +
         (g.rec && g.rec.a ? '<div class="t2">' + h(MS.aralikYazi(g.rec)) + (g.mola ? ' · mola ' + (g.mola === 60 ? '1 sa' : '30 dk') : '') + (g.yemek ? ' · ' + g.yemek + ' yemek' : '') + '</div>' : '') +
         (g.not ? '<div class="t2 muted">' + h(g.not) + '</div>' : '') + (uy.length ? '<div class="t3">' + uy.join('') + '</div>' : '') + '</a>';
     }).join('') + '</div>';
-    return msSayfa('/mesai', p + ' · ' + DT.AYLAR[mo - 1], html, { back: true });
+    return msSayfa('/mesai', p + ' · ' + a.ayAd, html, { back: true });
   }
 
   /* ---- Görevlendirme ---- */
@@ -2463,10 +2549,11 @@
       '<div class="row msayr"><span class="small grow">Takip başlangıcı</span><input class="inp" type="date" style="width:170px;flex:none" data-act-change="msBas" value="' + (m.bas != null ? DT.iso(m.bas) : '') + '"></div>' +
       '<div class="small muted" style="margin:-4px 2px 12px">' + (m.bas == null ? 'Boş: ilk kayıt günü' + (c.bas != null ? ' (' + DT.fmt(c.bas) + ')' : '') + '. ' : '') + 'Bu tarihten önceki günler zorunlu saate ve “girilmemiş” sayısına girmez.</div>' +
       '<div class="row msayr"><span class="small grow">Standart mesai</span><input class="inp center" style="width:84px;flex:none" inputmode="decimal" maxlength="5" data-act-change="msStd0" value="' + MS.hhmm(m.std[0]) + '"><span>–</span><input class="inp center" style="width:84px;flex:none" inputmode="decimal" maxlength="5" data-act-change="msStd1" value="' + MS.hhmm(m.std[1]) + '"></div>' +
-      '<div class="row msayr"><span class="small grow">Dönem başlangıç günü (dönem özeti)</span><input class="inp" type="number" min="1" max="28" style="width:80px;flex:none" data-act-change="msDonemGun" value="' + (m.donemGun || 20) + '"></div>' +
+      '<div class="row msayr"><div class="grow"><div class="small">Aylık dönem</div><div class="small muted">' + h(MS.kuralYazi(m)) + (m.donemGun > 1 ? ' · ay adı dönemin ' + (m.donemAd === 'bit' ? 'bittiği' : 'başladığı') + ' ay' : '') +
+      (Object.keys(m.aylar).length ? ' · ' + Object.keys(m.aylar).length + ' ayın tarihi elle girildi' : '') + '</div></div><button class="btn sm" data-act="msAyTarih" style="flex:none">' + I.cal + 'Ay tarihleri</button></div>' +
       '<div class="row msayr"><span class="small grow">Haftalık üst sınır (saat)</span><input class="inp" type="number" min="30" max="80" style="width:80px;flex:none" data-act-change="msUst" value="' + m.ust + '"></div>' +
       '<div class="note" style="line-height:1.5">Net saat: aralıkların toplamı; hafta içi mola 3,5 saatin altında yok, 3,5–7,5 saat 30 dk, daha uzunsa 1 saat; hafta sonu mola düşülmez. Zorunlu: iş günü 8, arife 4 saat; hafta sonu ve resmi tatil 0, izin günleri düşülür. ' +
-      'Fazla mesai: en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saat. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı görevde yok. 12 saat dinlenme: önceki günün son çıkışı ile günün ilk girişi arası. Resmi tatiller ve arifeler Listeler’den gelir.</div></div>';
+      'Fazla mesai: en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saat. Bitmemiş ayda zorunlu saat, saat girilen son güne kadar sayılır. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı görevde yok. 12 saat dinlenme: önceki günün son çıkışı ile günün ilk girişi arası. Resmi tatiller ve arifeler Listeler’den gelir.</div></div>';
     html += '<div class="card pad"><h2>Veri</h2><div class="small muted" style="margin-bottom:10px">' + num(kayit) + ' kişi-gün kaydı · ' + num(m.gorev.length) + ' görevlendirme</div>' +
       '<button class="btn pri block" data-act="msExcelSec" style="margin-bottom:8px">' + I.up + 'Excel’den al (Personel_Mesai_Takip.xlsx)</button>' +
       '<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="msWaSec">' + I.wa + 'WhatsApp dosyası</button><button class="btn" data-act="msWaYapistir">' + I.copy + 'Mesajları yapıştır</button></div>' +
@@ -2607,11 +2694,11 @@
         save(); render(true); toast(aday.length + ' kişi-gün yazıldı');
       });
     },
-    msDhz: function (el) { ui.msDhz = el.dataset.v; if (ui.msDhz === 'ozel') { var a = msDonemSec(msCtx()); ui.msDBas = a.from; ui.msDBit = a.to; } render(true); },
+    msAyTarih: function (el) { msAyTarihSheet(el.dataset.y); },
     msRapor: function () {
       var c = msCtx(), a = msDonemSec(c), hz = ui.msDhz || 'donem';
       ui.rpTur = 'mesai';
-      ui.rpHz = hz === 'donem' ? 'msdonem' : hz === 'onceki' ? 'msonceki' : hz === 'ozel' ? 'ozel' : hz;
+      ui.rpHz = hz === 'donem' ? 'msdonem' : hz === 'onceki' ? 'msonceki' : 'ozel';
       ui.rpBas = a.from; ui.rpBit = a.to;
       go('/dash/raporlar');
     },
@@ -2718,7 +2805,10 @@
         if (t == null) { toast('Saat okunamadı'); el.value = MS.hhmm(m.std[a === 'msStd0' ? 0 : 1]); return true; }
         m.std[a === 'msStd0' ? 0 : 1] = t; el.value = MS.hhmm(t); save(); return true;
       }
-      case 'msDonemGun': { var g = parseInt(el.value, 10); if (g >= 1 && g <= 28) { m.donemGun = g; save(); } else el.value = m.donemGun; return true; }
+      case 'msDAy': {
+        if (el.value === 'ozel') { var a1 = msDonemSec(msCtx()); ui.msDBas = a1.from; ui.msDBit = a1.to; }
+        ui.msDhz = el.value; render(true); return true;
+      }
       case 'msUst': { var u = parseInt(el.value, 10); if (u >= 30 && u <= 80) { m.ust = u; save(); } else el.value = m.ust; return true; }
       case 'msWaHarita': if (ui.msWa) { ui.msWa.harita[el.dataset.k] = el.value || null; render(true); } return true;
       case 'msWaSec': if (ui.msWa) { ui.msWa.sec[el.dataset.k] = el.checked; var b = $('[data-act=msWaUygula]'); if (b) { var r = MS.whatsapp(state, ui.msWa.metin, { harita: ui.msWa.harita }), n = r.satirlar.filter(function (x) { return msWaOn(ui.msWa, x); }).length; b.textContent = 'Seçilen ' + n + ' kişi-günü yaz'; b.disabled = !n; } } return true;
@@ -2726,6 +2816,10 @@
     return false;
   }
 
+  function msRpCipler() {
+    var c = msCtx(), a0 = MS.donemAraligi(c, today, 0), a1 = MS.donemAraligi(c, today, -1);
+    return [['msdonem', a0.ayAd + ' (' + msAyAralik(a0) + ')'], ['msonceki', a1.ayAd + ' (' + msAyAralik(a1) + ')']];
+  }
   /* ---------------- Raporlar: tarih aralığına göre PDF / Excel ---------------- */
   function rpDonem() {
     if (ui.rpHz === 'ozel') {
@@ -2792,7 +2886,7 @@
       '<div class="sec-title">Rapor</div><div class="card rpturler">' + RP.TURLER.map(function (t) {
         return '<button class="rptur' + (ui.rpTur === t[0] ? ' on' : '') + '" data-act="rpTur" data-v="' + t[0] + '"><span class="dot"></span><span class="grow"><b>' + h(t[1]) + '</b><span>' + h(t[2]) + '</span></span></button>';
       }).join('') + '</div>' +
-      '<div class="sec-title">Tarih aralığı</div><div class="card pad"><div class="chips">' + (ui.rpTur === 'mesai' ? [['msdonem', 'Bu dönem (' + (MS.hazirla(state).donemGun || 20) + '’si)'], ['msonceki', 'Önceki dönem']] : []).concat(RP.HAZIR).map(function (z) {
+      '<div class="sec-title">Tarih aralığı</div><div class="card pad"><div class="chips">' + (ui.rpTur === 'mesai' ? msRpCipler().concat(RP.HAZIR.filter(function (z) { return ['buay', 'gecenay', 'son3'].indexOf(z[0]) < 0; })) : RP.HAZIR).map(function (z) {
         return '<button class="chip' + (ui.rpHz === z[0] ? ' on' : '') + '" data-act="rpHz" data-v="' + z[0] + '">' + h(z[1]) + '</button>';
       }).join('') + '</div>' +
       (ui.rpHz === 'tumu' ? '<div class="small muted" style="margin-top:10px">Uygulamadaki bütün kayıtlar raporlanır.</div>' :
@@ -3454,7 +3548,13 @@
       IDB.get('sablon').then(function (t) { if (t && t.buf) arsivYukle(t.buf, t.ad); else pickFile('arsiv'); }, function () { pickFile('arsiv'); });
     },
     tabloWa: function () { if (!tabloKartKaydet()) return; tabloGonder('whatsapp'); },
-    rpTur: function (el) { ui.rpTur = el.dataset.v; if (ui.rpTur !== 'mesai' && /^ms/.test(ui.rpHz)) { var r0 = rpDonem(); ui.rpHz = 'ozel'; ui.rpBas = r0.from; ui.rpBit = r0.to; } render(true); },
+    rpTur: function (el) {
+      ui.rpTur = el.dataset.v;
+      // mesai raporu kullanıcının aylarıyla (Ay tarihleri), diğerleri takvim ayıyla
+      if (ui.rpTur !== 'mesai' && /^ms/.test(ui.rpHz)) ui.rpHz = ui.rpHz === 'msonceki' ? 'gecenay' : 'buay';
+      else if (ui.rpTur === 'mesai' && ['buay', 'gecenay', 'son3'].indexOf(ui.rpHz) >= 0) ui.rpHz = ui.rpHz === 'gecenay' ? 'msonceki' : 'msdonem';
+      render(true);
+    },
     rpHz: function (el) { ui.rpHz = el.dataset.v; var r = RP.hazir(ui.rpHz, today); ui.rpBas = r.from; ui.rpBit = r.to; render(true); },
     rpAc: function (el) { ui.rpTur = el.dataset.v || ui.rpTur; go('/dash/raporlar'); },
     rpUret: function (el) { rpUret(el.dataset.v); },

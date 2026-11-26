@@ -61,8 +61,13 @@ sayfalarıyla .xlsx üretir.
 ## Personel mesai
 
 PERSONEL MESAİ bölümü Personel_Mesai_Takip.xlsx’ten yapıldı (`js/mesai.js`). Sayfalar: Özet (bu ay ve bu hafta), Günlük giriş,
-Haftalık, Aylık fazla mesai (takvim ayı), Dönem özeti (ayın 20’si – ertesi ayın 19’u; gün Ayarlar’dan değişir), Görevlendirme,
-personelin ayı ve Ayarlar. Kayıt: `state.mesai.gun[tarih][PERSONEL] = { a: [[giriş, çıkış], …], iz, n }` (dakika).
+Haftalık, Aylık fazla mesai, Dönem özeti (bir ay ya da seçilen tarih aralığı), Görevlendirme, personelin ayı ve Ayarlar.
+Kayıt: `state.mesai.gun[tarih][PERSONEL] = { a: [[giriş, çıkış], …], iz, n }` (dakika).
+
+- Ay tarihleri: aylık hesap kullanıcının belirlediği tarihlerle yapılır. Kural: ayın N’i – ertesi ayın N−1’i (varsayılan 20’si – 19’u)
+  ya da takvim ayı; ay adı dönemin başladığı ya da bittiği ay. Her ayın başlangıç–bitiş tarihi ayrıca elle değiştirilebilir
+  (`mesai.aylar['2026-11'] = { bas, bit }`); aylar arasında boşluk ya da çakışma varsa uyarılır. Aylık fazla mesai, Dönem özeti,
+  ana sayfa, personelin ayı, rapor ve Excel’e aktarma bu ayları kullanır.
 
 - Günlük giriş: günde 4 aralığa kadar giriş–çıkış (“0830”, “8.30”, “17:30” yazılabilir; 4 hane yazınca sonraki kutuya geçer),
   tam gün ya da saatlik izin, not; saat yazıldıkça kaydedilir. “08:00–17:00” düğmesi standart mesaiyi yazar; girilmemiş herkese ya da
@@ -70,8 +75,8 @@ personelin ayı ve Ayarlar. Kayıt: `state.mesai.gun[tarih][PERSONEL] = { a: [[g
 - Kurallar Excel’deki gibidir: aralık çıkışı girişten önceyse ertesi gün (00:00–00:00 = 24 saat); hafta içi mola 3,5 saatin altında yok,
   3,5–7,5 saat 30 dk, daha uzunsa 1 saat; hafta sonu mola yok. Zorunlu: iş günü 8, arife 4 saat, izin düşülür. Fazla mesai =
   en çok(0, tatil dışı net − zorunlu) + resmi tatilde çalışılan saatin tamamı. Yemek: 3,5 saat 1, 10 saat 2; resmi tatilde ve şehir dışı
-  görevde yok. 12 saat dinlenme, çakışan aralık ve haftalık 48 saat uyarısı. Takip başlangıcından önceki günler, ileri tarihler ve
-  henüz yazılmamış bugün zorunluya girmez.
+  görevde yok. 12 saat dinlenme, çakışan aralık ve haftalık 48 saat uyarısı. Takip başlangıcından önceki günler ve saat girilen
+  son günden sonrası (Excel’deki “son giriş”) zorunluya girmez; bugün kendisi için yazılmadıysa bugün de girmez.
 - Excel’den al: “Mesai Takip” sayfasındaki haftalık bloklar (Giriş/Çıkış başlıkları, eski tek aralık + ARA düzeni de) ve
   “Görevlendirme” sayfası; yeni / değişecek / aynı sayıları önce gösterilir, dosyada olmayan günler korunur.
 - WhatsApp’tan al: grubun dışa aktarılan sohbeti (.txt ya da .zip; WhatsApp’ta Sohbeti dışa aktar › Donör Takip ile doğrudan da
