@@ -1,0 +1,7 @@
+<resources>
+    <style name="Tema" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/koyu</item>
+        <item name="android:windowBackground">@color/zemin</item>
+        <item name="android:colorAccent">#B8894A</item>
+    </style>
+</resources>
